@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mythic Toolkit — test run</title>
+
+<!-- The real app stylesheets, so tabs render the way they do in production. -->
+<link rel="stylesheet" href="../css/vendor-easymde.css">
+<link rel="stylesheet" href="../css/app.css">
+
+<style>
+  /* Test-report chrome (kept separate from the app's own CSS). */
+  #report {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 40vw; min-width: 360px;
+    overflow: auto; background: #14110d; color: #e8e2d4; z-index: 9999;
+    border-left: 2px solid #5c513c; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    padding: 12px 14px;
+  }
+  #report h1 { font-size: 14px; margin: 0 0 8px; letter-spacing: .04em; text-transform: uppercase; color: #c9a24a; }
+  #report .summary { padding: 8px 10px; border-radius: 6px; font-weight: 700; margin-bottom: 10px; }
+  #report .summary.running { background: #2a2416; }
+  #report .summary.ok { background: #1f3a22; color: #9fe0a6; }
+  #report .summary.bad { background: #3d1f1f; color: #f0a6a6; }
+  #report ul.testlist { list-style: none; margin: 0; padding: 0; }
+  #report ul.testlist li { padding: 2px 0; white-space: pre-wrap; }
+  #report ul.testlist li.pass { color: #86c98e; }
+  #report ul.testlist li.fail { color: #f0a6a6; font-weight: 700; }
+  #report ul.testlist li pre {
+    margin: 3px 0 8px; padding: 6px 8px; background: #241414; border-radius: 4px;
+    color: #f7c7c7; font-weight: 400; white-space: pre-wrap;
+  }
+  /* leave room for the report panel */
+  body > .wrap { max-width: 55vw; }
+</style>
+</head>
+<body>
+
+<!-- ===== The app's own DOM, verbatim from mythic.html ===== -->
+<div class="wrap">
+
+<header class="top">
+  <div class="brand">
+    <span class="glyph">&#9670;&#9670;&#9670;</span>
+    <h1>Mythic Toolkit</h1>
+    <span class="sub">Digital dice-tray for the One-Page GM Emulator suite</span>
+  </div>
+  <div class="campaign-bar" id="campaignBar">
+    <label for="campaignSelect">Campaign</label>
+    <select id="campaignSelect"></select>
+    <button class="btn small" id="btnNewCampaign">New</button>
+    <button class="btn small" id="btnRenameCampaign">Rename</button>
+    <button class="btn small danger" id="btnDeleteCampaign">Delete</button>
+    <span class="campaign-bar-divider"></span>
+    <button class="btn small" id="btnExportCampaign">Export</button>
+    <button class="btn small" id="btnImportCampaign">Import</button>
+    <input type="file" id="importFileInput" accept="application/json,.json" style="display:none;">
+  </div>
+</header>
+
+<nav class="tabs" id="tabNav"></nav>
+<main class="panel" id="panelHost"></main>
+
+<section class="note-section" id="noteSection"></section>
+<section class="log-section" id="logSection"></section>
+
+</div>
+
+<div id="report"><h1>Mythic Toolkit tests</h1><div id="results"></div></div>
+
+<!-- ===== Vendor libraries ===== -->
+<script src="../js/vendor/marked.min.js"></script>
+<script src="../js/vendor/dompurify.min.js"></script>
+<script src="../js/vendor/easymde.min.js"></script>
+
+<!-- ===== App code under test (same order as mythic.html) ===== -->
+<script src="../js/app/01-data-tables.js"></script>
+<script src="../js/app/02-dice-markdown-utils.js"></script>
+<script src="../js/app/03-state-persistence.js"></script>
+<script src="../js/app/04-tab-render-scaffolding.js"></script>
+<script src="../js/app/05-campaign-bar.js"></script>
+<script src="../js/app/06-tab-game-master.js"></script>
+<script src="../js/app/07-tab-adventure-crafter.js"></script>
+<script src="../js/app/08-tab-location-crafter.js"></script>
+<script src="../js/app/09-tab-creature-crafter.js"></script>
+<script src="../js/app/10-tab-character-crafter.js"></script>
+<script src="../js/app/11-tab-mystery-matrix.js"></script>
+<script src="../js/app/12-quick-note.js"></script>
+<script src="../js/app/13-campaign-log.js"></script>
+<script src="../js/app/14-init.js"></script>
+
+<!-- ===== Test runner, helpers, specs (runner first: it defines describe/it/expect) ===== -->
+<script src="runner.js"></script>
+<script src="helpers.js"></script>
+<script src="specs/01-data-tables.spec.js"></script>
+<script src="specs/02-utils.spec.js"></script>
+<script src="specs/03-state-persistence.spec.js"></script>
+<script src="specs/04-ui-scaffolding.spec.js"></script>
+<script src="specs/05-gm-tab.spec.js"></script>
+<script src="specs/06-adventure-tab.spec.js"></script>
+<script src="specs/07-location-tab.spec.js"></script>
+<script src="specs/08-creature-character-tab.spec.js"></script>
+<script src="specs/09-mystery-matrix.spec.js"></script>
+<script src="specs/10-note-and-log.spec.js"></script>
+</body>
+</html>
