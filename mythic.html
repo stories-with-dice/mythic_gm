@@ -340,9 +340,18 @@ table.matrix-table{
 .matrix-table .col-lbl, .matrix-table .row-lbl{
   font-family:var(--font-display);
   font-size:12.5px;
+  color:var(--text);
+  background:transparent;
+  border:none;
+  border-bottom:1px dashed transparent;
   outline:none;
-  padding-right:14px;
+  text-align:inherit;
+  width:100%;
+  padding:0 14px 2px 0;
+  cursor:text;
 }
+.matrix-table .col-lbl:hover, .matrix-table .row-lbl:hover{border-bottom-color:var(--line-soft);}
+.matrix-table .col-lbl:focus, .matrix-table .row-lbl:focus{border-bottom-color:var(--gold-bright);}
 .matrix-table .col-count, .matrix-table .row-count{
   font-family:var(--font-mono);
   font-size:10px;
@@ -765,6 +774,7 @@ function timestamp(){
   return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
 }
 function escapeMd(s){ return (s||"").replace(/\|/g,"\\|"); }
+function escapeAttr(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 /* =========================================================================
    STATE / PERSISTENCE  (sessionStorage, keyed by campaign)
@@ -1525,18 +1535,18 @@ function renderMatrixTable(m){
   const suspectHeaders = suspects.map(s=>`
     <th class="suspect-col ${s.uid===m.solvedBoxUid?'solved':''}" data-uid="${s.uid}">
       <button class="rm" data-rm="${s.uid}" title="Remove">&#10005;</button>
-      <div class="col-lbl" contenteditable="true" data-edit="${s.uid}">${s.label}</div>
+      <input type="text" class="col-lbl" data-edit="${s.uid}" value="${escapeAttr(s.label)}">
       <div class="col-count">${s.connections.length} conn.</div>
     </th>`).join('');
   const bodyRows = clues.map(c=>{
     const cells = suspects.map(s=>{
       const checked = c.connections.includes(s.uid) ? 'checked' : '';
-      return `<td class="cell ${s.uid===m.solvedBoxUid?'solved-col':''}"><input type="checkbox" data-clue="${c.uid}" data-suspect="${s.uid}" ${checked} title="${escapeMd(c.label)} \u2194 ${escapeMd(s.label)}"></td>`;
+      return `<td class="cell ${s.uid===m.solvedBoxUid?'solved-col':''}"><input type="checkbox" data-clue="${c.uid}" data-suspect="${s.uid}" ${checked} title="${escapeAttr(c.label)} \u2194 ${escapeAttr(s.label)}"></td>`;
     }).join('');
     return `<tr>
       <th class="clue-row" data-uid="${c.uid}">
         <button class="rm" data-rm="${c.uid}" title="Remove">&#10005;</button>
-        <div class="row-lbl" contenteditable="true" data-edit="${c.uid}">${c.label}</div>
+        <input type="text" class="row-lbl" data-edit="${c.uid}" value="${escapeAttr(c.label)}">
         <div class="row-count">${c.connections.length} conn.</div>
       </th>
       ${cells}
@@ -1697,11 +1707,16 @@ function wireMystery(){
     el.addEventListener('blur', ()=>{
       const uid = Number(el.dataset.edit);
       const box = boxByUid(uid);
-      const newLabel = el.textContent.trim();
+      const newLabel = el.value.trim();
       if(newLabel && newLabel!==box.label){
         box.label = newLabel;
         persist();
+      } else {
+        el.value = box.label;
       }
+    });
+    el.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter'){ e.preventDefault(); el.blur(); }
     });
   });
   document.querySelectorAll('input[type="checkbox"][data-clue]').forEach(cb=>{
