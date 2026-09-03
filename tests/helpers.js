@@ -11,7 +11,7 @@
 window.resetApp = function resetApp() {
   try { sessionStorage.removeItem('mythicToolkit_v1'); } catch (_) {}
   STORE = loadStore();                 // global `let` from 03-state-persistence.js
-  currentTab = 'gm';                   // global `let` from 04-tab-render-scaffolding.js
+  currentTab = 'gme';                  // global `let` from 04-tab-render-scaffolding.js (default landing tab)
 
   // transient per-tab view state (module-level `let`s) — clear so tests don't
   // leak rolled words / cached "last result" HTML into each other
@@ -22,6 +22,10 @@ window.resetApp = function resetApp() {
   lastTurningPointHtml = '';
   lastSinglePlotHtml = '';
   lastDiscoveryHtml = '';
+  gmeSceneTestHtml = '';
+  gmeListRollHtml = { threads: '', characters: '' };
+  gmeTrackResultHtml = {};
+  gmeFocusEditorOpen = false;
 
   renderCampaignBar();
   renderTabNav();

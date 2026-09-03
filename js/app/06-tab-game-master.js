@@ -44,6 +44,15 @@ function renderGM(){
   `;
 }
 let gmWordLog = []; // transient list of discover-meaning words rolled this session (per-tab view only)
+
+// Roll a Random Event's inspiration words: a Discover Meaning Action + Description
+// pair. Shared so other tabs (e.g. Mythic GME's Interrupt Scene) generate a
+// Random Event exactly the way the Game Master tab does.
+function randomEventWords(){
+  const ra = rollDie(100), rd = rollDie(100);
+  return { a:{ roll:ra, word:discoverWord(ra,'action') }, d:{ roll:rd, word:discoverWord(rd,'desc') } };
+}
+
 function wireGM(){
   document.getElementById('btnAskGM').addEventListener('click', ()=>{
     const q = document.getElementById('gmQuestion').value.trim();
@@ -55,11 +64,10 @@ function wireGM(){
       <span class="roll-num">${roll}</span> &nbsp; Odds: <b>${odds}</b> &nbsp;→&nbsp; <span class="answer-tag ${cls?'no':'yes'}">${answer}</span>`;
     let md = `**Ask the GM** — ${q?('"'+escapeMd(q)+'" — '):''}Odds: ${odds} — Roll: **${roll}** → **${answer}**`;
     if(isDouble){
-      const a1 = rollDie(100), w1 = discoverWord(a1,'action');
-      const a2 = rollDie(100), w2 = discoverWord(a2,'desc');
+      const ev = randomEventWords();
       html += `<div class="small-note">Double rolled — Random Event triggered!</div>
-        <div class="word-chip"><b>${w1}</b></div><div class="word-chip"><b>${w2}</b></div>`;
-      md += `\n  - 🎲 *Random Event triggered (double roll)* → Discover Meaning: **${w1} / ${w2}**`;
+        <div class="word-chip"><b>${ev.a.word}</b></div><div class="word-chip"><b>${ev.d.word}</b></div>`;
+      md += `\n  - 🎲 *Random Event triggered (double roll)* → Discover Meaning: **${ev.a.word} / ${ev.d.word}**`;
     }
     html += `</div>`;
     document.getElementById('gmResult').innerHTML = html;
@@ -83,9 +91,8 @@ function wireGM(){
   renderWordLog();
 
   document.getElementById('btnRandomEvent').addEventListener('click', ()=>{
-    const a1 = rollDie(100), w1 = discoverWord(a1,'action');
-    const a2 = rollDie(100), w2 = discoverWord(a2,'desc');
-    document.getElementById('eventResult').innerHTML = `<div class="result-box event"><div class="word-chip"><b>${w1}</b></div><div class="word-chip"><b>${w2}</b></div></div>`;
-    addLog('Random Event', `**Random Event** → Discover Meaning: **${w1} / ${w2}**`);
+    const ev = randomEventWords();
+    document.getElementById('eventResult').innerHTML = `<div class="result-box event"><div class="word-chip"><b>${ev.a.word}</b></div><div class="word-chip"><b>${ev.d.word}</b></div></div>`;
+    addLog('Random Event', `**Random Event** → Discover Meaning: **${ev.a.word} / ${ev.d.word}**`);
   });
 }

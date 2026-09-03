@@ -5,9 +5,11 @@ describe('UI scaffolding', () => {
   beforeEach(resetApp);
 
   describe('tab nav', () => {
-    it('renders one button per TABS entry, GM active by default', () => {
+    it('renders one button per TABS entry, first tab (Mythic GME) active by default', () => {
       const btns = $$('#tabNav button');
       expect(btns).toHaveLength(TABS.length);
+      expect(TABS[0].id).toBe('gme');
+      expect(btns[0].dataset.tab).toBe('gme');
       expect(btns[0].classList.contains('active')).toBe(true);
       expect(btns.map(b => b.dataset.tab)).toEqual(TABS.map(t => t.id));
     });

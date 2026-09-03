@@ -1,7 +1,7 @@
 # AGENTS.md — Mythic Toolkit
 
 Orientation doc for any agent (human or AI) that needs to review, fix, or extend
-this project. `mythic.html` is the entry point; the code lives in `css/` and
+this project. `index.html` is the entry point; the code lives in `css/` and
 `js/` beside it (see "File map"). Read this before touching anything. It explains
 the mental model, the conventions every tab follows, and the specific mistakes
 that have already been made and fixed once — don't reintroduce them.
@@ -18,7 +18,7 @@ in the header, with export/import to JSON.
 
 **Hard constraint: this must keep working fully offline with no build step.**
 No CDN links, no external fetches, no bundler, no transpile. It used to be a
-single self-contained `.html`; it is now split across plain files (`mythic.html`
+single self-contained `.html`; it is now split across plain files (`index.html`
 + `css/` + `js/`) that the browser loads directly over `file://`. Vendor
 libraries are still fetched once (via npm) and their minified source saved
 verbatim under `js/vendor/` — never add a `<script src="https://...">`.
@@ -29,7 +29,7 @@ There is still no package.json and no bundler. There **is** now a test suite
 ### Why it's still not a module system
 
 `js/app/*.js` are **classic (non-module) scripts sharing one global scope**,
-loaded in numbered order by `mythic.html`. That's deliberate: the old
+loaded in numbered order by `index.html`. That's deliberate: the old
 single-file code was one flat script, so every `function`/`const`/`let` was
 already a global and the tabs cross-reference each other freely
 (`renderActive()` dispatches to every `renderX`, `addLog()` calls
@@ -41,14 +41,14 @@ split a pure cut-and-paste with zero behaviour change. Consequences to respect:
   which runs immediately — anything it needs must already be defined.
 - **No name may be declared in two files** (`let`/`const` redeclaration across
   classic scripts is a load-time `SyntaxError`).
-- If you add a file, insert its `<script>` in `mythic.html` **and**
+- If you add a file, insert its `<script>` in `index.html` **and**
   `tests/tests.html` at the same position, and give it a `NN-` prefix that
   keeps the order obvious.
 
 ## File map
 
 ```
-mythic.html                 shell only: <head> links + the body skeleton
+index.html                  shell only: <head> links + the body skeleton
                             (header/.campaign-bar, nav#tabNav, main#panelHost,
                             section#noteSection, section#logSection) + the
                             ordered <script> list.
@@ -70,7 +70,7 @@ js/app/                     the app, one file per former `===== SECTION =====`
 | `03-state-persistence.js`        | `STORAGE_KEY`, `freshCampaign()`, `sanitizeBox()`/`sanitizeCampaign()` (import validation), `loadStore()`/`saveStore()`, `STORE`, `campaign()`, `persist()`, `addLog()` |
 | `04-tab-render-scaffolding.js`   | `TABS`, `currentTab`, `renderTabNav()`, `renderActive()`, `wireActive()` |
 | `05-campaign-bar.js`             | `renderCampaignBar()`, `clearNoteDraft()`, `wireCampaignBar()` (New/Rename/Delete/Export/Import) |
-| `06-tab-game-master.js`          | `renderGM()` / `wireGM()` |
+| `06-tab-game-master.js`          | `renderGM()` / `wireGM()`; `randomEventWords()` — a Discover Meaning Action+Description pair, shared with the Mythic GME tab's Interrupt Scene |
 | `07-tab-adventure-crafter.js`    | `renderAdventure()` / `wireAdventure()` |
 | `08-tab-location-crafter.js`     | `REGION_START_PP`, `renderLocation()` / `wireLocation()` |
 | `09-tab-creature-crafter.js`     | `renderCreature()` / `wireCreature()` |
@@ -78,7 +78,8 @@ js/app/                     the app, one file per former `===== SECTION =====`
 | `11-tab-mystery-matrix.js`       | `boxByUid`, `renderMatrixTable()`, `renderMystery()`, `addBox`, `rollMysteryWords`, `toggleConnection`, `connectionExists`, `checkClincherByConnections`, `rollMatrixTarget`, `wireMystery()` |
 | `12-quick-note.js`              | `noteMDE`, `renderNoteSection()` / `wireNoteSection()` |
 | `13-campaign-log.js`            | `buildLogMarkdown()` (raw MD, source of truth), `renderLogHtml()` (MD→sanitized HTML for display only), `renderLogSection()` / `wireLogSection()` |
-| `14-init.js`                    | `DOMContentLoaded` handler that kicks everything off |
+| `14-tab-mythic-gme.js`         | **Full Mythic GME 2e** tab — **first in `TABS`, the default landing tab** (the others are One-Page Mythic): `discoveryCheckResult()`, `DISCOVERY_ODDS`, `sceneAdjustment()` / `SCENE_ADJUSTMENTS`, `rollEventFocus()`, `oneMeaningWord()`, `renderMythicGME()` / `wireMythicGME()`. Threads/Characters Lists, Chaos Factor, Expected-Scene test (Altered → Scene Adjustment + word; Interrupt → editable Event Focus table + word), collapsible Thread Progress Tracks, collapsible editable Random Event Focus Table. Fate Questions here call `askTheGM()` from the GM tab. |
+| `15-init.js`                    | `DOMContentLoaded` handler that kicks everything off |
 
 ## The render/wire convention (every tab follows this — keep it consistent)
 
@@ -130,9 +131,23 @@ STORE = {
   location:  { pp, regionSize, areaCount, complete, ppSetupDone },
   adventure: { mainTheme },
   mystery:   { boxes: [{uid, type:'C'|'S', label, connections:[uid,...]}], nextUid, solvedBoxUid },
+  gme:       { chaosFactor(1-9), sceneNumber, expectedScene,
+               threads:[str], characters:[str],   // duplicates allowed = weighting
+               tracks: [{id, focus, size:10|15|20, points, flashpoints:[bool], concluded, collapsed}],
+               nextTrackId,
+               eventFocusTable: [{max, result}] },  // editable Random Event Focus Table (1d100 bands)
   log:       [{ts, section, md}]
 }
 ```
+
+`gme` is the "full Mythic" tab's state. `TRACK_SIZES` / `trackFlashphases(size)`
+(= `size/5 - 1`, the number of Flashpoint checkpoints) and `DEFAULT_EVENT_FOCUS`
+/ `defaultEventFocus()` live in `03-state-persistence.js` next to
+`sanitizeTrack()`. Scene-test outcomes: **Expected** = start as imagined;
+**Altered** = roll `sceneAdjustment()` (Scene Adjustment Table, 1d10) + one
+Meaning word; **Interrupt** = `rollEventFocus()` against `gme.eventFocusTable`
+(the editable 1d100 table) + one Meaning word. Those three helpers are in
+`14-tab-mythic-gme.js`.
 
 - `campaign()` returns the currently-selected campaign object; almost every
   handler mutates fields on it directly, then calls `persist()`.
@@ -187,7 +202,7 @@ free-typed by the user and gets rendered as HTML; without it, typing raw
 
 To update or add a library: `npm install <pkg>` in a scratch dir, locate its
 UMD/minified dist file, and save it verbatim as `js/vendor/<name>.min.js`,
-then add a `<script src>` for it in `mythic.html` **and** `tests/tests.html`
+then add a `<script src>` for it in `index.html` **and** `tests/tests.html`
 (before the `js/app/*` scripts). Re-run the tests afterward.
 
 ### EasyMDE gotcha that already caused one bug — don't re-break this
@@ -288,9 +303,14 @@ When you add behaviour, add an `it()` to the matching spec (or a new spec
 file + a `<script>` line in `tests/tests.html`). The pure-logic specs
 (`01`–`03`) already spot-check the data-table transcriptions against the
 cheat sheet and every documented `sanitizeCampaign()` invariant; the
-UI specs (`04`–`10`) cover each tab's roll buttons, the "last result survives
-re-render" cache pattern, Mystery Matrix connection/Clincher logic, and the
-Quick Note → Log → sanitised-HTML pipeline.
+UI specs (`04`–`11`) cover each tab's roll buttons, the "last result survives
+re-render" cache pattern, Mystery Matrix connection/Clincher logic, the
+Quick Note → Log → sanitised-HTML pipeline, and (`11`) the Mythic GME tab —
+Chaos Factor clamp, Expected-Scene test (Altered → Scene Adjustment + word,
+Interrupt → Event Focus + word) with `sceneAdjustment()` / `rollEventFocus()`
+unit tests, the collapsible editable Event Focus Table (add/remove/edit/reset,
+sanitiser), list add/dupe/remove/roll, and Progress Track progress /
+auto-Flashpoint / Conclusion / Discovery Check / collapse toggle.
 
 Note the harness still can't catch everything: subtle real-browser
 click/focus/paint behaviour (the kind that broke contenteditable and the
