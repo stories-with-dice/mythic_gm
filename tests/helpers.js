@@ -26,6 +26,11 @@ window.resetApp = function resetApp() {
   gmeListRollHtml = { threads: '', characters: '' };
   gmeTrackResultHtml = {};
   gmeFocusEditorOpen = false;
+  pubSceneTestHtml = '';
+  pubCrisisHtml = '';
+  pubElementHtml = '';
+  pubMeaningRollHtml = '';
+  pubFlowOpen = false;
 
   renderCampaignBar();
   renderTabNav();

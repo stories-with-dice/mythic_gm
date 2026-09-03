@@ -29,6 +29,25 @@ const DEFAULT_EVENT_FOCUS = [
 ];
 function defaultEventFocus(){ return DEFAULT_EVENT_FOCUS.map(r => ({ ...r })); }
 
+// Valid Adventure Die specs for the "Deconstruct The Known" method
+// (Mythic Magazine #50). `1d100` and multi-d20 sums are the awkward large cases.
+const ADVENTURE_DICE = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20', '2d20', '3d20', '4d20', 'd100'];
+const DIMINISHER_VALUES = ['1/3', '1/5', '1/7', '1/10'];
+
+function freshDeconstructed(){
+  return {
+    title: "",
+    pageCount: 0,            // total pages of the prepared adventure (0 = not set)
+    adventureDie: "d20",
+    latestPage: 0,           // running page counter (0 = nothing rolled yet)
+    pageHistory: [],         // every rolled page, in order
+    firstSceneConcept: "",
+    meaningList: [],          // Adventure Meaning List — single words, max 20
+    crisisPP: 0,             // Crisis Scene Progress Points
+    diminisher: "1/3"
+  };
+}
+
 function freshCampaign(){
   return {
     location: { pp:0, regionSize:"Average", areaCount:0, complete:false, ppSetupDone:false },
@@ -42,7 +61,8 @@ function freshCampaign(){
       characters: [],          // Characters List — same
       tracks: [],              // Thread Progress Tracks (see sanitizeTrack)
       nextTrackId: 1,
-      eventFocusTable: defaultEventFocus()   // editable Random Event Focus Table
+      eventFocusTable: defaultEventFocus(),  // editable Random Event Focus Table
+      deconstructed: freshDeconstructed()    // "Published Adventures" tab (shares chaosFactor/scene/lists/focus above)
     },
     log: []
   };
@@ -74,6 +94,27 @@ function sanitizeTrack(t){
     focus, size, points, flashpoints,
     concluded: !!t.concluded || points >= size,
     collapsed: !!t.collapsed
+  };
+}
+
+function sanitizeDeconstructed(raw){
+  const d = (raw && typeof raw === "object") ? raw : {};
+  const base = freshDeconstructed();
+  const posInt = (v, dflt) => (Number.isFinite(v) && v >= 0) ? Math.round(v) : dflt;
+  return {
+    title: typeof d.title === "string" ? d.title : "",
+    pageCount: posInt(d.pageCount, 0),
+    adventureDie: ADVENTURE_DICE.includes(d.adventureDie) ? d.adventureDie : base.adventureDie,
+    latestPage: posInt(d.latestPage, 0),
+    pageHistory: Array.isArray(d.pageHistory)
+      ? d.pageHistory.map(Number).filter(n => Number.isFinite(n) && n >= 0).map(n => Math.round(n)).slice(-500)
+      : [],
+    firstSceneConcept: typeof d.firstSceneConcept === "string" ? d.firstSceneConcept : "",
+    meaningList: Array.isArray(d.meaningList)
+      ? d.meaningList.filter(s => typeof s === "string" && s.trim()).map(s => s.trim()).slice(0, 20)
+      : [],
+    crisisPP: posInt(d.crisisPP, 0),
+    diminisher: DIMINISHER_VALUES.includes(d.diminisher) ? d.diminisher : base.diminisher
   };
 }
 
@@ -154,7 +195,9 @@ function sanitizeCampaign(raw){
     : [];
   if(!eventFocusTable.length) eventFocusTable = defaultEventFocus();
 
-  const gme = { chaosFactor, sceneNumber, expectedScene, threads, characters, tracks, nextTrackId, eventFocusTable };
+  const deconstructed = sanitizeDeconstructed(rawGme.deconstructed);
+
+  const gme = { chaosFactor, sceneNumber, expectedScene, threads, characters, tracks, nextTrackId, eventFocusTable, deconstructed };
 
   const log = Array.isArray(raw.log) ? raw.log
     .filter(e=>e && typeof e==="object")

@@ -79,7 +79,8 @@ js/app/                     the app, one file per former `===== SECTION =====`
 | `12-quick-note.js`              | `noteMDE`, `renderNoteSection()` / `wireNoteSection()` |
 | `13-campaign-log.js`            | `buildLogMarkdown()` (raw MD, source of truth), `renderLogHtml()` (MD→sanitized HTML for display only), `renderLogSection()` / `wireLogSection()` |
 | `14-tab-mythic-gme.js`         | **Full Mythic GME 2e** tab — **first in `TABS`, the default landing tab** (the others are One-Page Mythic): `discoveryCheckResult()`, `DISCOVERY_ODDS`, `sceneAdjustment()` / `SCENE_ADJUSTMENTS`, `rollEventFocus()`, `oneMeaningWord()`, `renderMythicGME()` / `wireMythicGME()`. Threads/Characters Lists, Chaos Factor, Expected-Scene test (Altered → Scene Adjustment + word; Interrupt → editable Event Focus table + word), collapsible Thread Progress Tracks, collapsible editable Random Event Focus Table. Fate Questions here call `askTheGM()` from the GM tab. |
-| `15-init.js`                    | `DOMContentLoaded` handler that kicks everything off |
+| `15-tab-published-adventures.js` | **Published Adventures** tab (2nd in `TABS`) — "Deconstruct The Known" (Mythic Magazine #50). **Shares `gme.chaosFactor` / `sceneNumber` / `expectedScene` / lists / `eventFocusTable`** with the Mythic GME tab; its own state is `gme.deconstructed`. `ADVENTURE_DIE_BANDS` / `adventureDieOptions()` / `rollAdventureDie()`, `PAGE_SECTIONS`, `crisisElement()` (Crisis Scene Element Table), `specialElement()` (Special Elements Table), `rollAdventureElement()` (page counter + wrap), `renderPublished()` / `wirePublished()`, plus a collapsible `PUB_FLOW_HTML` "How it works" flowchart. Its scene test is the Deconstructed variant: `>CF & odd → Expected`, `>CF & even → Crisis Scene`, `≤CF → Altered (odd, +Adventure Element) / Interrupt (even, +Event Focus +Adventure Element)`. |
+| `16-init.js`                    | `DOMContentLoaded` handler that kicks everything off |
 
 ## The render/wire convention (every tab follows this — keep it consistent)
 
@@ -135,7 +136,10 @@ STORE = {
                threads:[str], characters:[str],   // duplicates allowed = weighting
                tracks: [{id, focus, size:10|15|20, points, flashpoints:[bool], concluded, collapsed}],
                nextTrackId,
-               eventFocusTable: [{max, result}] },  // editable Random Event Focus Table (1d100 bands)
+               eventFocusTable: [{max, result}],   // editable Random Event Focus Table (1d100 bands)
+               deconstructed: {                     // Published Adventures tab (Mythic Mag #50)
+                 title, pageCount, adventureDie, latestPage, pageHistory:[int],
+                 firstSceneConcept, meaningList:[str]<=20, crisisPP, diminisher } },
   log:       [{ts, section, md}]
 }
 ```
@@ -148,6 +152,13 @@ STORE = {
 Meaning word; **Interrupt** = `rollEventFocus()` against `gme.eventFocusTable`
 (the editable 1d100 table) + one Meaning word. Those three helpers are in
 `14-tab-mythic-gme.js`.
+
+`gme.deconstructed` is the Published Adventures tab's own state; `freshDeconstructed()`
+/ `sanitizeDeconstructed()` / `ADVENTURE_DICE` / `DIMINISHER_VALUES` are in
+`03-state-persistence.js`. That tab deliberately reads and writes the *shared*
+`gme.chaosFactor` / `sceneNumber` / `expectedScene` / `threads` / `characters` /
+`eventFocusTable` (same campaign, one scene clock) and adds only the
+deconstructed-specific panels on top.
 
 - `campaign()` returns the currently-selected campaign object; almost every
   handler mutates fields on it directly, then calls `persist()`.
@@ -303,14 +314,19 @@ When you add behaviour, add an `it()` to the matching spec (or a new spec
 file + a `<script>` line in `tests/tests.html`). The pure-logic specs
 (`01`–`03`) already spot-check the data-table transcriptions against the
 cheat sheet and every documented `sanitizeCampaign()` invariant; the
-UI specs (`04`–`11`) cover each tab's roll buttons, the "last result survives
+UI specs (`04`–`12`) cover each tab's roll buttons, the "last result survives
 re-render" cache pattern, Mystery Matrix connection/Clincher logic, the
-Quick Note → Log → sanitised-HTML pipeline, and (`11`) the Mythic GME tab —
+Quick Note → Log → sanitised-HTML pipeline, (`11`) the Mythic GME tab —
 Chaos Factor clamp, Expected-Scene test (Altered → Scene Adjustment + word,
 Interrupt → Event Focus + word) with `sceneAdjustment()` / `rollEventFocus()`
-unit tests, the collapsible editable Event Focus Table (add/remove/edit/reset,
-sanitiser), list add/dupe/remove/roll, and Progress Track progress /
-auto-Flashpoint / Conclusion / Discovery Check / collapse toggle.
+unit tests, the collapsible editable Event Focus Table, list add/dupe/remove/roll,
+Progress Track progress / auto-Flashpoint / Conclusion / Discovery Check /
+collapse toggle — and (`12`) the Published Adventures tab —
+`adventureDieOptions` / `rollAdventureDie` / `crisisElement` / `specialElement`
+tables, the running page counter + wrap, the Deconstructed scene test's four
+outcomes (incl. Crisis Scene generation and its Crisis PP maths), the shared
+Chaos Factor / End Scene, the Adventure Meaning List, the Diminisher helper,
+and `sanitizeDeconstructed()`.
 
 Note the harness still can't catch everything: subtle real-browser
 click/focus/paint behaviour (the kind that broke contenteditable and the

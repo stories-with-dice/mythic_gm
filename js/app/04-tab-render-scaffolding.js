@@ -3,6 +3,7 @@
    ========================================================================= */
 const TABS = [
   {id:'gme', label:'Mythic GME'},
+  {id:'pub', label:'Published Adventures'},
   {id:'gm', label:'Game Master'},
   {id:'adventure', label:'Adventure Crafter'},
   {id:'location', label:'Location Crafter'},
@@ -22,11 +23,11 @@ function renderTabNav(){
 
 function renderActive(){
   const host = document.getElementById('panelHost');
-  const renderers = { gm:renderGM, adventure:renderAdventure, location:renderLocation, creature:renderCreature, character:renderCharacter, mystery:renderMystery, gme:renderMythicGME };
+  const renderers = { gm:renderGM, adventure:renderAdventure, location:renderLocation, creature:renderCreature, character:renderCharacter, mystery:renderMystery, gme:renderMythicGME, pub:renderPublished };
   host.innerHTML = renderers[currentTab]();
   wireActive();
 }
 function wireActive(){
-  const wirers = { gm:wireGM, adventure:wireAdventure, location:wireLocation, creature:wireCreature, character:wireCharacter, mystery:wireMystery, gme:wireMythicGME };
+  const wirers = { gm:wireGM, adventure:wireAdventure, location:wireLocation, creature:wireCreature, character:wireCharacter, mystery:wireMystery, gme:wireMythicGME, pub:wirePublished };
   wirers[currentTab]();
 }
