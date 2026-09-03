@@ -145,9 +145,11 @@ nav.tabs button{
   border:1px solid var(--line);
   border-bottom:none;
   color:var(--text-dim);
-  padding:10px 16px 9px;
+  padding:7px 15px 6px;
   font-family:var(--font-display);
-  font-size:14.5px;
+  font-size:13.5px;
+  line-height:1.15;
+  text-align:center;
   white-space:nowrap;
   position:relative;
   top:1px;
@@ -168,7 +170,7 @@ main.panel{
 }
 @media (max-width:640px){
   main.panel{padding:16px;border-radius:0 0 6px 6px;}
-  nav.tabs button{padding:8px 11px 8px; font-size:13px;}
+  nav.tabs button{padding:6px 10px 5px; font-size:12px;}
 }
 
 section.tool{display:none;}

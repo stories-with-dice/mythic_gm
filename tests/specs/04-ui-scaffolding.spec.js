@@ -14,6 +14,15 @@ describe('UI scaffolding', () => {
       expect(btns.map(b => b.dataset.tab)).toEqual(TABS.map(t => t.id));
     });
 
+    it('stacks each tab label one word per line', () => {
+      for (const btn of $$('#tabNav button')) {
+        const label = TABS.find(t => t.id === btn.dataset.tab).label;
+        expect(btn.innerHTML).toBe(label.split(' ').join('<br>'));
+        expect(btn.textContent).toBe(label.replace(/ /g, ''));   // no spaces once stacked
+        if (label.includes(' ')) expect(btn.querySelector('br')).toBeTruthy();
+      }
+    });
+
     it('clicking a tab swaps #panelHost content and the active class', () => {
       click($$('#tabNav button').find(b => b.dataset.tab === 'mystery'));
       expect(currentTab).toBe('mystery');

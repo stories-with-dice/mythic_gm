@@ -15,7 +15,8 @@ let currentTab = 'gme';
 
 function renderTabNav(){
   const nav = document.getElementById('tabNav');
-  nav.innerHTML = TABS.map(t=>`<button data-tab="${t.id}" class="${t.id===currentTab?'active':''}">${t.label}</button>`).join('');
+  // stack multi-word labels (one word per line) so tabs stay narrow
+  nav.innerHTML = TABS.map(t=>`<button data-tab="${t.id}" class="${t.id===currentTab?'active':''}">${t.label.split(' ').join('<br>')}</button>`).join('');
   nav.querySelectorAll('button').forEach(b=>{
     b.addEventListener('click', ()=>{ currentTab=b.dataset.tab; renderTabNav(); renderActive(); });
   });
