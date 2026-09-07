@@ -31,6 +31,10 @@ window.resetApp = function resetApp() {
   pubElementHtml = '';
   pubMeaningRollHtml = '';
   pubFlowOpen = false;
+  peEncounterHtml = '';
+  peResponseHtml = {};
+  peLastResponse = {};
+  peRefOpen = false;
 
   renderCampaignBar();
   renderTabNav();

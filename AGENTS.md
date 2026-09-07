@@ -80,7 +80,8 @@ js/app/                     the app, one file per former `===== SECTION =====`
 | `13-campaign-log.js`            | `buildLogMarkdown()` (raw MD, source of truth), `renderLogHtml()` (MD→sanitized HTML for display only), `renderLogSection()` / `wireLogSection()` |
 | `14-tab-mythic-gme.js`         | **Full Mythic GME 2e** tab — **first in `TABS`, the default landing tab** (the others are One-Page Mythic): `discoveryCheckResult()`, `DISCOVERY_ODDS`, `sceneAdjustment()` / `SCENE_ADJUSTMENTS`, `rollEventFocus()`, `oneMeaningWord()`, `renderMythicGME()` / `wireMythicGME()`. Threads/Characters Lists, Chaos Factor, Expected-Scene test (Altered → Scene Adjustment + word; Interrupt → editable Event Focus table + word), collapsible Thread Progress Tracks, collapsible editable Random Event Focus Table. Fate Questions here call `askTheGM()` from the GM tab. |
 | `15-tab-published-adventures.js` | **Published Adventures** tab (2nd in `TABS`) — "Deconstruct The Known" (Mythic Magazine #50). **Shares `gme.chaosFactor` / `sceneNumber` / `expectedScene` / lists / `eventFocusTable`** with the Mythic GME tab; its own state is `gme.deconstructed`. `ADVENTURE_DIE_BANDS` / `adventureDieOptions()` / `rollAdventureDie()`, `PAGE_SECTIONS`, `crisisElement()` (Crisis Scene Element Table), `specialElement()` (Special Elements Table), `rollAdventureElement()` (page counter + wrap), `renderPublished()` / `wirePublished()`, plus a collapsible `PUB_FLOW_HTML` "How it works" flowchart. Its scene test is the Deconstructed variant: `>CF & odd → Expected`, `>CF & even → Crisis Scene`, `≤CF → Altered (odd, +Adventure Element) / Interrupt (even, +Event Focus +Adventure Element)`. |
-| `16-init.js`                    | `DOMContentLoaded` handler that kicks everything off |
+| `16-tab-player-emulator.js`      | **Player Emulator** tab (last in `TABS`) — a solo "player emulator" from *Cloud Empress: Solo Protocol*. `PE_RESPONSE_TYPES` (Character Response Types re-sorted **most-minus → most-plus**, 50 rows / 1d100) + `peResponseType()`; `PE_NPC_MOODS` (1d10) + `peNpcMood()`; `PE_OUTLOOKS` (1d10, roll-and-display only — `PE_WILDCARD_OUTLOOK` is the one that changes a roll); `peRatingLabel()` / `peRatingClass()`; `peBiasedRoll(sides, mode)` (Adv = keep lowest, Dis = keep highest) with `peRollType(mode)` = 1d100 for a Character Type and `peRollMood(mode)` = 1d10 for an NPC mood (the add-NPC dropdown, persisted as `npcMoodMode`); `peBuildChart(mode)` (weighted 10-segment Response Chart); `peChartResponseAt()`; `pePcResponse()`; `renderPlayerEmu()` / `wirePlayerEmu()`. Generates a whole encounter's mood at once: every tracked PC responds (1d10 on their chart, or a fresh 1d100 on the full table if their Outlook is Wild card), every NPC has one mood, and all conflict ratings plus a manual adjustment are summed — total ≥ +4 ⇒ a violent encounter begins. The per-PC "Roll response" button caches its result in module-level `peLastResponse` / `peResponseHtml` (both cleared on PC removal or chart rebuild); the encounter generator's `useHeldResponses` checkbox (default on) reuses that held response instead of re-rolling, and writes any fresh rolls back so the PC cards stay in sync. |
+| `17-init.js`                    | `DOMContentLoaded` handler that kicks everything off |
 
 ## The render/wire convention (every tab follows this — keep it consistent)
 
@@ -132,6 +133,13 @@ STORE = {
   location:  { pp, regionSize, areaCount, complete, ppSetupDone },
   adventure: { mainTheme },
   mystery:   { boxes: [{uid, type:'C'|'S', label, connections:[uid,...]}], nextUid, solvedBoxUid },
+  playerEmu: { pcs:[{id, name, outlook:1-10|null, chartMode:'normal'|'adv'|'dis',
+                     chart:[{name, rating:-4..4, segments:1-10}]}],   // Player Emulator tab
+               nextPcId,
+               npcs:[{id, name, mood:1-10}], nextNpcId,   // NPCs in the current encounter
+               adjust,                                    // manual conflict modifier (-20..20)
+               npcMoodMode:'normal'|'adv'|'dis',           // Adv/Disadv for NPC mood rolls
+               useHeldResponses },                         // reuse each PC's last rolled response in an encounter (default true)
   gme:       { chaosFactor(1-9), sceneNumber, expectedScene,
                threads:[str], characters:[str],   // duplicates allowed = weighting
                tracks: [{id, focus, size:10|15|20, points, flashpoints:[bool], concluded, collapsed}],
@@ -159,6 +167,14 @@ Meaning word; **Interrupt** = `rollEventFocus()` against `gme.eventFocusTable`
 `gme.chaosFactor` / `sceneNumber` / `expectedScene` / `threads` / `characters` /
 `eventFocusTable` (same campaign, one scene clock) and adds only the
 deconstructed-specific panels on top.
+
+`playerEmu` is the Player Emulator tab's state. `freshPlayerEmu()` /
+`sanitizePlayerEmu()` (with `sanitizePlayerEmuPc()` / `sanitizePlayerEmuNpc()` /
+the shared `reindexById()` id-backfill helper) live in `03-state-persistence.js`;
+each PC's chart is stored as plain `{name, rating, segments}` rows (rating copied
+in, clamped to ±4) so file 03 needs nothing from the later tab file. The tables
+and roll helpers (`PE_RESPONSE_TYPES`, `peBuildChart()`, `pePcResponse()`, …) are
+in `16-tab-player-emulator.js`.
 
 - `campaign()` returns the currently-selected campaign object; almost every
   handler mutates fields on it directly, then calls `persist()`.
@@ -326,7 +342,16 @@ collapse toggle — and (`12`) the Published Adventures tab —
 tables, the running page counter + wrap, the Deconstructed scene test's four
 outcomes (incl. Crisis Scene generation and its Crisis PP maths), the shared
 Chaos Factor / End Scene, the Adventure Meaning List, the Diminisher helper,
-and `sanitizeDeconstructed()`.
+and `sanitizeDeconstructed()` — and (`13`) the Player Emulator tab — the
+re-sorted `PE_RESPONSE_TYPES` / `peResponseType` mapping, `PE_NPC_MOODS` /
+`PE_OUTLOOKS`, `peRatingLabel`, `peBiasedRoll` / `peRollType` / `peRollMood`
+Advantage/Disadvantage, the 10-segment `peBuildChart` / `peChartResponseAt`,
+`sanitizePlayerEmu` (junk PCs dropped, chart trimmed to 10 segments, `adjust`
+clamped, `npcMoodMode` enum-guarded, `useHeldResponses` boolean-guarded,
+`sanitizeCampaign(null)` still deep-equals `freshCampaign()`), and the tab UI
+(add PC, roll Outlook, build chart, add NPC, NPC-mood Adv/Disadv dropdown,
+generate encounter mood verdict, the reuse-held-responses checkbox, Wild card
+path, reference-table toggle, remove PC).
 
 Note the harness still can't catch everything: subtle real-browser
 click/focus/paint behaviour (the kind that broke contenteditable and the

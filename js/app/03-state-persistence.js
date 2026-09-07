@@ -48,11 +48,76 @@ function freshDeconstructed(){
   };
 }
 
+// Player Emulator tab (Cloud Empress: Solo Protocol). A roster of PCs, each
+// with an Outlook (1-10, or null) and a weighted 10-segment Response Chart,
+// plus the NPCs currently in an encounter (each a single 1d10 mood) and a
+// manual conflict adjustment. Response-type names/ratings are stored inline so
+// this file needs nothing from the tab file (which loads later).
+function freshPlayerEmu(){
+  return { pcs: [], nextPcId: 1, npcs: [], nextNpcId: 1, adjust: 0, npcMoodMode: "normal", useHeldResponses: true };
+}
+
+function sanitizePlayerEmuPc(p){
+  if(!p || typeof p !== "object") return null;
+  const id = Number(p.id);
+  const name = (typeof p.name === "string" && p.name.trim()) ? p.name.trim().slice(0, 60) : "Unnamed PC";
+  const outlook = (Number.isInteger(p.outlook) && p.outlook >= 1 && p.outlook <= 10) ? p.outlook : null;
+  const chartMode = ["normal", "adv", "dis"].includes(p.chartMode) ? p.chartMode : "normal";
+  let total = 0;
+  const chart = (Array.isArray(p.chart) ? p.chart : [])
+    .filter(e => e && typeof e === "object" && typeof e.name === "string" && e.name.trim())
+    .map(e => ({
+      name: e.name.trim().slice(0, 40),
+      rating: Number.isFinite(e.rating) ? Math.max(-4, Math.min(4, Math.round(e.rating))) : 0,
+      segments: Number.isFinite(e.segments) ? Math.max(1, Math.min(10, Math.round(e.segments))) : 1
+    }))
+    .filter(e => {
+      if(total >= 10) return false;
+      if(total + e.segments > 10) e.segments = 10 - total;
+      total += e.segments;
+      return true;
+    });
+  return { id: Number.isFinite(id) ? id : null, name, outlook, chartMode, chart };
+}
+function sanitizePlayerEmuNpc(n){
+  if(!n || typeof n !== "object") return null;
+  const id = Number(n.id);
+  const name = (typeof n.name === "string" && n.name.trim()) ? n.name.trim().slice(0, 60) : "NPC";
+  const mood = (Number.isInteger(n.mood) && n.mood >= 1 && n.mood <= 10) ? n.mood : 1;
+  return { id: Number.isFinite(id) ? id : null, name, mood };
+}
+// Dedupe / backfill ids in a list, returning the next free id.
+function reindexById(list){
+  const seen = new Set();
+  let max = 0;
+  list.forEach(x => {
+    if(x.id != null && !seen.has(x.id)){ seen.add(x.id); max = Math.max(max, x.id); }
+    else x.id = null;
+  });
+  list.forEach(x => { if(x.id == null){ x.id = ++max; seen.add(x.id); } });
+  return max + 1;
+}
+function sanitizePlayerEmu(raw){
+  const base = freshPlayerEmu();
+  if(!raw || typeof raw !== "object") return base;
+  const pcs = (Array.isArray(raw.pcs) ? raw.pcs.map(sanitizePlayerEmuPc).filter(Boolean) : []);
+  const npcs = (Array.isArray(raw.npcs) ? raw.npcs.map(sanitizePlayerEmuNpc).filter(Boolean) : []);
+  const maxPcId = reindexById(pcs);
+  const maxNpcId = reindexById(npcs);
+  const nextPcId = (Number.isFinite(raw.nextPcId) && raw.nextPcId > maxPcId - 1) ? Math.round(raw.nextPcId) : maxPcId;
+  const nextNpcId = (Number.isFinite(raw.nextNpcId) && raw.nextNpcId > maxNpcId - 1) ? Math.round(raw.nextNpcId) : maxNpcId;
+  const adjust = Number.isFinite(raw.adjust) ? Math.max(-20, Math.min(20, Math.round(raw.adjust))) : 0;
+  const npcMoodMode = ["normal", "adv", "dis"].includes(raw.npcMoodMode) ? raw.npcMoodMode : "normal";
+  const useHeldResponses = typeof raw.useHeldResponses === "boolean" ? raw.useHeldResponses : true;
+  return { pcs, nextPcId, npcs, nextNpcId, adjust, npcMoodMode, useHeldResponses };
+}
+
 function freshCampaign(){
   return {
     location: { pp:0, regionSize:"Average", areaCount:0, complete:false, ppSetupDone:false },
     adventure: { mainTheme:null },
     mystery: { boxes:[], nextUid:1, solvedBoxUid:null },
+    playerEmu: freshPlayerEmu(),
     gme: {
       chaosFactor: 5,          // Mythic GME 2e default; range 1-9
       sceneNumber: 1,
@@ -161,6 +226,8 @@ function sanitizeCampaign(raw){
   const solvedBoxUid = (rawMystery.solvedBoxUid!=null && validUids.has(Number(rawMystery.solvedBoxUid))) ? Number(rawMystery.solvedBoxUid) : null;
   const mystery = { boxes, nextUid, solvedBoxUid };
 
+  const playerEmu = sanitizePlayerEmu(raw.playerEmu);
+
   // --- Mythic GME (full Mythic 2e) tab -------------------------------------
   const rawGme = (raw.gme && typeof raw.gme === "object") ? raw.gme : {};
   const cf = Number(rawGme.chaosFactor);
@@ -203,7 +270,7 @@ function sanitizeCampaign(raw){
     .filter(e=>e && typeof e==="object")
     .map(e=>({ ts: String(e.ts||""), section: String(e.section||""), md: String(e.md||"") })) : [];
 
-  return { location, adventure, mystery, gme, log };
+  return { location, adventure, mystery, playerEmu, gme, log };
 }
 
 function loadStore(){

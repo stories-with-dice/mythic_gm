@@ -9,7 +9,8 @@ const TABS = [
   {id:'location', label:'Location Crafter'},
   {id:'creature', label:'Creature Crafter'},
   {id:'character', label:'Character Crafter'},
-  {id:'mystery', label:'Mystery Matrix'}
+  {id:'mystery', label:'Mystery Matrix'},
+  {id:'playerEmu', label:'Player Emulator'}
 ];
 let currentTab = 'gme';
 
@@ -24,11 +25,11 @@ function renderTabNav(){
 
 function renderActive(){
   const host = document.getElementById('panelHost');
-  const renderers = { gm:renderGM, adventure:renderAdventure, location:renderLocation, creature:renderCreature, character:renderCharacter, mystery:renderMystery, gme:renderMythicGME, pub:renderPublished };
+  const renderers = { gm:renderGM, adventure:renderAdventure, location:renderLocation, creature:renderCreature, character:renderCharacter, mystery:renderMystery, gme:renderMythicGME, pub:renderPublished, playerEmu:renderPlayerEmu };
   host.innerHTML = renderers[currentTab]();
   wireActive();
 }
 function wireActive(){
-  const wirers = { gm:wireGM, adventure:wireAdventure, location:wireLocation, creature:wireCreature, character:wireCharacter, mystery:wireMystery, gme:wireMythicGME, pub:wirePublished };
+  const wirers = { gm:wireGM, adventure:wireAdventure, location:wireLocation, creature:wireCreature, character:wireCharacter, mystery:wireMystery, gme:wireMythicGME, pub:wirePublished, playerEmu:wirePlayerEmu };
   wirers[currentTab]();
 }
