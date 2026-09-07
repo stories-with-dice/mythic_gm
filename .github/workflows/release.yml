@@ -1,0 +1,82 @@
+name: Single-file release
+
+# On every push to the default branch, bundle the whole toolkit into one
+# self-contained index.html and publish it as a GitHub Release asset.
+# Versions are plain incrementing integers: v1, v2, v3, … (no semver).
+
+on:
+  push:
+    branches: ["main", "master"]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # create tags + releases
+
+# Serialize runs so two quick pushes can't both grab the same version number.
+concurrency:
+  group: single-file-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need full history + tags for versioning
+
+      - name: Work out the next version
+        id: ver
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+
+          # Already released this exact commit? (re-run / retag) -> skip.
+          if git tag --points-at HEAD | grep -qxE 'v[0-9]+'; then
+            existing=$(git tag --points-at HEAD | grep -xE 'v[0-9]+' | head -1)
+            echo "Commit already released as ${existing} — skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          latest=$(git tag -l 'v*' | grep -xE 'v[0-9]+' | sed 's/^v//' | sort -n | tail -1 || true)
+          next=$(( ${latest:-0} + 1 ))
+          echo "version=v${next}" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "Next version: v${next}"
+
+      - name: Setup Node
+        if: steps.ver.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build the single-file bundle
+        if: steps.ver.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          node scripts/build-singlefile.mjs --version "${{ steps.ver.outputs.version }}"
+          mkdir -p out
+          cp dist/mythic-toolkit.html "out/mythic-toolkit-${{ steps.ver.outputs.version }}.html"
+          ls -l out
+
+      - name: Create the release
+        if: steps.ver.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.ver.outputs.version }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' \
+            "Single-file build of the Mythic Toolkit: every app script, vendored library (marked, DOMPurify, EasyMDE) and stylesheet inlined into one self-contained index.html." \
+            "" \
+            "Download it, open it from disk, works fully offline." \
+            "" \
+            "Built from ${SHA}." > notes.md
+          gh release create "${VERSION}" \
+            "out/mythic-toolkit-${VERSION}.html" \
+            --target "${SHA}" \
+            --title "${VERSION}" \
+            --notes-file notes.md

@@ -26,6 +26,17 @@ verbatim under `js/vendor/` — never add a `<script src="https://...">`.
 There is still no package.json and no bundler. There **is** now a test suite
 (`tests/`), but it too is dependency-free — see "Testing" below.
 
+The *app* still has no build step. There is one **optional, dependency-free
+packaging script** — `scripts/build-singlefile.mjs` — that inlines every
+stylesheet and `<script src>` from `index.html` (vendored libs included) into a
+lone `dist/mythic-toolkit.html` for download. It reads `index.html` for load
+order, so a new `css/`/`js/` file is picked up automatically. The
+`.github/workflows/release.yml` action runs it on every push to `main`/`master`
+and publishes the result as a GitHub Release asset, versioned `v1`, `v2`, …
+(plain incrementing integers — the next number is `max(existing v-tags) + 1`;
+a commit already carrying a `vN` tag is skipped). `dist/` and `out/` are
+git-ignored.
+
 ### Why it's still not a module system
 
 `js/app/*.js` are **classic (non-module) scripts sharing one global scope**,
