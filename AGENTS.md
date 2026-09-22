@@ -60,8 +60,10 @@ split a pure cut-and-paste with zero behaviour change. Consequences to respect:
 
 ```
 index.html                  shell only: <head> links + the body skeleton
-                            (header/.campaign-bar, nav#tabNav, main#panelHost,
-                            section#noteSection, section#logSection) + the
+                            (header/.campaign-bar incl. the "?" Help button,
+                            nav#tabNav, div#panelSplit > main#panelHost +
+                            aside#panelHostRight, section#noteSection,
+                            section#logSection, div#helpOverlay) + the
                             ordered <script> list.
 css/
   vendor-easymde.css        vendor CSS (EasyMDE + CodeMirror)
@@ -79,7 +81,7 @@ js/app/                     the app, one file per former `===== SECTION =====`
 | `01-data-tables.js`              | Every table transcribed from the cheat sheet: `DISCOVER_ACTION/DESC`, `ASK_ODDS`, `PLOT_ROWS`/`THEMES`, `LOCATION_DESCRIPTORS`/`areaElement()`, `CREATURE_DESCRIPTORS`/`ABILITY_WORDS`/behavior tables, `CHARACTER_DESCRIPTORS`/`NPC_STAT_MOD`/`behaviorContext()`, `MYSTERY_DESCRIPTORS`/`mysteryElement()`/`pickDie()` |
 | `02-dice-markdown-utils.js`      | `rollDie`, `timestamp`, `escapeMd` (Markdown-table-safe only), `escapeAttr` (HTML-attribute-safe) |
 | `03-state-persistence.js`        | `STORAGE_KEY`, `freshCampaign()`, `sanitizeBox()`/`sanitizeCampaign()` (import validation), `loadStore()`/`saveStore()`, `STORE`, `campaign()`, `persist()`, `addLog()` |
-| `04-tab-render-scaffolding.js`   | `TABS`, `currentTab`, `renderTabNav()`, `renderActive()`, `wireActive()` |
+| `04-tab-render-scaffolding.js`   | `TABS`, `currentTab`, `rightTab` (split-right pane, see "Split view" below), `renderTabNav()`, `renderActive()`, `wireActive()`, `tabRenderers()`/`tabWirers()` (lazy lookups, safe to call only after every file has loaded) |
 | `05-campaign-bar.js`             | `renderCampaignBar()`, `clearNoteDraft()`, `wireCampaignBar()` (New/Rename/Delete/Export/Import) |
 | `06-tab-game-master.js`          | `renderGM()` / `wireGM()`; `randomEventWords()` — a Discover Meaning Action+Description pair, shared with the Mythic GME tab's Interrupt Scene; `rollInspirationSource()` — weighted roll on Discover Meaning's editable Random Inspiration Source list |
 | `07-tab-adventure-crafter.js`    | `renderAdventure()` / `wireAdventure()` |
@@ -92,7 +94,8 @@ js/app/                     the app, one file per former `===== SECTION =====`
 | `14-tab-mythic-gme.js`         | **Full Mythic GME 2e** tab — **first in `TABS`, the default landing tab** (the others are One-Page Mythic): `discoveryCheckResult()`, `DISCOVERY_ODDS`, `sceneAdjustment()` / `SCENE_ADJUSTMENTS`, `rollEventFocus()`, `oneMeaningWord()`, `renderMythicGME()` / `wireMythicGME()`. Threads/Characters Lists, Chaos Factor, Expected-Scene test (Altered → Scene Adjustment + word; Interrupt → editable Event Focus table + word), collapsible Thread Progress Tracks, collapsible editable Random Event Focus Table. Fate Questions here call `askTheGM()` from the GM tab. |
 | `15-tab-published-adventures.js` | **Published Adventures** tab (2nd in `TABS`) — "Deconstruct The Known" (Mythic Magazine #50). **Shares `gme.chaosFactor` / `sceneNumber` / `expectedScene` / lists / `eventFocusTable`** with the Mythic GME tab; its own state is `gme.deconstructed`. `ADVENTURE_DIE_BANDS` / `adventureDieOptions()` / `rollAdventureDie()`, `PAGE_SECTIONS`, `crisisElement()` (Crisis Scene Element Table), `specialElement()` (Special Elements Table), `rollAdventureElement()` (page counter + wrap), `renderPublished()` / `wirePublished()`, plus a collapsible `PUB_FLOW_HTML` "How it works" flowchart. Its scene test is the Deconstructed variant: `>CF & odd → Expected`, `>CF & even → Crisis Scene`, `≤CF → Altered (odd, +Adventure Element) / Interrupt (even, +Event Focus +Adventure Element)`. |
 | `16-tab-player-emulator.js`      | **Player Emulator** tab (last in `TABS`) — a solo "player emulator" from *Cloud Empress: Solo Protocol*. `PE_RESPONSE_TYPES` (Character Response Types re-sorted **most-minus → most-plus**, 50 rows / 1d100) + `peResponseType()`; `PE_NPC_MOODS` (1d10) + `peNpcMood()`; `PE_OUTLOOKS` (1d10, roll-and-display only — `PE_WILDCARD_OUTLOOK` is the one that changes a roll); `peRatingLabel()` / `peRatingClass()`; `peBiasedRoll(sides, mode)` (Adv = keep lowest, Dis = keep highest) with `peRollType(mode)` = 1d100 for a Character Type and `peRollMood(mode)` = 1d10 for an NPC mood (the add-NPC dropdown, persisted as `npcMoodMode`); `peBuildChart(mode)` (weighted 10-segment Response Chart); `peChartResponseAt()`; `pePcResponse()`; `renderPlayerEmu()` / `wirePlayerEmu()`. Generates a whole encounter's mood at once: every tracked PC responds (1d10 on their chart, or a fresh 1d100 on the full table if their Outlook is Wild card), every NPC has one mood, and all conflict ratings plus a manual adjustment are summed — total ≥ +4 ⇒ a violent encounter begins. The per-PC "Roll response" button caches its result in module-level `peLastResponse` / `peResponseHtml` (both cleared on PC removal or chart rebuild); the encounter generator's `useHeldResponses` checkbox (default on) reuses that held response instead of re-rolling, and writes any fresh rolls back so the PC cards stay in sync. |
-| `17-init.js`                    | `DOMContentLoaded` handler that kicks everything off |
+| `17-help.js`                    | Help overlay ("?" button in the campaign bar) — `HELP_OVERVIEW_SVG` (inline SVG map of how the tools connect), `renderHelpContent()` / `openHelp()` / `closeHelp()` / `wireHelp()`. Pure informational content, no persisted state. Its Published Adventures section embeds that tab's own `PUB_FLOW_HTML` verbatim (see file 15) rather than restating it, so the two can't drift apart. |
+| `18-init.js`                    | `DOMContentLoaded` handler that kicks everything off (incl. `wireHelp()`) |
 
 ## The render/wire convention (every tab follows this — keep it consistent)
 
@@ -100,9 +103,14 @@ Each tab is a pair of functions named `render<Tab>()` and `wire<Tab>()`,
 registered in two dispatch objects inside `renderActive()`/`wireActive()`:
 
 ```js
-const renderers = { gm:renderGM, adventure:renderAdventure, ... };
-const wirers    = { gm:wireGM,   adventure:wireAdventure,   ... };
+function tabRenderers(){ return { gm:renderGM, adventure:renderAdventure, ... }; }
+function tabWirers(){    return { gm:wireGM,   adventure:wireAdventure,   ... }; }
 ```
+
+(These are functions, not top-level object literals, because `04-tab-render-scaffolding.js`
+loads before the tab files that define `renderGM` etc. — see "Load order matters"
+above. They're only ever called from inside `renderActive()`/`wireActive()`,
+i.e. after every file has loaded.)
 
 - `render<Tab>()` returns an HTML string (template literal) built from
   current campaign state. It is pure-ish: read `campaign()`, return markup.
@@ -111,12 +119,52 @@ const wirers    = { gm:wireGM,   adventure:wireAdventure,   ... };
   querying the DOM it just created.
 - Switching tabs (`renderTabNav` click handler) calls `renderActive()`,
   which nukes and rebuilds `#panelHost` from scratch and re-runs `wire*`.
+  If a tab is pinned to the split-right pane (see below), `renderActive()`
+  also rebuilds `#panelHostRight` the same way, every time — for either pane,
+  not just the one that changed. That's deliberate: a tab's own
+  `render<Tab>()` only reads `campaign()` plus its own module-level "last
+  result" cache (see the re-render gotcha below), so redundantly rebuilding
+  the *other* pane just reproduces what was already there — cheap, and
+  simpler than tracking which pane needs refreshing.
 
 **If you add a new tool/tab:** add an entry to `TABS`, write
-`renderX`/`wireX`, register both in the two dispatch objects, and add any
-persisted state to `freshCampaign()` **and** to `sanitizeCampaign()` (see
+`renderX`/`wireX`, register both in `tabRenderers()`/`tabWirers()`, and add
+any persisted state to `freshCampaign()` **and** to `sanitizeCampaign()` (see
 below — anything not sanitized on import will silently vanish or crash on a
 malformed file).
+
+## Split view (right-click a tab)
+
+Right-clicking a tab button in `#tabNav` pins that tab to a second pane on
+the right (`aside#panelHostRight`, inside the `div#panelSplit` wrapper),
+alongside whatever the main pane (`#panelHost`) is already showing — a CSS
+grid split by a vertical divider (`.panel-split.split` in `app.css`).
+Left-clicking a tab behaves as before: it becomes the main pane's tab.
+
+State is two module-level `let`s in `04-tab-render-scaffolding.js`:
+`currentTab` (main pane) and `rightTab` (split-right pane, `null` when
+unsplit). **Neither is persisted** — same as `currentTab` always was, a
+reload lands back on the default tab, unsplit. This is a deliberate,
+matching choice, not an oversight.
+
+**Invariant: `currentTab` and `rightTab` are never equal.** Every tab's
+`render<Tab>()`/`wire<Tab>()` pair uses hardcoded, page-unique DOM ids
+(`#gmResult`, `#eventResult`, etc. — see the render/wire convention above);
+showing the same tab in both panes at once would duplicate those ids and
+break `document.getElementById()` lookups and event wiring. `renderTabNav()`
+enforces the invariant on every click:
+
+- **Left-click** a tab already pinned right → un-pins it (closes the split)
+  and makes it the main tab. Left-click any other tab → the usual tab switch.
+- **Right-click** the tab already pinned right → toggles the split closed.
+  Right-click the tab currently shown in the main pane → bumps the main pane
+  to a different tab first (so the two never collide), then pins the
+  right-clicked one to the right. Right-click any other tab → moves the
+  split pane to it. The right pane also has its own close (×) button,
+  wired fresh on every `renderActive()`.
+
+A tab pinned right is marked in the nav with a `.split-right` class (a gold
+top accent) independent of `.active` (which still marks the main tab).
 
 ## Gotcha: re-rendering wipes transient result displays
 
@@ -379,6 +427,21 @@ trimmed/truncated — plus the tab UI: the enable checkbox showing/hiding the
 section, a weighted roll via `rollInspirationSource()`, the "last result
 survives re-render" cache when the editor is toggled, editing a label/weight,
 add/remove entries (remove disabled at 1 remaining), and Reset to default.
+Spec `04` also covers the split view (right-click a tab): unsplit by default,
+right-click pins a tab right without disturbing the main tab, right-clicking
+a different tab moves the split, right-clicking the pinned tab again (or its
+own close button) closes it, the `currentTab`/`rightTab` invariant holds even
+when you right-click the tab currently shown on the left, left-clicking a
+pinned tab reclaims it into the main pane, an action inside the right pane
+updates only that pane's own content, and the split survives an unrelated
+global re-render (e.g. switching campaigns). `tests/helpers.js` has
+`rightClickTab(id)` for dispatching the `contextmenu` event, and `showTab()`
+mirrors the same currentTab/rightTab invariant the real click handler
+enforces. Spec `14` covers the Help overlay ("?" button) — opens with a
+section for every tool, embeds the Published Adventures tab's own
+`PUB_FLOW_HTML` verbatim, its table-of-contents links all resolve to real
+section ids, and it closes via its own close button, a backdrop click,
+or Escape (but not a click inside the panel).
 
 Note the harness still can't catch everything: subtle real-browser
 click/focus/paint behaviour (the kind that broke contenteditable and the

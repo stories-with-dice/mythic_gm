@@ -39,6 +39,79 @@ describe('UI scaffolding', () => {
     });
   });
 
+  describe('split view (right-click a tab)', () => {
+    it('is unsplit by default', () => {
+      expect(rightTab).toBeNull();
+      expect($('#panelSplit').classList.contains('split')).toBe(false);
+      expect($('#panelHostRight').innerHTML).toBe('');
+    });
+
+    it('right-clicking a tab pins it to the right pane without changing the main tab', () => {
+      rightClickTab('mystery');
+      expect(rightTab).toBe('mystery');
+      expect(currentTab).toBe('gme');
+      expect($('#panelSplit').classList.contains('split')).toBe(true);
+      expect($('#panelHostRight')).toContain('One-Page Mystery Matrix');
+      expect($('.split-right-title').textContent).toBe('Mystery Matrix');
+      expect($$('#tabNav button').find(b => b.dataset.tab === 'mystery').classList.contains('split-right')).toBe(true);
+    });
+
+    it('right-clicking a different tab moves the split pane to that one', () => {
+      rightClickTab('mystery');
+      rightClickTab('playerEmu');
+      expect(rightTab).toBe('playerEmu');
+      expect($('#panelHostRight')).toContain('Player Emulator');
+      expect($('#panelHostRight')).not.toContain('One-Page Mystery Matrix');
+    });
+
+    it('right-clicking the already-pinned tab again closes the split', () => {
+      rightClickTab('mystery');
+      rightClickTab('mystery');
+      expect(rightTab).toBeNull();
+      expect($('#panelSplit').classList.contains('split')).toBe(false);
+      expect($('#panelHostRight').innerHTML).toBe('');
+    });
+
+    it('the close button on the right pane also closes the split', () => {
+      rightClickTab('mystery');
+      click('#btnCloseSplit');
+      expect(rightTab).toBeNull();
+      expect($('#panelSplit').classList.contains('split')).toBe(false);
+    });
+
+    it('a tab can never be both the main tab and the split tab at once', () => {
+      rightClickTab('mystery');            // right = mystery, main = gme
+      rightClickTab('gme');                // right-click the main tab itself
+      expect(rightTab).toBe('gme');
+      expect(currentTab).not.toBe('gme');  // bumped to make room
+      expect(currentTab).not.toBe(rightTab);
+    });
+
+    it('left-clicking the pinned tab reclaims it into the main pane and closes the split', () => {
+      rightClickTab('mystery');
+      click($$('#tabNav button').find(b => b.dataset.tab === 'mystery'));
+      expect(currentTab).toBe('mystery');
+      expect(rightTab).toBeNull();
+      expect($('#panelHost')).toContain('One-Page Mystery Matrix');
+    });
+
+    it('an action in the right pane updates that pane and leaves the left pane\'s own tab intact', () => {
+      showTab('gm');
+      rightClickTab('gme');   // main = gm (Game Master), right = gme (Mythic GME)
+      click($('#panelHostRight').querySelector('#btnGmeCfMinus'));
+      expect(campaign().gme.chaosFactor).toBe(4);
+      expect($('#panelHostRight')).toContain('Mythic Game Master Emulator');
+      expect($('#panelHost')).toContain('One-Page Game Master Emulator');   // left pane still shows Game Master
+    });
+
+    it('survives an unrelated global re-render (e.g. switching campaigns) without collapsing', async () => {
+      rightClickTab('mystery');
+      await withDialogs({ prompt: 'Split Test Campaign' }, () => click('#btnNewCampaign'));
+      expect(rightTab).toBe('mystery');
+      expect($('#panelSplit').classList.contains('split')).toBe(true);
+    });
+  });
+
   describe('campaign bar', () => {
     it('lists campaigns and marks the current one selected', () => {
       const sel = $('#campaignSelect');

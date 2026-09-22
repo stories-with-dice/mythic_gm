@@ -55,16 +55,23 @@
     <button class="btn small" id="btnExportCampaign">Export</button>
     <button class="btn small" id="btnImportCampaign">Import</button>
     <input type="file" id="importFileInput" accept="application/json,.json" style="display:none;">
+    <span class="campaign-bar-divider"></span>
+    <button class="btn small help-btn" id="btnHelp" title="Help &amp; overview" aria-label="Help &amp; overview">?</button>
   </div>
 </header>
 
 <nav class="tabs" id="tabNav"></nav>
-<main class="panel" id="panelHost"></main>
+<div class="panel-split" id="panelSplit">
+  <main class="panel" id="panelHost"></main>
+  <aside class="panel panel-right" id="panelHostRight"></aside>
+</div>
 
 <section class="note-section" id="noteSection"></section>
 <section class="log-section" id="logSection"></section>
 
 </div>
+
+<div class="help-overlay" id="helpOverlay"></div>
 
 <div id="report"><h1>Mythic Toolkit tests</h1><div id="results"></div></div>
 
@@ -90,7 +97,8 @@
 <script src="../js/app/14-tab-mythic-gme.js"></script>
 <script src="../js/app/15-tab-published-adventures.js"></script>
 <script src="../js/app/16-tab-player-emulator.js"></script>
-<script src="../js/app/17-init.js"></script>
+<script src="../js/app/17-help.js"></script>
+<script src="../js/app/18-init.js"></script>
 
 <!-- ===== Test runner, helpers, specs (runner first: it defines describe/it/expect) ===== -->
 <script src="runner.js"></script>
@@ -108,5 +116,6 @@
 <script src="specs/11-mythic-gme.spec.js"></script>
 <script src="specs/12-published-adventures.spec.js"></script>
 <script src="specs/13-player-emulator.spec.js"></script>
+<script src="specs/14-help.spec.js"></script>
 </body>
 </html>

@@ -12,6 +12,7 @@ window.resetApp = function resetApp() {
   try { sessionStorage.removeItem('mythicToolkit_v1'); } catch (_) {}
   STORE = loadStore();                 // global `let` from 03-state-persistence.js
   currentTab = 'gme';                  // global `let` from 04-tab-render-scaffolding.js (default landing tab)
+  rightTab = null;                     // global `let` from 04-tab-render-scaffolding.js (split view, off by default)
 
   // transient per-tab view state (module-level `let`s) — clear so tests don't
   // leak rolled words / cached "last result" HTML into each other
@@ -37,6 +38,9 @@ window.resetApp = function resetApp() {
   peResponseHtml = {};
   peLastResponse = {};
   peRefOpen = false;
+  helpOpen = false;
+  const helpOverlay = document.getElementById('helpOverlay');
+  if(helpOverlay){ helpOverlay.classList.remove('open'); helpOverlay.innerHTML = ''; }
 
   renderCampaignBar();
   renderTabNav();
@@ -48,10 +52,19 @@ window.resetApp = function resetApp() {
 
 /* Switch to a tab and return #panelHost, wired and rendered. */
 window.showTab = function showTab(id) {
+  if (id === rightTab) rightTab = null;   // mirror the real click handler's invariant
   currentTab = id;
   renderTabNav();
   renderActive();
   return document.getElementById('panelHost');
+};
+
+/* Right-click a tab button (opens/moves/closes the split-right pane). */
+window.rightClickTab = function rightClickTab(id) {
+  const btn = document.querySelector('#tabNav button[data-tab="' + id + '"]');
+  if (!btn) throw new Error('rightClickTab: no tab button for ' + id);
+  btn.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+  return document.getElementById('panelHostRight');
 };
 
 window.$ = (sel, root) => (root || document).querySelector(sel);

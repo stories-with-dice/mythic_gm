@@ -162,6 +162,10 @@ nav.tabs button.active{
   border-color:var(--line);
   font-weight:600;
 }
+nav.tabs button.split-right{
+  border-top:2px solid var(--gold);
+  padding-top:6px;
+}
 main.panel{
   background:var(--panel);
   border:1px solid var(--line);
@@ -171,6 +175,45 @@ main.panel{
 @media (max-width:640px){
   main.panel{padding:16px;border-radius:0 0 6px 6px;}
   nav.tabs button{padding:6px 10px 5px; font-size:12px;}
+}
+
+/* ---------- Split view (right-click a tab to pin it alongside the main one) ---------- */
+#panelHostRight{display:none;}
+.panel-split.split{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  align-items:start;
+}
+.panel-split.split #panelHost{
+  border-radius:0 0 0 6px;
+  border-right:none;
+}
+.panel-split.split #panelHostRight{
+  display:block;
+  padding:0;
+  border-radius:0 6px 6px 0;
+  border-left:1px solid var(--line);
+}
+.split-right-head{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:13px 20px;
+  background:var(--ink-2);
+  border-bottom:1px solid var(--line-soft);
+  border-radius:0 6px 0 0;
+}
+.split-right-title{
+  font-family:var(--font-display); font-size:14px; font-weight:600;
+  color:var(--gold-bright);
+}
+.split-close{
+  border-radius:50%; width:26px; height:26px; padding:0;
+  display:flex; align-items:center; justify-content:center; font-size:15px; line-height:1;
+}
+.split-right-body{padding:20px 26px 26px;}
+@media (max-width:900px){
+  .panel-split.split{grid-template-columns:1fr;}
+  .panel-split.split #panelHost{border-radius:0; border-right:1px solid var(--line);}
+  .panel-split.split #panelHostRight{border-left:none; border-top:1px solid var(--line); border-radius:0 0 6px 6px;}
 }
 
 section.tool{display:none;}
@@ -584,28 +627,31 @@ table.matrix-table{
   font-family:var(--font-mono); font-size:12px; color:var(--text-dim);
 }
 
-.pub-flow{margin-top:12px;}
-.pub-flow .flow-group{margin-bottom:18px;}
-.pub-flow .flow-group:last-child{margin-bottom:0;}
-.pub-flow .flow-group > h4{
+/* .flow-diagram is the same step/arrow/branch component under a generic name,
+   used by the Help overlay; .pub-flow (Published Adventures' own "How it
+   works" panel) predates it and is kept as an alias rather than renamed. */
+.pub-flow, .flow-diagram{margin-top:12px;}
+.pub-flow .flow-group, .flow-diagram .flow-group{margin-bottom:18px;}
+.pub-flow .flow-group:last-child, .flow-diagram .flow-group:last-child{margin-bottom:0;}
+.pub-flow .flow-group > h4, .flow-diagram .flow-group > h4{
   font-family:var(--font-display); font-size:12px; letter-spacing:.08em;
   text-transform:uppercase; color:var(--gold); margin:0 0 10px;
 }
-.pub-flow .flow-step{
+.pub-flow .flow-step, .flow-diagram .flow-step{
   border:1px solid var(--line); border-left:3px solid var(--moss);
   background:var(--panel-2); border-radius:4px;
   padding:8px 12px; font-size:13px; max-width:640px;
 }
-.pub-flow .flow-step b{color:var(--text);}
-.pub-flow .flow-arrow{color:var(--text-dim); font-size:13px; line-height:1; margin:4px 0 4px 20px;}
-.pub-flow .flow-branch{
+.pub-flow .flow-step b, .flow-diagram .flow-step b{color:var(--text);}
+.pub-flow .flow-arrow, .flow-diagram .flow-arrow{color:var(--text-dim); font-size:13px; line-height:1; margin:4px 0 4px 20px;}
+.pub-flow .flow-branch, .flow-diagram .flow-branch{
   list-style:none; margin:6px 0 6px 20px; padding:4px 0 4px 14px;
   border-left:1px dashed var(--line); max-width:626px;
 }
-.pub-flow .flow-branch li{position:relative; padding:5px 0 5px 16px; font-size:12.5px;}
-.pub-flow .flow-branch li::before{content:"\2192"; position:absolute; left:0; color:var(--text-dim);}
-.pub-flow .flow-branch li b{color:var(--gold-bright);}
-.pub-flow .flow-loop{font-size:12px; color:var(--text-dim); margin:4px 0 0 20px;}
+.pub-flow .flow-branch li, .flow-diagram .flow-branch li{position:relative; padding:5px 0 5px 16px; font-size:12.5px;}
+.pub-flow .flow-branch li::before, .flow-diagram .flow-branch li::before{content:"\2192"; position:absolute; left:0; color:var(--text-dim);}
+.pub-flow .flow-branch li b, .flow-diagram .flow-branch li b{color:var(--gold-bright);}
+.pub-flow .flow-loop, .flow-diagram .flow-loop{font-size:12px; color:var(--text-dim); margin:4px 0 0 20px;}
 
 .gme-focus-table{width:100%; border-collapse:collapse; margin-top:10px; font-size:13px;}
 .gme-focus-table th{
@@ -651,4 +697,70 @@ table.matrix-table{
   text-transform:uppercase; letter-spacing:.04em; color:var(--text-dim);
 }
 .pe-ref-table td{padding:3px 6px; border-top:1px solid var(--line-soft); vertical-align:top;}
+
+/* ===== Help overlay ===== */
+.help-btn{
+  border-radius:50%; width:30px; height:30px; padding:0;
+  font-family:var(--font-display); font-weight:700; font-size:15px;
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.help-overlay{
+  display:none;
+  position:fixed; inset:0; z-index:100;
+  background:rgba(8,10,14,0.72);
+  padding:5vh 20px;
+  overflow-y:auto;
+}
+.help-overlay.open{display:block;}
+.help-inner{
+  position:relative;
+  max-width:900px; margin:0 auto;
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:8px; padding:30px 34px 40px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.45);
+}
+.help-close{
+  position:absolute; top:14px; right:14px;
+  width:32px; height:32px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; line-height:1;
+}
+.help-toc{
+  display:flex; flex-wrap:wrap; gap:8px;
+  margin:0 0 22px; padding:0; list-style:none;
+}
+.help-toc a{
+  display:inline-block;
+  border:1px solid var(--line); border-radius:14px;
+  padding:5px 12px; font-size:12px;
+  color:var(--text-dim); text-decoration:none;
+  background:var(--panel-2);
+}
+.help-toc a:hover{color:var(--gold-bright); border-color:var(--gold);}
+.help-section{margin-bottom:30px;}
+.help-section:last-child{margin-bottom:0;}
+.help-section p{font-size:13.5px; color:var(--text-dim); max-width:70ch;}
+.help-diagram{
+  margin:16px 0 24px;
+  background:var(--ink-2); border:1px solid var(--line-soft); border-radius:6px;
+  padding:14px; overflow-x:auto;
+}
+.help-diagram svg{display:block; width:100%; height:auto; min-width:640px;}
+.help-diagram svg text{font-family:var(--font-body);}
+.help-diagram .hd-outer{fill:none; stroke:var(--gold); stroke-dasharray:6 4; stroke-width:1.3;}
+.help-diagram .hd-outer-label{font-family:var(--font-display); font-size:12px; letter-spacing:.03em; fill:var(--gold);}
+.help-diagram .hd-label{font-size:11px; fill:var(--text-dim); text-transform:uppercase; letter-spacing:.05em;}
+.help-diagram .hd-box{fill:var(--panel-2); stroke:var(--line); stroke-width:1.3;}
+.help-diagram .hd-box-core{stroke:var(--moss);}
+.help-diagram .hd-box-accent{stroke:var(--gold);}
+.help-diagram .hd-box-bottom{fill:var(--panel); stroke:var(--line);}
+.help-diagram .hd-title{font-family:var(--font-display); font-size:13px; font-weight:600; fill:var(--text);}
+.help-diagram .hd-sub{font-size:10.5px; fill:var(--text-dim);}
+.help-diagram .hd-bullet{font-size:11px; fill:var(--text);}
+.help-diagram .hd-note{font-size:10.5px; fill:var(--text-dim); font-style:italic;}
+.help-diagram .hd-note-inline{font-size:10px; fill:var(--text-dim); font-style:italic;}
+.help-diagram .hd-swap{font-size:18px; fill:var(--moss-bright);}
+.help-diagram .hd-arrow{stroke:var(--text-dim); stroke-width:1.4; fill:none;}
+.help-diagram .hd-arrow-dashed{stroke-dasharray:4 3;}
+.help-diagram .hd-arrowhead{fill:var(--text-dim);}
 .pe-ref-table td.band{font-family:var(--font-mono); color:var(--text-dim); white-space:nowrap;}
