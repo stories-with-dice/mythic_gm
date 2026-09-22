@@ -94,8 +94,9 @@ js/app/                     the app, one file per former `===== SECTION =====`
 | `14-tab-mythic-gme.js`         | **Full Mythic GME 2e** tab — **first in `TABS`, the default landing tab** (the others are One-Page Mythic): `discoveryCheckResult()`, `DISCOVERY_ODDS`, `sceneAdjustment()` / `SCENE_ADJUSTMENTS`, `rollEventFocus()`, `oneMeaningWord()`, `renderMythicGME()` / `wireMythicGME()`. Threads/Characters Lists, Chaos Factor, Expected-Scene test (Altered → Scene Adjustment + word; Interrupt → editable Event Focus table + word), collapsible Thread Progress Tracks, collapsible editable Random Event Focus Table. Fate Questions here call `askTheGM()` from the GM tab. |
 | `15-tab-published-adventures.js` | **Published Adventures** tab (2nd in `TABS`) — "Deconstruct The Known" (Mythic Magazine #50). **Shares `gme.chaosFactor` / `sceneNumber` / `expectedScene` / lists / `eventFocusTable`** with the Mythic GME tab; its own state is `gme.deconstructed`. `ADVENTURE_DIE_BANDS` / `adventureDieOptions()` / `rollAdventureDie()`, `PAGE_SECTIONS`, `crisisElement()` (Crisis Scene Element Table), `specialElement()` (Special Elements Table), `rollAdventureElement()` (page counter + wrap), `renderPublished()` / `wirePublished()`, plus a collapsible `PUB_FLOW_HTML` "How it works" flowchart. Its scene test is the Deconstructed variant: `>CF & odd → Expected`, `>CF & even → Crisis Scene`, `≤CF → Altered (odd, +Adventure Element) / Interrupt (even, +Event Focus +Adventure Element)`. |
 | `16-tab-player-emulator.js`      | **Player Emulator** tab (last in `TABS`) — a solo "player emulator" from *Cloud Empress: Solo Protocol*. `PE_RESPONSE_TYPES` (Character Response Types re-sorted **most-minus → most-plus**, 50 rows / 1d100) + `peResponseType()`; `PE_NPC_MOODS` (1d10) + `peNpcMood()`; `PE_OUTLOOKS` (1d10, roll-and-display only — `PE_WILDCARD_OUTLOOK` is the one that changes a roll); `peRatingLabel()` / `peRatingClass()`; `peBiasedRoll(sides, mode)` (Adv = keep lowest, Dis = keep highest) with `peRollType(mode)` = 1d100 for a Character Type and `peRollMood(mode)` = 1d10 for an NPC mood (the add-NPC dropdown, persisted as `npcMoodMode`); `peBuildChart(mode)` (weighted 10-segment Response Chart); `peChartResponseAt()`; `pePcResponse()`; `renderPlayerEmu()` / `wirePlayerEmu()`. Generates a whole encounter's mood at once: every tracked PC responds (1d10 on their chart, or a fresh 1d100 on the full table if their Outlook is Wild card), every NPC has one mood, and all conflict ratings plus a manual adjustment are summed — total ≥ +4 ⇒ a violent encounter begins. The per-PC "Roll response" button caches its result in module-level `peLastResponse` / `peResponseHtml` (both cleared on PC removal or chart rebuild); the encounter generator's `useHeldResponses` checkbox (default on) reuses that held response instead of re-rolling, and writes any fresh rolls back so the PC cards stay in sync. |
-| `17-help.js`                    | Help overlay ("?" button in the campaign bar) — `HELP_OVERVIEW_SVG` (inline SVG map of how the tools connect), `renderHelpContent()` / `openHelp()` / `closeHelp()` / `wireHelp()`. Pure informational content, no persisted state. Its Published Adventures section embeds that tab's own `PUB_FLOW_HTML` verbatim (see file 15) rather than restating it, so the two can't drift apart. |
-| `18-init.js`                    | `DOMContentLoaded` handler that kicks everything off (incl. `wireHelp()`) |
+| `17-tab-three-act-story.js`      | **3-Act Story** tab (3rd in `TABS`, right after Published Adventures) — the "Mythic 3-Act Story Structure" worksheet (Mythic Magazine #42), a screenwriting Setup/Conflict/Resolution overlay on normal Mythic play. **Shares `gme.chaosFactor` / `sceneNumber` / `threads` / `characters` / `eventFocusTable`** with the Mythic GME tab; its own state is `gme.threeAct`. Each Act has an **outer** circle track (`THREE_ACT_BEATS`, 4 slots, the 4th ends the Act — mark one per distinct Story Beat achieved in a Scene) and an **inner** circle track (`THREE_ACT_INNER_EVENTS`, uncapped — mark one whenever a Scene has no Story Beat; `threeActInnerEvent()` looks up which Act Event fires, cycling the last entry once the list is exhausted). `fireThreeActEvent()` resolves one triggered Act Event: rolls dice per the rules (Story Thread Activity / Conflict / Twist? / New Conflict? — the last recurses into Conflict), skips the one-time Incident Scene / Introduce NPC events once their condition is already met, and rolls a Meaning word pair (`randomEventWords()`, from the Game Master tab) for flavor. A Conflict roll of 8-10 surfaces a suggested new blocking Thread with an inline "Add to Threads List" button. `renderThreeAct()` / `wireThreeAct()`; an optional "Start In Media Res" button (Act 1, before anything happens) fires all three opening Act Events at once; phases progress `acts → resolution → closing → done` as Act 3's outer track completes, mirroring the worksheet's Resolution/Closing Scenes; a collapsible `THREE_ACT_FLOW_HTML` "How it works" flowchart matches the Published Adventures tab's pattern. The circle counts/order were read off the worksheet graphic itself (the PDF's extracted text scrambles the spiral layout). |
+| `18-help.js`                    | Help overlay ("?" button in the campaign bar) — `HELP_OVERVIEW_SVG` (inline SVG map of how the tools connect), `renderHelpContent()` / `openHelp()` / `closeHelp()` / `wireHelp()`. Pure informational content, no persisted state. Its Published Adventures section embeds that tab's own `PUB_FLOW_HTML` verbatim (see file 15) rather than restating it, so the two can't drift apart. |
+| `19-init.js`                    | `DOMContentLoaded` handler that kicks everything off (incl. `wireHelp()`) |
 
 ## The render/wire convention (every tab follows this — keep it consistent)
 
@@ -208,7 +209,10 @@ STORE = {
                eventFocusTable: [{max, result}],   // editable Random Event Focus Table (1d100 bands)
                deconstructed: {                     // Published Adventures tab (Mythic Mag #50)
                  title, pageCount, adventureDie, latestPage, pageHistory:[int],
-                 firstSceneConcept, meaningList:[str]<=20, crisisPP, diminisher } },
+                 firstSceneConcept, meaningList:[str]<=20, crisisPP, diminisher },
+               threeAct: {                           // 3-Act Story tab (Mythic Mag #42)
+                 storyThread, act:1|2|3, phase:'acts'|'resolution'|'closing'|'done',
+                 outer:[0-4,0-4,0-4], inner:[int,int,int], npcIntroduced, pcProtected } },
   log:       [{ts, section, md}]
 }
 ```
@@ -236,6 +240,14 @@ Meaning word; **Interrupt** = `rollEventFocus()` against `gme.eventFocusTable`
 `gme.chaosFactor` / `sceneNumber` / `expectedScene` / `threads` / `characters` /
 `eventFocusTable` (same campaign, one scene clock) and adds only the
 deconstructed-specific panels on top.
+
+`gme.threeAct` is the 3-Act Story tab's own state; `freshThreeAct()` /
+`sanitizeThreeAct()` are in `03-state-persistence.js`. That tab also reads
+and writes the *shared* `gme.threads` (its Story Thread and any Conflict-
+triggered blocking Threads get added there) but keeps its own Act/outer/inner
+progress separate from the Mythic GME tab's Scene clock — the worksheet's
+Acts don't map onto Scene numbers 1:1. `THREE_ACT_BEATS` / `THREE_ACT_INNER_EVENTS`
+/ `threeActInnerEvent()` / `fireThreeActEvent()` are in `17-tab-three-act-story.js`.
 
 `playerEmu` is the Player Emulator tab's state. `freshPlayerEmu()` /
 `sanitizePlayerEmu()` (with `sanitizePlayerEmuPc()` / `sanitizePlayerEmuNpc()` /
@@ -441,7 +453,15 @@ enforces. Spec `14` covers the Help overlay ("?" button) — opens with a
 section for every tool, embeds the Published Adventures tab's own
 `PUB_FLOW_HTML` verbatim, its table-of-contents links all resolve to real
 section ids, and it closes via its own close button, a backdrop click,
-or Escape (but not a click inside the panel).
+or Escape (but not a click inside the panel). Spec `15` covers the 3-Act
+Story tab — `threeActInnerEvent()`'s Act 1/2/3 sequences (incl. cycling past
+the end), `fireThreeActEvent()`'s dice thresholds and one-time-condition
+skips (Incident Scene / Introduce NPC) for every Act Event including New
+Conflict?'s recursion into Conflict, `sanitizeThreeAct()`, and the tab UI —
+recording a Scene with/without a Story Beat (outer vs inner marks), an Act
+auto-advancing at its 4th outer circle, Act 3 completing into the
+Resolution/Closing/Done phases and back via reset, In Media Res, and the
+Conflict 8-10 "Add to Threads List" suggestion.
 
 Note the harness still can't catch everything: subtle real-browser
 click/focus/paint behaviour (the kind that broke contenteditable and the

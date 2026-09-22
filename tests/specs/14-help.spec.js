@@ -1,4 +1,4 @@
-/* Help overlay (17-help.js). Pure informational content — no persisted
+/* Help overlay (18-help.js). Pure informational content — no persisted
    state — so these specs mostly cover the open/close mechanics and that
    every tool gets a section. */
 
