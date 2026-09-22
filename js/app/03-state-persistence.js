@@ -142,6 +142,42 @@ function sanitizeGm(raw){
   return { inspiration: { enabled, entries } };
 }
 
+// 3-Act Story Structure tab (Mythic Magazine #42). Shares chaosFactor/scene/
+// lists/eventFocusTable with the Mythic GME tab; its own state tracks the
+// protected Story Thread and progress through the Act 1/2/3 "outer" (Story
+// Beat) and "inner" (no-beat / Act Event) circle tracks from the worksheet.
+function freshThreeAct(){
+  return {
+    storyThread: "",
+    act: 1,                 // 1 | 2 | 3
+    phase: "acts",           // "acts" | "resolution" | "closing" | "done"
+    outer: [0, 0, 0],        // Story Beat marks per act, 0-4 (the 4th ends the Act)
+    inner: [0, 0, 0],        // no-beat marks per act (uncapped; cycles the Act Event list)
+    npcIntroduced: false,    // Act 1 "Introduce Important NPCs" achieved at least once
+    pcProtected: false       // house rule (Mythic Mag #42 p.24): PC can't be removed
+  };
+}
+function sanitizeThreeAct(raw){
+  const base = freshThreeAct();
+  if(!raw || typeof raw !== "object") return base;
+  const act = [1, 2, 3].includes(raw.act) ? raw.act : 1;
+  const phase = ["acts", "resolution", "closing", "done"].includes(raw.phase) ? raw.phase : "acts";
+  const clamp4 = arr => Array.isArray(arr)
+    ? [0, 1, 2].map(i => Number.isFinite(arr[i]) ? Math.max(0, Math.min(4, Math.round(arr[i]))) : 0)
+    : [0, 0, 0];
+  const clampPos = arr => Array.isArray(arr)
+    ? [0, 1, 2].map(i => Number.isFinite(arr[i]) ? Math.max(0, Math.round(arr[i])) : 0)
+    : [0, 0, 0];
+  return {
+    storyThread: typeof raw.storyThread === "string" ? raw.storyThread : "",
+    act, phase,
+    outer: clamp4(raw.outer),
+    inner: clampPos(raw.inner),
+    npcIntroduced: !!raw.npcIntroduced,
+    pcProtected: !!raw.pcProtected
+  };
+}
+
 function freshCampaign(){
   return {
     location: { pp:0, regionSize:"Average", areaCount:0, complete:false, ppSetupDone:false },
@@ -158,7 +194,8 @@ function freshCampaign(){
       tracks: [],              // Thread Progress Tracks (see sanitizeTrack)
       nextTrackId: 1,
       eventFocusTable: defaultEventFocus(),  // editable Random Event Focus Table
-      deconstructed: freshDeconstructed()    // "Published Adventures" tab (shares chaosFactor/scene/lists/focus above)
+      deconstructed: freshDeconstructed(),   // "Published Adventures" tab (shares chaosFactor/scene/lists/focus above)
+      threeAct: freshThreeAct()              // "3-Act Story" tab (shares threads/characters above)
     },
     log: []
   };
@@ -296,8 +333,9 @@ function sanitizeCampaign(raw){
   if(!eventFocusTable.length) eventFocusTable = defaultEventFocus();
 
   const deconstructed = sanitizeDeconstructed(rawGme.deconstructed);
+  const threeAct = sanitizeThreeAct(rawGme.threeAct);
 
-  const gme = { chaosFactor, sceneNumber, expectedScene, threads, characters, tracks, nextTrackId, eventFocusTable, deconstructed };
+  const gme = { chaosFactor, sceneNumber, expectedScene, threads, characters, tracks, nextTrackId, eventFocusTable, deconstructed, threeAct };
 
   const log = Array.isArray(raw.log) ? raw.log
     .filter(e=>e && typeof e==="object")
