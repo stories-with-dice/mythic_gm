@@ -81,7 +81,7 @@ js/app/                     the app, one file per former `===== SECTION =====`
 | `03-state-persistence.js`        | `STORAGE_KEY`, `freshCampaign()`, `sanitizeBox()`/`sanitizeCampaign()` (import validation), `loadStore()`/`saveStore()`, `STORE`, `campaign()`, `persist()`, `addLog()` |
 | `04-tab-render-scaffolding.js`   | `TABS`, `currentTab`, `renderTabNav()`, `renderActive()`, `wireActive()` |
 | `05-campaign-bar.js`             | `renderCampaignBar()`, `clearNoteDraft()`, `wireCampaignBar()` (New/Rename/Delete/Export/Import) |
-| `06-tab-game-master.js`          | `renderGM()` / `wireGM()`; `randomEventWords()` — a Discover Meaning Action+Description pair, shared with the Mythic GME tab's Interrupt Scene |
+| `06-tab-game-master.js`          | `renderGM()` / `wireGM()`; `randomEventWords()` — a Discover Meaning Action+Description pair, shared with the Mythic GME tab's Interrupt Scene; `rollInspirationSource()` — weighted roll on Discover Meaning's editable Random Inspiration Source list |
 | `07-tab-adventure-crafter.js`    | `renderAdventure()` / `wireAdventure()` |
 | `08-tab-location-crafter.js`     | `REGION_START_PP`, `renderLocation()` / `wireLocation()` |
 | `09-tab-creature-crafter.js`     | `renderCreature()` / `wireCreature()` |
@@ -144,6 +144,8 @@ STORE = {
   location:  { pp, regionSize, areaCount, complete, ppSetupDone },
   adventure: { mainTheme },
   mystery:   { boxes: [{uid, type:'C'|'S', label, connections:[uid,...]}], nextUid, solvedBoxUid },
+  gm:        { inspiration: { enabled, entries:[{label, weight:1-100}] } },  // Game Master tab,
+                                                                              // Discover Meaning's Random Inspiration Source
   playerEmu: { pcs:[{id, name, outlook:1-10|null, chartMode:'normal'|'adv'|'dis',
                      chart:[{name, rating:-4..4, segments:1-10}]}],   // Player Emulator tab
                nextPcId,
@@ -162,6 +164,14 @@ STORE = {
   log:       [{ts, section, md}]
 }
 ```
+
+`gm.inspiration` is the Game Master tab's own state — a user-editable weighted
+list under Discover Meaning, collapsed behind a checkbox (`enabled`) and, when
+open, an "Edit list" toggle (mirroring the Random Event Focus Table pattern
+below). `freshInspirationEntries()` (the 5 defaults) and `freshGm()` /
+`sanitizeGm()` live in `03-state-persistence.js`; `rollInspirationSource()`
+(weighted 1..totalWeight pick, walking the list in order) is in
+`06-tab-game-master.js`, next to `randomEventWords()`.
 
 `gme` is the "full Mythic" tab's state. `TRACK_SIZES` / `trackFlashphases(size)`
 (= `size/5 - 1`, the number of Flashpoint checkpoints) and `DEFAULT_EVENT_FOCUS`
@@ -362,7 +372,13 @@ clamped, `npcMoodMode` enum-guarded, `useHeldResponses` boolean-guarded,
 `sanitizeCampaign(null)` still deep-equals `freshCampaign()`), and the tab UI
 (add PC, roll Outlook, build chart, add NPC, NPC-mood Adv/Disadv dropdown,
 generate encounter mood verdict, the reuse-held-responses checkbox, Wild card
-path, reference-table toggle, remove PC).
+path, reference-table toggle, remove PC). Spec `05` also covers the Game
+Master tab's Random Inspiration Source: `sanitizeGm()` / `freshGm()` (in `03`)
+— default-list fallback on junk input, weight clamped 1-100, label
+trimmed/truncated — plus the tab UI: the enable checkbox showing/hiding the
+section, a weighted roll via `rollInspirationSource()`, the "last result
+survives re-render" cache when the editor is toggled, editing a label/weight,
+add/remove entries (remove disabled at 1 remaining), and Reset to default.
 
 Note the harness still can't catch everything: subtle real-browser
 click/focus/paint behaviour (the kind that broke contenteditable and the

@@ -526,6 +526,17 @@ table.matrix-table{
 ::-webkit-scrollbar{height:8px; width:8px;}
 ::-webkit-scrollbar-thumb{background:var(--line); border-radius:4px;}
 
+/* ===== Game Master tab ===== */
+.gm-insp-table{width:100%; border-collapse:collapse; margin-top:10px; font-size:13px;}
+.gm-insp-table th{
+  text-align:left; padding:4px 6px; font-size:11px;
+  text-transform:uppercase; letter-spacing:.04em; color:var(--text-dim);
+}
+.gm-insp-table td{padding:3px 6px; border-top:1px solid var(--line-soft); vertical-align:middle;}
+.gm-insp-table input.field-input{padding:4px 6px;}
+.gm-insp-table td:first-child input.field-input{width:100%;}
+.gm-insp-table td.weight input.field-input{width:64px;}
+
 /* ===== Mythic GME tab ===== */
 .gme-list{list-style:none; margin:10px 0 0; padding:0;}
 .gme-list li{

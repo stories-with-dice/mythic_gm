@@ -99,4 +99,53 @@ describe('state / persistence', () => {
       expect(sanitizeBox({ uid: 3 })).toEqual({ uid: 3, type: 'C', label: 'Unnamed', connections: [] });
     });
   });
+
+  describe('sanitizeGm() / freshGm() — Random Inspiration Source (Game Master tab)', () => {
+    it('freshGm() starts disabled with the 5 default entries', () => {
+      expect(freshCampaign().gm).toEqual({
+        inspiration: {
+          enabled: false,
+          entries: [
+            { label: 'Random Map', weight: 1 },
+            { label: 'Random Sourcebook', weight: 1 },
+            { label: 'Random book', weight: 1 },
+            { label: 'Dream', weight: 1 },
+            { label: 'Diary', weight: 1 }
+          ]
+        }
+      });
+    });
+
+    it('sanitizeCampaign(null)/(non-object) still deep-equals freshCampaign()', () => {
+      expect(sanitizeCampaign(null).gm).toEqual(freshCampaign().gm);
+      expect(sanitizeCampaign('nope').gm).toEqual(freshCampaign().gm);
+    });
+
+    it('keeps a valid enabled flag and entry list', () => {
+      const c = sanitizeCampaign({ gm: { inspiration: { enabled: true, entries: [{ label: 'Tarot Deck', weight: 3 }] } } });
+      expect(c.gm.inspiration.enabled).toBe(true);
+      expect(c.gm.inspiration.entries).toEqual([{ label: 'Tarot Deck', weight: 3 }]);
+    });
+
+    it('falls back to the default list when every entry is junk', () => {
+      const c = sanitizeCampaign({ gm: { inspiration: { entries: [{ label: '   ' }, 'nope', null] } } });
+      expect(c.gm.inspiration.entries).toEqual(freshCampaign().gm.inspiration.entries);
+    });
+
+    it('clamps weight to 1..100 and trims/truncates the label', () => {
+      const c = sanitizeCampaign({
+        gm: { inspiration: { entries: [
+          { label: '  Padded  ', weight: 0 },
+          { label: 'x'.repeat(80), weight: 500 }
+        ] } }
+      });
+      expect(c.gm.inspiration.entries[0]).toEqual({ label: 'Padded', weight: 1 });
+      expect(c.gm.inspiration.entries[1].weight).toBe(100);
+      expect(c.gm.inspiration.entries[1].label.length).toBe(60);
+    });
+
+    it('a non-boolean enabled flag defaults to false', () => {
+      expect(sanitizeCampaign({ gm: { inspiration: { enabled: 'yes' } } }).gm.inspiration.enabled).toBe(false);
+    });
+  });
 });

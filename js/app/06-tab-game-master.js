@@ -33,6 +33,9 @@ function renderGM(){
       <button class="btn" id="btnClearWords">Clear</button>
     </div>
     <div id="discoverWords" style="margin-top:12px;"></div>
+
+    <div class="divider"></div>
+    ${renderInspirationSection()}
   </div>
 
   <div class="card">
@@ -44,6 +47,57 @@ function renderGM(){
   `;
 }
 let gmWordLog = []; // transient list of discover-meaning words rolled this session (per-tab view only)
+let gmInspEditorOpen = false; // Random Inspiration Source list editor collapsed by default
+let lastInspirationHtml = ''; // cached so an unrelated renderActive() doesn't wipe it
+
+// Weighted pick from the Random Inspiration Source list: 1..totalWeight, walk
+// the cumulative bands in list order (order is otherwise insignificant).
+function rollInspirationSource(entries){
+  const total = entries.reduce((sum, e) => sum + e.weight, 0);
+  const roll = rollDie(Math.max(1, total));
+  let acc = 0;
+  for(const e of entries){
+    acc += e.weight;
+    if(roll <= acc) return { roll, total, entry: e };
+  }
+  return { roll, total, entry: entries[entries.length - 1] };
+}
+
+function renderInspirationSection(){
+  const insp = campaign().gm.inspiration;
+  const rows = insp.entries.map((e, i) => `
+    <tr>
+      <td><input type="text" data-insp-label="${i}" class="field-input" value="${escapeAttr(e.label)}"></td>
+      <td class="weight"><input type="number" min="1" max="100" data-insp-weight="${i}" class="field-input" value="${e.weight}"></td>
+      <td><button class="btn small danger" data-insp-rm="${i}" ${insp.entries.length <= 1 ? 'disabled' : ''}>&#10005;</button></td>
+    </tr>`).join('');
+
+  return `
+  <label class="row" style="align-items:center; gap:8px; cursor:pointer;">
+    <input type="checkbox" id="gmInspEnabled" ${insp.enabled ? 'checked' : ''}>
+    <span>Random Inspiration Source</span>
+  </label>
+  ${insp.enabled ? `
+    <p class="small-note" style="margin-top:4px;">Roll for where a piece of random inspiration comes from. Weight an entry higher to make it more likely.</p>
+    <div class="row">
+      <button class="btn primary" id="btnRollInspiration" ${insp.entries.length ? '' : 'disabled'}>Roll Inspiration Source</button>
+      <button class="btn small" id="btnGmInspEditToggle">${gmInspEditorOpen ? 'Done' : 'Edit list'}</button>
+    </div>
+    <div id="inspirationResult" style="margin-top:10px;">${lastInspirationHtml}</div>
+    ${gmInspEditorOpen ? `
+    <div style="overflow-x:auto;">
+      <table class="gm-insp-table">
+        <thead><tr><th>Source</th><th>Weight</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <button class="btn small" id="btnGmInspAdd">Add entry</button>
+      <button class="btn small" id="btnGmInspReset">Reset to default</button>
+    </div>
+    ` : ''}
+  ` : ''}`;
+}
 
 // Roll a Random Event's inspiration words: a Discover Meaning Action + Description
 // pair. Shared so other tabs (e.g. Mythic GME's Interrupt Scene) generate a
@@ -94,5 +148,63 @@ function wireGM(){
     const ev = randomEventWords();
     document.getElementById('eventResult').innerHTML = `<div class="result-box event"><div class="word-chip"><b>${ev.a.word}</b></div><div class="word-chip"><b>${ev.d.word}</b></div></div>`;
     addLog('Random Event', `**Random Event** → Discover Meaning: **${ev.a.word} / ${ev.d.word}**`);
+  });
+
+  /* ----- Random Inspiration Source (Discover Meaning) ----- */
+  document.getElementById('gmInspEnabled').addEventListener('change', (e)=>{
+    campaign().gm.inspiration.enabled = e.target.checked;
+    persist();
+    renderActive();
+  });
+
+  const inspRoll = document.getElementById('btnRollInspiration');
+  if(inspRoll) inspRoll.addEventListener('click', ()=>{
+    const res = rollInspirationSource(campaign().gm.inspiration.entries);
+    lastInspirationHtml = `<div class="result-box"><span class="roll-num">${res.roll}</span> of ${res.total} &nbsp;→&nbsp; <b>${escapeAttr(res.entry.label)}</b></div>`;
+    document.getElementById('inspirationResult').innerHTML = lastInspirationHtml;
+    addLog('Random Inspiration Source', `**Random Inspiration Source** — Roll: ${res.roll} of ${res.total} → **${escapeMd(res.entry.label)}**`);
+  });
+
+  const inspEditToggle = document.getElementById('btnGmInspEditToggle');
+  if(inspEditToggle) inspEditToggle.addEventListener('click', ()=>{
+    gmInspEditorOpen = !gmInspEditorOpen;
+    renderActive();
+  });
+
+  document.querySelectorAll('[data-insp-label]').forEach(el=> el.addEventListener('change', ()=>{
+    const i = Number(el.dataset.inspLabel);
+    const entries = campaign().gm.inspiration.entries;
+    entries[i].label = el.value.trim() || entries[i].label;
+    persist();
+  }));
+  document.querySelectorAll('[data-insp-weight]').forEach(el=> el.addEventListener('change', ()=>{
+    const i = Number(el.dataset.inspWeight);
+    const entries = campaign().gm.inspiration.entries;
+    let v = Math.round(Number(el.value));
+    if(!Number.isFinite(v)) v = entries[i].weight;
+    entries[i].weight = Math.max(1, Math.min(100, v));
+    persist();
+    renderActive();
+  }));
+  document.querySelectorAll('[data-insp-rm]').forEach(b=> b.addEventListener('click', ()=>{
+    const entries = campaign().gm.inspiration.entries;
+    if(entries.length <= 1) return;
+    entries.splice(Number(b.dataset.inspRm), 1);
+    persist();
+    renderActive();
+  }));
+  const inspAdd = document.getElementById('btnGmInspAdd');
+  if(inspAdd) inspAdd.addEventListener('click', ()=>{
+    campaign().gm.inspiration.entries.push({ label: 'New Source', weight: 1 });
+    persist();
+    renderActive();
+  });
+  const inspReset = document.getElementById('btnGmInspReset');
+  if(inspReset) inspReset.addEventListener('click', ()=>{
+    if(!confirm('Reset the Random Inspiration Source list to the default 5 entries?')) return;
+    campaign().gm.inspiration.entries = freshInspirationEntries();
+    persist();
+    addLog('Random Inspiration Source', '**Random Inspiration Source** list reset to default.');
+    renderActive();
   });
 }

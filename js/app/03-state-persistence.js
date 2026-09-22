@@ -112,12 +112,43 @@ function sanitizePlayerEmu(raw){
   return { pcs, nextPcId, npcs, nextNpcId, adjust, npcMoodMode, useHeldResponses };
 }
 
+// Random Inspiration Source list (Game Master tab, Discover Meaning). A
+// user-editable weighted list — "Roll" picks one entry weighted by `weight`.
+function freshInspirationEntries(){
+  return [
+    { label: "Random Map", weight: 1 },
+    { label: "Random Sourcebook", weight: 1 },
+    { label: "Random book", weight: 1 },
+    { label: "Dream", weight: 1 },
+    { label: "Diary", weight: 1 }
+  ];
+}
+function freshGm(){
+  return { inspiration: { enabled: false, entries: freshInspirationEntries() } };
+}
+function sanitizeGm(raw){
+  const g = (raw && typeof raw === "object") ? raw : {};
+  const insp = (g.inspiration && typeof g.inspiration === "object") ? g.inspiration : {};
+  let entries = Array.isArray(insp.entries)
+    ? insp.entries
+        .filter(e => e && typeof e === "object" && typeof e.label === "string" && e.label.trim())
+        .map(e => ({
+          label: e.label.trim().slice(0, 60),
+          weight: Number.isFinite(e.weight) ? Math.max(1, Math.min(100, Math.round(e.weight))) : 1
+        }))
+    : [];
+  if(!entries.length) entries = freshInspirationEntries();
+  const enabled = typeof insp.enabled === "boolean" ? insp.enabled : false;
+  return { inspiration: { enabled, entries } };
+}
+
 function freshCampaign(){
   return {
     location: { pp:0, regionSize:"Average", areaCount:0, complete:false, ppSetupDone:false },
     adventure: { mainTheme:null },
     mystery: { boxes:[], nextUid:1, solvedBoxUid:null },
     playerEmu: freshPlayerEmu(),
+    gm: freshGm(),
     gme: {
       chaosFactor: 5,          // Mythic GME 2e default; range 1-9
       sceneNumber: 1,
@@ -228,6 +259,8 @@ function sanitizeCampaign(raw){
 
   const playerEmu = sanitizePlayerEmu(raw.playerEmu);
 
+  const gm = sanitizeGm(raw.gm);
+
   // --- Mythic GME (full Mythic 2e) tab -------------------------------------
   const rawGme = (raw.gme && typeof raw.gme === "object") ? raw.gme : {};
   const cf = Number(rawGme.chaosFactor);
@@ -270,7 +303,7 @@ function sanitizeCampaign(raw){
     .filter(e=>e && typeof e==="object")
     .map(e=>({ ts: String(e.ts||""), section: String(e.section||""), md: String(e.md||"") })) : [];
 
-  return { location, adventure, mystery, playerEmu, gme, log };
+  return { location, adventure, mystery, playerEmu, gm, gme, log };
 }
 
 function loadStore(){

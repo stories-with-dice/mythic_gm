@@ -56,4 +56,88 @@ describe('Game Master tab', () => {
       expect(lastLog().section).toBe('Random Event');
     });
   });
+
+  describe('Random Inspiration Source', () => {
+    it('is disabled by default and hides the roll/edit controls', () => {
+      expect(campaign().gm.inspiration.enabled).toBe(false);
+      expect($('#btnRollInspiration')).toBeNull();
+    });
+
+    it('the checkbox enables the section and persists it', () => {
+      click('#gmInspEnabled');
+      expect(campaign().gm.inspiration.enabled).toBe(true);
+      expect($('#btnRollInspiration')).toBeTruthy();
+      expect(JSON.parse(sessionStorage.getItem('mythicToolkit_v1'))
+        .campaigns[STORE.current].gm.inspiration.enabled).toBe(true);
+    });
+
+    it('defaults to the 5 documented entries, equally weighted', () => {
+      expect(campaign().gm.inspiration.entries).toEqual([
+        { label: 'Random Map', weight: 1 },
+        { label: 'Random Sourcebook', weight: 1 },
+        { label: 'Random book', weight: 1 },
+        { label: 'Dream', weight: 1 },
+        { label: 'Diary', weight: 1 }
+      ]);
+    });
+
+    it('rolls a weighted pick and logs it', async () => {
+      click('#gmInspEnabled');
+      // total weight 5; roll 3 => 3rd entry ("Random book")
+      await withRolls([3], () => click('#btnRollInspiration'));
+      expect($('#inspirationResult')).toContain('Random book');
+      expect(lastLog().section).toBe('Random Inspiration Source');
+      expect(lastLog().md).toContain('**Random book**');
+    });
+
+    it('the last result survives an unrelated re-render of the tab (e.g. opening the editor)', async () => {
+      click('#gmInspEnabled');
+      await withRolls([1], () => click('#btnRollInspiration'));
+      click('#btnGmInspEditToggle'); // triggers renderActive(); the result panel must not be wiped
+      expect($('#inspirationResult')).toContain('Random Map');
+    });
+
+    it('Edit list toggles the weight/label table open, and heavier weights win more rolls', async () => {
+      click('#gmInspEnabled');
+      expect($$('[data-insp-label]')).toHaveLength(0);
+      click('#btnGmInspEditToggle');
+      expect($$('[data-insp-label]')).toHaveLength(5);
+      setValue('[data-insp-weight="0"]', '10'); // "Random Map" now weight 10, total 14
+      expect(campaign().gm.inspiration.entries[0].weight).toBe(10);
+      await withRolls([9], () => click('#btnRollInspiration')); // within the boosted band
+      expect($('#inspirationResult')).toContain('Random Map');
+    });
+
+    it('editing a label persists the trimmed value', () => {
+      click('#gmInspEnabled');
+      click('#btnGmInspEditToggle');
+      setValue('[data-insp-label="1"]', '  Old Newspaper  ');
+      expect(campaign().gm.inspiration.entries[1].label).toBe('Old Newspaper');
+    });
+
+    it('Add entry appends a new weight-1 row', () => {
+      click('#gmInspEnabled');
+      click('#btnGmInspEditToggle');
+      click('#btnGmInspAdd');
+      expect(campaign().gm.inspiration.entries.length).toBe(6);
+      expect($$('[data-insp-label]')).toHaveLength(6);
+    });
+
+    it('Remove is disabled on the last remaining entry', () => {
+      click('#gmInspEnabled');
+      click('#btnGmInspEditToggle');
+      for (let i = 0; i < 4; i++) click('[data-insp-rm="0"]');
+      expect(campaign().gm.inspiration.entries.length).toBe(1);
+      expect($('[data-insp-rm="0"]').disabled).toBe(true);
+    });
+
+    it('Reset to default restores the 5 default entries and logs it', async () => {
+      click('#gmInspEnabled');
+      click('#btnGmInspEditToggle');
+      click('#btnGmInspAdd');
+      await withDialogs({ confirm: true }, () => click('#btnGmInspReset'));
+      expect(campaign().gm.inspiration.entries).toEqual(freshCampaign().gm.inspiration.entries);
+      expect(lastLog().md).toContain('Random Inspiration Source');
+    });
+  });
 });
