@@ -75,6 +75,15 @@ Exit `0` = all passed, `1` = failures, `2` = could not run.
   (add ≤20 / remove / roll 1d10), the Diminisher divide helper, and
   `sanitizeDeconstructed()`.
 
+- **Dropbox sync** (`16`): `dropboxDecideSync()` and `dropboxPkcePair()`;
+  the panel; Connect → paste code → file created → debounced upload; a wrong
+  code; token refresh and a revoked refresh token; pull; an edit during a
+  pull; a rev conflict on upload; both conflict-dialog choices; a new tab
+  that loads the Dropbox copy; Disconnect; Import of the sync file. A fake
+  `window.fetch` plays Dropbox, so nothing goes to the network. `tests.html`
+  sets `window.MYTHIC_DROPBOX_KEY_PREFIX`, so the run never touches the real
+  app's Dropbox keys in `localStorage`.
+
 ## Adding a test
 
 Add an `it()` to the relevant spec, or a new `specs/NN-name.spec.js` plus a

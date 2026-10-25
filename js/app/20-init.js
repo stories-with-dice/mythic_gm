@@ -9,4 +9,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
   renderNoteSection();
   renderLogSection();
   wireHelp();
+  wireDropbox();
+  initDropbox(); // last: syncs this tab's campaigns, if Dropbox sync is on
 });

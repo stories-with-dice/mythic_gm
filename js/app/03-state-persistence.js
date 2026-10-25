@@ -364,13 +364,19 @@ function loadStore(){
     return store;
   }
 }
+// Returns false when the browser refuses (storage full, blocked storage).
 function saveStore(store){
-  try{ sessionStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }catch(e){ console.warn("Could not persist to sessionStorage", e); }
+  try{ sessionStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }catch(e){ console.warn("Could not persist to sessionStorage", e); return false; }
+  return true;
 }
 
 let STORE = loadStore();
 function campaign(){ return STORE.campaigns[STORE.current]; }
-function persist(){ saveStore(STORE); }
+// A successful save also queues a Dropbox upload when sync is on
+// (19-dropbox-sync.js, which loads later — a no-op otherwise).
+function persist(){
+  if(saveStore(STORE) && typeof dropboxNoteSave === "function") dropboxNoteSave();
+}
 
 function addLog(section, md){
   campaign().log.push({ ts: timestamp(), section, md });
