@@ -138,7 +138,8 @@ describe('Player Emulator — tab UI', () => {
 
   it('Add PC puts a character card on the roster and logs it', () => {
     addPc('Stan');
-    expect($('#panelHost')).toContain('Stan');
+    // The name is an editable <input>, so read its value (textContent skips it).
+    expect($('.pe-pc [data-pc-name]').value).toBe('Stan');
     expect($$('.pe-pc')).toHaveLength(1);
     expect(lastLog().section).toBe('Player Emulator');
   });
