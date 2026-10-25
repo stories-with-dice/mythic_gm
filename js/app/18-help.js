@@ -23,7 +23,7 @@ const HELP_OVERVIEW_SVG = `
   </defs>
 
   <rect x="6" y="6" width="868" height="490" rx="14" class="hd-outer"/>
-  <text x="24" y="28" class="hd-outer-label">CAMPAIGN &mdash; New / Rename / Delete / Export / Import (sessionStorage only)</text>
+  <text x="24" y="28" class="hd-outer-label">CAMPAIGN &mdash; New / Rename / Delete / Export / Import (sessionStorage; optional Dropbox sync)</text>
 
   <text x="24" y="52" class="hd-label">CORE LOOP &mdash; always available, in the Game Master tab</text>
   <rect x="250" y="60" width="170" height="60" rx="8" class="hd-box hd-box-core"/>
@@ -231,6 +231,7 @@ function renderHelpContent(){
       <h3 class="block-title">Quick Note, Campaign Log &amp; Campaigns</h3>
       <p><b>Quick Note</b> and the <b>Campaign Log</b> sit below every tab, no matter which one is active. Quick Note is a Markdown scratchpad &mdash; press Enter (or the toolbar) to commit it to the Log. The Log is the running record of everything you roll across every tab; it stores raw Markdown as the source of truth, and only renders it to sanitized HTML for on-screen display. Copy or Download export that Markdown verbatim.</p>
       <p>The <b>Campaign</b> dropdown at the top of the page switches between separate save slots (New / Rename / Delete), each with its own state for every tab above. Export/Import round-trip a campaign through a JSON file &mdash; worth doing before closing the tab, since campaigns live in <code>sessionStorage</code> and do not survive closing the browser tab.</p>
+      <p><b>Dropbox sync</b> (the <b>&#9729; Dropbox</b> button in the campaign bar) is optional and off by default. When you connect it, every campaign is saved as one file in your Dropbox app folder a few seconds after each change. A new tab, or another browser where you connect, then loads the same campaigns. If the Dropbox copy and this tab both changed, the app asks which copy to keep. Setup needs a free Dropbox app key once; the panel lists the steps.</p>
     </div>
   </div>`;
 }

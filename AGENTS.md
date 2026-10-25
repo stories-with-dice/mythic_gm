@@ -23,6 +23,13 @@ single self-contained `.html`; it is now split across plain files (`index.html`
 libraries are still fetched once (via npm) and their minified source saved
 verbatim under `js/vendor/` — never add a `<script src="https://...">`.
 
+**One opt-in exception: Dropbox sync** (`js/app/19-dropbox-sync.js`, see
+"Dropbox sync" below). When the user turns it on, the app calls the Dropbox
+HTTP API (`api.dropboxapi.com`, `content.dropboxapi.com`) with `fetch`. It
+loads no third-party script. Nothing goes to the network until the user
+clicks **Connect**, and the app still works offline without it. Don't add
+other runtime network dependencies on the back of this one.
+
 There is still no package.json and no bundler. There **is** now a test suite
 (`tests/`), but it too is dependency-free — see "Testing" below.
 
@@ -60,10 +67,12 @@ split a pure cut-and-paste with zero behaviour change. Consequences to respect:
 
 ```
 index.html                  shell only: <head> links + the body skeleton
-                            (header/.campaign-bar incl. the "?" Help button,
+                            (header/.campaign-bar incl. the "☁ Dropbox"
+                            button#btnDropbox and the "?" Help button,
                             nav#tabNav, div#panelSplit > main#panelHost +
                             aside#panelHostRight, section#noteSection,
-                            section#logSection, div#helpOverlay) + the
+                            section#logSection, div#helpOverlay,
+                            div#dropboxOverlay, div#dropboxModal) + the
                             ordered <script> list.
 css/
   vendor-easymde.css        vendor CSS (EasyMDE + CodeMirror)
@@ -96,7 +105,8 @@ js/app/                     the app, one file per former `===== SECTION =====`
 | `16-tab-player-emulator.js`      | **Player Emulator** tab (last in `TABS`) — a solo "player emulator" from *Cloud Empress: Solo Protocol*. `PE_RESPONSE_TYPES` (Character Response Types re-sorted **most-minus → most-plus**, 50 rows / 1d100) + `peResponseType()`; `PE_NPC_MOODS` (1d10) + `peNpcMood()`; `PE_OUTLOOKS` (1d10, roll-and-display only — `PE_WILDCARD_OUTLOOK` is the one that changes a roll); `peRatingLabel()` / `peRatingClass()`; `peBiasedRoll(sides, mode)` (Adv = keep lowest, Dis = keep highest) with `peRollType(mode)` = 1d100 for a Character Type and `peRollMood(mode)` = 1d10 for an NPC mood (the add-NPC dropdown, persisted as `npcMoodMode`); `peBuildChart(mode)` (weighted 10-segment Response Chart); `peChartResponseAt()`; `pePcResponse()`; `renderPlayerEmu()` / `wirePlayerEmu()`. Generates a whole encounter's mood at once: every tracked PC responds (1d10 on their chart, or a fresh 1d100 on the full table if their Outlook is Wild card), every NPC has one mood, and all conflict ratings plus a manual adjustment are summed — total ≥ +4 ⇒ a violent encounter begins. The per-PC "Roll response" button caches its result in module-level `peLastResponse` / `peResponseHtml` (both cleared on PC removal or chart rebuild); the encounter generator's `useHeldResponses` checkbox (default on) reuses that held response instead of re-rolling, and writes any fresh rolls back so the PC cards stay in sync. |
 | `17-tab-three-act-story.js`      | **3-Act Story** tab (3rd in `TABS`, right after Published Adventures) — the "Mythic 3-Act Story Structure" worksheet (Mythic Magazine #42), a screenwriting Setup/Conflict/Resolution overlay on normal Mythic play. **Shares `gme.chaosFactor` / `sceneNumber` / `threads` / `characters` / `eventFocusTable`** with the Mythic GME tab; its own state is `gme.threeAct`. Each Act has an **outer** circle track (`THREE_ACT_BEATS`, 4 slots, the 4th ends the Act — mark one per distinct Story Beat achieved in a Scene) and an **inner** circle track (`THREE_ACT_INNER_EVENTS`, uncapped — mark one whenever a Scene has no Story Beat; `threeActInnerEvent()` looks up which Act Event fires, cycling the last entry once the list is exhausted). `fireThreeActEvent()` resolves one triggered Act Event: rolls dice per the rules (Story Thread Activity / Conflict / Twist? / New Conflict? — the last recurses into Conflict), skips the one-time Incident Scene / Introduce NPC events once their condition is already met, and rolls a Meaning word pair (`randomEventWords()`, from the Game Master tab) for flavor. A Conflict roll of 8-10 surfaces a suggested new blocking Thread with an inline "Add to Threads List" button. `renderThreeAct()` / `wireThreeAct()`; an optional "Start In Media Res" button (Act 1, before anything happens) fires all three opening Act Events at once; phases progress `acts → resolution → closing → done` as Act 3's outer track completes, mirroring the worksheet's Resolution/Closing Scenes; a collapsible `THREE_ACT_FLOW_HTML` "How it works" flowchart matches the Published Adventures tab's pattern. The circle counts/order were read off the worksheet graphic itself (the PDF's extracted text scrambles the spiral layout). |
 | `18-help.js`                    | Help overlay ("?" button in the campaign bar) — `HELP_OVERVIEW_SVG` (inline SVG map of how the tools connect), `renderHelpContent()` / `openHelp()` / `closeHelp()` / `wireHelp()`. Pure informational content, no persisted state. Its Published Adventures section embeds that tab's own `PUB_FLOW_HTML` verbatim (see file 15) rather than restating it, so the two can't drift apart. |
-| `19-init.js`                    | `DOMContentLoaded` handler that kicks everything off (incl. `wireHelp()`) |
+| `19-dropbox-sync.js`            | Optional **Dropbox sync** of every campaign — ported from the osr_keeper project's `js/dropbox.js`. PKCE sign-in (`dropboxConnect()` / `dropboxFinishConnect()`), token refresh, `dropboxDecideSync()`, `dropboxSyncNow()`, `dropboxNoteSave()` (called by `persist()`), the conflict dialog (`openDropboxModal()`, `dropboxUseRemoteCopy()` / `dropboxUseLocalCopy()`), and the panel (`renderDropbox()`, `wireDropbox()`, `initDropbox()`). See "Dropbox sync" below. |
+| `20-init.js`                    | `DOMContentLoaded` handler that kicks everything off (incl. `wireHelp()`, then `wireDropbox()` + `initDropbox()` last) |
 
 ## The render/wire convention (every tab follows this — keep it consistent)
 
@@ -263,9 +273,17 @@ in `16-tab-player-emulator.js`.
   `mythicToolkit_v1`. This is **session-only** — it clears when the browser
   tab closes. That's a deliberate tradeoff already communicated to the user,
   not a bug to silently "fix" by switching to `localStorage` without asking.
+  The optional Dropbox sync is the supported way to keep campaigns across
+  tabs. `saveStore()` returns `false` when the browser refuses the write.
+  After a successful write, `persist()` calls `dropboxNoteSave()` (a no-op
+  while Dropbox sync is off).
 - Export/Import (campaign bar) round-trip a campaign through JSON. Imported
   data always goes through `sanitizeCampaign()`/`sanitizeBox()` before being
   accepted — never assign parsed JSON straight into `STORE.campaigns`.
+  Import also reads the Dropbox sync file (`{ mythicToolkitSync: 1,
+  campaigns }`) and adds every campaign in it; `importCampaign()` /
+  `finishImport()` in `05-campaign-bar.js` do the renaming and re-render for
+  both shapes.
 
 ### `sanitizeCampaign()` invariants — preserve these if you touch it
 
@@ -285,6 +303,98 @@ in `16-tab-player-emulator.js`.
 If you extend the data model, extend this sanitizer in the same style —
 default-first, then narrow. A hand-edited or corrupted import file should
 never be able to crash the app or leave it in an inconsistent state.
+
+## Dropbox sync (`js/app/19-dropbox-sync.js`)
+
+Optional, off by default. Ported from the osr_keeper project's
+`js/dropbox.js`, with the same sign-in, API calls, sync decision, and
+conflict dialog. It stores every campaign in `STORE` as one JSON file in the
+user's Dropbox and keeps it in sync. There is no backend, so:
+
+- **Sign-in is OAuth 2 with PKCE and no redirect URI.** `dropboxConnect()`
+  opens a blank tab inside the click (so pop-up blockers allow it), makes a
+  verifier with `dropboxPkcePair()` (S256 with `crypto.subtle`, else
+  `plain`), and sends the tab to `/oauth2/authorize` with
+  `token_access_type=offline`. Dropbox shows a code. The user pastes it into
+  `#dbxCode`, and `dropboxFinishConnect()` trades it at `/oauth2/token` for a
+  4-hour access token and a refresh token that does not expire.
+  `dropboxAccessToken()` refreshes by itself (`grant_type=refresh_token`,
+  app key only, no secret; concurrent callers share one refresh). Nothing
+  redirects back, so it works from `file://` and from the single-file
+  release. `#dbxOpen` links the same URL when the tab was blocked.
+- **The app is a Dropbox "App folder" app** with `files.content.read` and
+  `files.content.write`. It sees only `Apps/<app name>/`. The file is
+  `DBX_FILE_PATH` (`/Mythic Toolkit campaigns.json`). `dropboxFindRemote()`
+  first tries the file id it synced with, then the path, so a rename or move
+  inside the app folder doesn't break it. The app key comes from the panel's
+  Setup (`dbxConfig.appKey`) or `DBX_DEFAULT_APP_KEY`. It is not a secret;
+  never put the app secret in the code.
+- **The synced file** is `dropboxSyncText()`:
+  `{ "mythicToolkitSync": 1, "campaigns": STORE.campaigns }`. It leaves out
+  `STORE.current`, so switching campaigns in one tab is not a change to sync.
+- **API calls** are plain `fetch` (`dropboxFetch()` adds the bearer token and
+  always uses `POST`). A 401 refreshes once and retries; a second 401, or a
+  refused refresh, drops the tokens and sets the status to `signed-out`.
+  Errors carry Dropbox's `error_summary` (`e.summary`). `files/download` asks
+  for `rev:<rev>`, so the text always matches the metadata. `files/upload`
+  uses `mode: add` to create and `mode: update` with the rev to replace:
+  Dropbox refuses (409 `path/conflict`) if another device wrote in between,
+  and the next pass then sees the change. `dropboxHeaderJson()` escapes
+  non-ASCII in the `Dropbox-API-Arg` header.
+- **Per-device data stays out of `STORE`**, in three keys:
+  - `localStorage['mythicToolkit_dropbox_v1']` = `dbxConfig`
+    (`enabled`, `appKey`). It survives closing the tab.
+  - `localStorage['mythicToolkit_dropbox_token']` (`token`, `expiresAt`,
+    `refresh`, `appKey`).
+  - `sessionStorage['mythicToolkit_dropbox_sync']` = `dbxSync`
+    (`fileId`, `remoteHash`, `syncedHash`, `lastSync`).
+
+  **The sync bookkeeping is session-only on purpose — this is the one real
+  difference from osr_keeper.** It describes the `STORE` in this tab's
+  `sessionStorage`. A new tab starts with an empty `STORE`. If the
+  bookkeeping were in `localStorage`, the new tab would see "only local
+  changed" and upload its empty campaign over the Dropbox copy.
+- **One sync pass** (`dropboxSyncNow()`), in order:
+  1. Hash the local state: `dropboxHash(dropboxSyncText())`, FNV-1a plus the
+     length.
+  2. Read the Dropbox file's metadata (`dropboxFindRemote()`).
+  3. `dropboxDecideSync(remote, dbxSync, hash)` returns `create` (no file
+     yet), `link` (a file this tab never synced with), `noop`, `upload` (only
+     local changed), `pull` (only Dropbox changed), or `conflict` (both
+     changed).
+  4. `create`/`upload` sends the text. `pull` downloads the file and runs
+     `dropboxApplyRemote()`, unless the local state changed during the
+     download: then it is a `conflict`. A `link` from a tab that holds only
+     the untouched "Campaign 1" (`dropboxIsPristine()`) is a `pull` too — so
+     a new tab loads the Dropbox campaigns without asking. Any other `link`
+     or `conflict` downloads the file: if it is the same text, it only
+     records it; otherwise it opens `#dropboxModal`.
+
+  `dropboxApplyRemote()` runs every campaign through `sanitizeCampaign()`,
+  keeps `STORE.current` when that campaign still exists, writes with
+  `saveStore()` (not `persist()`, so a pull is not queued as an upload), and
+  re-renders. It records the hash of the state *after* sanitizing, so a
+  cleaned copy isn't uploaded back. It writes no log line: two devices would
+  otherwise pull each other's log line forever. If the browser storage is
+  full, it throws instead of recording the sync.
+- **When it runs**: `dropboxNoteSave()` (from every `persist()`) debounces an
+  upload by `DBX_UPLOAD_DELAY` (4 s), but never longer than `DBX_MAX_WAIT`
+  (30 s) after the first unsynced save. `initDropbox()` (last in
+  `20-init.js`) syncs at boot. The tab returning to the foreground re-checks
+  Dropbox (at most once a minute), and going to the background flushes a
+  pending upload. The `online` event also syncs. While `#dropboxModal` is
+  open (status `conflict`), saves don't sync. The user chooses **Use the
+  Dropbox copy**, **Keep this tab's copy** (it records the remote hash so the
+  next pass is a plain `upload`), **Export**, or **Decide later** (Escape
+  too). The campaign-bar button and the panel's **Resolve** reopen it.
+  **Disconnect** revokes the token (best effort) and forgets it, and keeps
+  the app key.
+- **UI**: `#btnDropbox` in the campaign bar shows the status (`Dropbox`,
+  `Synced`, `Saving…`, `Reconnect`, `Resolve`, `Sync error`) and opens
+  `#dropboxOverlay` (the panel). `wireDropbox()` builds the panel and modal
+  markup **once**; `renderDropbox()` only toggles and fills it. So a status
+  change never wipes a half-typed code or app key. This is a deliberate
+  exception to the render/wire "rebuild the HTML" convention.
 
 ## The log: Markdown is the source of truth, HTML is a view
 
@@ -461,7 +571,22 @@ Conflict?'s recursion into Conflict, `sanitizeThreeAct()`, and the tab UI —
 recording a Scene with/without a Story Beat (outer vs inner marks), an Act
 auto-advancing at its 4th outer circle, Act 3 completing into the
 Resolution/Closing/Done phases and back via reset, In Media Res, and the
-Conflict 8-10 "Add to Threads List" suggestion.
+Conflict 8-10 "Add to Threads List" suggestion. Spec `16` covers Dropbox
+sync against two fakes: a `window.open` that records the consent URL, and a
+`window.fetch` fake Dropbox (token endpoint + `files/*` calls, in memory,
+with real revs and real `content_hash` values via `crypto.subtle`). It
+covers `dropboxDecideSync()`, `dropboxPkcePair()`, connect + create +
+debounced upload, a wrong code, token refresh and a revoked refresh token,
+pull, an edit during a pull, a rev conflict on upload, both conflict-dialog
+choices, a new tab loading the Dropbox copy, a non-pristine link asking
+first, a renamed file, Disconnect, the `sanitizeCampaign()` pass on pull,
+and Import of the sync file. `tests/tests.html` sets
+`window.MYTHIC_DROPBOX_KEY_PREFIX` before the app scripts, so the test run
+uses its own `localStorage` keys: all `file://` pages share one
+`localStorage`, and a test run must not disconnect the real app.
+`resetApp()` clears those keys and resets `dbxConfig` / `dbxSync` / `dbx`.
+Not covered: the real Dropbox consent page. Check it by hand with a real app
+key.
 
 Note the harness still can't catch everything: subtle real-browser
 click/focus/paint behaviour (the kind that broke contenteditable and the
@@ -482,7 +607,7 @@ tokens is that a future re-theme only touches `:root`.
 - ~370 KB of vendored EasyMDE/CodeMirror/marked/DOMPurify under `js/vendor/`.
   This is the cost of "rich editor, still fully offline." Don't try to slim it.
 - `sessionStorage`, not `localStorage` — data doesn't survive closing the
-  tab. Export/Import exists specifically to work around this.
+  tab. Export/Import and the optional Dropbox sync exist to work around this.
 - No build step and no minification of the app's own code. The `js/app/*`
   files are plain ordered `<script>`s sharing global scope, **not** ES
   modules — see "Why it's still not a module system" above. Converting them

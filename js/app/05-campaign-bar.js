@@ -6,6 +6,23 @@ function renderCampaignBar(){
   sel.innerHTML = Object.keys(STORE.campaigns).map(name=>`<option value="${name}" ${name===STORE.current?'selected':''}>${name}</option>`).join('');
 }
 function clearNoteDraft(){ if(noteMDE){ noteMDE.value(''); } }
+// Adds one imported campaign (always through sanitizeCampaign()) under a free
+// name and returns that name. Does not persist or re-render: see finishImport().
+function importCampaign(name, data){
+  const baseName = (typeof name === 'string' && name.trim()) ? name.trim() : 'Imported Campaign';
+  let finalName = STORE.campaigns[baseName] ? `${baseName} (imported)` : baseName;
+  let n = 2;
+  while(STORE.campaigns[finalName]){ finalName = `${baseName} (imported ${n})`; n++; }
+  STORE.campaigns[finalName] = sanitizeCampaign(data);
+  return finalName;
+}
+function finishImport(){
+  persist();
+  renderCampaignBar();
+  clearNoteDraft();
+  renderActive();
+  renderLogSection();
+}
 function wireCampaignBar(){
   document.getElementById('campaignSelect').addEventListener('change', e=>{
     STORE.current = e.target.value;
@@ -84,22 +101,24 @@ function wireCampaignBar(){
       let parsed;
       try{ parsed = JSON.parse(reader.result); }
       catch(err){ alert("That file isn't valid JSON — could not import."); return; }
+      // The Dropbox sync file (19-dropbox-sync.js) holds every campaign:
+      // import each one, renamed on a name clash like a single export.
+      if(parsed && parsed.mythicToolkitSync && parsed.campaigns && typeof parsed.campaigns === 'object'){
+        const names = Object.keys(parsed.campaigns).filter(n => n && n !== '__proto__');
+        if(!names.length){ alert("That Dropbox file has no campaigns."); return; }
+        const added = names.map(n => importCampaign(n, parsed.campaigns[n]));
+        STORE.current = added[0];
+        finishImport();
+        alert(`Imported ${added.length} campaign${added.length===1?'':'s'}: ${added.join(', ')}.`);
+        return;
+      }
       if(!parsed || typeof parsed !== 'object' || !parsed.mythicToolkitCampaign || !parsed.data){
         alert("That doesn't look like a Mythic Toolkit campaign export.");
         return;
       }
-      const cleanData = sanitizeCampaign(parsed.data);
-      const baseName = (typeof parsed.name === 'string' && parsed.name.trim()) ? parsed.name.trim() : 'Imported Campaign';
-      let finalName = STORE.campaigns[baseName] ? `${baseName} (imported)` : baseName;
-      let n = 2;
-      while(STORE.campaigns[finalName]){ finalName = `${baseName} (imported ${n})`; n++; }
-      STORE.campaigns[finalName] = cleanData;
+      const finalName = importCampaign(parsed.name, parsed.data);
       STORE.current = finalName;
-      persist();
-      renderCampaignBar();
-      clearNoteDraft();
-      renderActive();
-      renderLogSection();
+      finishImport();
       alert(`Imported as campaign "${finalName}".`);
     };
     reader.onerror = ()=>{ alert("Could not read that file."); };

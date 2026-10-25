@@ -45,6 +45,21 @@ window.resetApp = function resetApp() {
   const helpOverlay = document.getElementById('helpOverlay');
   if(helpOverlay){ helpOverlay.classList.remove('open'); helpOverlay.innerHTML = ''; }
 
+  // Dropbox sync (19-dropbox-sync.js): off, no tokens, no bookkeeping. The
+  // keys carry the test prefix set in tests.html, never the real app's.
+  clearTimeout(dbx.timer);
+  try {
+    localStorage.removeItem(DBX_CONFIG_KEY);
+    localStorage.removeItem(DBX_TOKEN_KEY);
+    sessionStorage.removeItem(DBX_SYNC_KEY);
+  } catch (_) {}
+  dbxConfig = dropboxLoadConfig();
+  dbxSync = dropboxLoadSync();
+  dbx = dropboxFreshRuntime();
+  closeDropboxModal();
+  closeDropboxPanel();
+  renderDropbox();
+
   renderCampaignBar();
   renderTabNav();
   renderActive();                      // also runs wireActive()
