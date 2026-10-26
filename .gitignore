@@ -1,3 +1,4 @@
 # Single-file build output (produced by scripts/build-singlefile.mjs / CI)
 /dist/
 /out/
+*.pdf
