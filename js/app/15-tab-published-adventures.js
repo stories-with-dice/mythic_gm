@@ -79,7 +79,11 @@ const DIMINISHER_DIV = { '1/3': 3, '1/5': 5, '1/7': 7, '1/10': 10 };
 
 // Roll one Adventure Element: advance the page counter by the Adventure Die
 // (wrapping at the page count), then roll 1d6 for the section of the page.
-function rollAdventureElement(d){
+// Every new Element owes the Adventure Meaning List one summary word, so it
+// bumps `pendingWords` (capped at the free slots). A reroll of an unusable page
+// (`reroll: true`) moves the counter on but replaces the previous Element, so
+// it owes no extra word.
+function rollAdventureElement(d, opts){
   const dieResult = rollAdventureDie(d.adventureDie);
   const raw = (d.latestPage || 0) + dieResult;
   const pc = d.pageCount || 0;
@@ -88,16 +92,34 @@ function rollAdventureElement(d){
   const secRoll = rollDie(6);
   d.latestPage = page;
   d.pageHistory.push(page);
+  if(!(opts && opts.reroll)) d.pendingWords = Math.min((d.pendingWords || 0) + 1, 20 - d.meaningList.length);
   persist();
   return { dieResult, raw, page, wrapped, secRoll, section: PAGE_SECTIONS[secRoll - 1] };
 }
+
+// What to do with an Adventure Element, by where it was rolled (MM #50 rules).
+const ELEMENT_USE = {
+  free:      'Interpret it into the current Context (before Scene 1: weave it into the First Scene concept).',
+  reroll:    'Interpret this page instead.',
+  altered:   'Add it to your Expected Scene.',
+  interrupt: 'Use it as the Meaning for this Event Focus.',
+  crisis:    'Base the start of the Scene on it, as a crisis that erupts or a crisis that is resolved.',
+  special:   'Interpret it as the Special result says.',
+  combine:   'Interpret it together with the word.'
+};
 
 // transient result HTML, cached against renderActive()
 let pubSceneTestHtml = '';
 let pubCrisisHtml = '';
 let pubElementHtml = '';
 let pubMeaningRollHtml = '';
+let pubScaleInput = '';    // Diminisher "Scale a value" input, kept across re-renders
 let pubFlowOpen = false;   // "How it works" flowchart, collapsed by default
+
+function pubScaled(raw, diminisher){
+  const v = Number(raw);
+  return raw !== '' && Number.isFinite(v) ? String(Math.round(v / DIMINISHER_DIV[diminisher])) : '—';
+}
 
 const PUB_FLOW_HTML = `
 <div class="pub-flow">
@@ -119,12 +141,12 @@ const PUB_FLOW_HTML = `
     <div class="flow-step"><b>B.</b> <b>Test vs Chaos Factor</b> (1d10):</div>
     <ul class="flow-branch">
       <li>&gt; CF &amp; <b>odd</b> &rarr; <b>Expected Scene</b> &mdash; play it as written, no Element.</li>
-      <li>&gt; CF &amp; <b>even</b> &rarr; <b>Crisis Scene</b> &mdash; roll 1d10 + Crisis PP on the Crisis Scene Element Table and resolve it.</li>
+      <li>&gt; CF &amp; <b>even</b> (10 counts as even) &rarr; <b>Crisis Scene</b> &mdash; roll 1d10 + Crisis PP on the Crisis Scene Element Table. Make it dramatic: a crisis erupts, or a crisis is resolved.</li>
       <li>&le; CF &amp; <b>odd</b> &rarr; <b>Altered Scene</b> &mdash; keep the Expected Scene, add a rolled Adventure Element.</li>
       <li>&le; CF &amp; <b>even</b> &rarr; <b>Interrupt Scene</b> &mdash; roll Event Focus, then an Adventure Element instead of a Meaning word.</li>
     </ul>
     <div class="flow-arrow">&#9660;</div>
-    <div class="flow-step"><b>C.</b> Interpret every Adventure Element rolled (apply the <b>Diminisher</b> to any stats), then add a one-word summary to the Meaning List (max 20).</div>
+    <div class="flow-step"><b>C.</b> Interpret every Adventure Element rolled (apply the <b>Diminisher</b> to any stats), then add a one-word summary to the Meaning List (max 20). An unusable page (copyright, ads)? Roll the Adventure Die again from that page.</div>
     <div class="flow-arrow">&#9660;</div>
     <div class="flow-step"><b>D.</b> Play the scene out with Fate Questions and the Meaning tables.</div>
     <div class="flow-arrow">&#9660;</div>
@@ -150,6 +172,10 @@ function renderPublished(){
     </li>`).join('');
 
   const dim = DIMINISHER_VALUES.map(v => `<option value="${v}" ${v === d.diminisher ? 'selected' : ''}>${v}</option>`).join('');
+  const listFull = d.meaningList.length >= 20;
+  const pendingNote = d.pendingWords > 0
+    ? `<div class="small-note pub-pending"><b>${d.pendingWords}</b> Adventure Element${d.pendingWords === 1 ? '' : 's'} still need${d.pendingWords === 1 ? 's' : ''} a one-word summary for the Meaning List.</div>`
+    : '';
 
   return `
   <h2 class="tool-title">Published Adventures — Deconstruct The Known</h2>
@@ -190,10 +216,17 @@ function renderPublished(){
     <div class="row" style="gap:26px; align-items:center;">
       <div class="pp-readout"><span class="num">${d.latestPage || '—'}</span><span class="lbl">latest page</span></div>
       <button class="btn primary" id="btnPubRollElement">Roll Adventure Element</button>
+      <button class="btn small" id="btnPubRerollPage" ${d.pageHistory.length ? '' : 'disabled'} title="The last page has nothing usable (copyright, ads…): roll the Adventure Die again from it">Unusable page — roll again</button>
       <button class="btn small" id="btnPubResetPages" ${d.pageHistory.length ? '' : 'disabled'}>Reset page tracker</button>
     </div>
     <div class="small-note" style="margin-top:8px;">Pages rolled: ${histStr}</div>
+    ${d.pageCount ? '' : '<div class="small-note">Enter the <b>Total pages</b> above so the page counter wraps back to the start at the end of the book.</div>'}
     <div id="pubElementResult" style="margin-top:12px;">${pubElementHtml}</div>
+    ${pendingNote}
+    <div class="row" style="margin-top:8px;">
+      <input type="text" id="pubElementWord" class="field-input" style="flex:1; min-width:160px;" placeholder="Sum up the Element in one word…" ${listFull ? 'disabled' : ''}>
+      <button class="btn" id="btnPubElementWord" ${listFull ? 'disabled' : ''}>Add to Meaning List</button>
+    </div>
   </div>
 
   <div class="card">
@@ -243,10 +276,11 @@ function renderPublished(){
   <div class="grid2">
     <div class="card">
       <h3 class="block-title">Adventure Meaning List</h3>
-      <p class="small-note" style="margin-top:-4px;">One word per Adventure Element you interpret (max 20). Rolled during Crisis Scenes.</p>
+      <p class="small-note" style="margin-top:-4px;">One word per Adventure Element you interpret (max 20). Rolled during Crisis Scenes; a blank slot means "roll an Adventure Element instead".</p>
+      ${pendingNote}
       <div class="row">
-        <input type="text" id="pubMeaningInput" class="field-input" style="flex:1; min-width:160px;" placeholder="A single word…" ${d.meaningList.length >= 20 ? 'disabled' : ''}>
-        <button class="btn" id="btnPubAddMeaning" ${d.meaningList.length >= 20 ? 'disabled' : ''}>Add</button>
+        <input type="text" id="pubMeaningInput" class="field-input" style="flex:1; min-width:160px;" placeholder="A single word…" ${listFull ? 'disabled' : ''}>
+        <button class="btn" id="btnPubAddMeaning" ${listFull ? 'disabled' : ''}>Add</button>
         <button class="btn primary" id="btnPubRollMeaning" ${d.meaningList.length ? '' : 'disabled'}>Roll 1d10</button>
       </div>
       <div id="pubMeaningRollResult" style="margin-top:10px;">${pubMeaningRollHtml}</div>
@@ -266,9 +300,9 @@ function renderPublished(){
       <div class="row" style="margin-top:12px; align-items:flex-end;">
         <div class="field">
           <label for="pubScaleValue">Scale a value</label>
-          <input type="number" id="pubScaleValue" class="field-input" style="width:120px;" placeholder="e.g. 200">
+          <input type="number" id="pubScaleValue" class="field-input" style="width:120px;" placeholder="e.g. 200" value="${escapeAttr(pubScaleInput)}">
         </div>
-        <div class="pp-readout"><span class="num" id="pubScaleResult">—</span><span class="lbl">÷ ${d.diminisher}, rounded</span></div>
+        <div class="pp-readout"><span class="num" id="pubScaleResult">${pubScaled(pubScaleInput, d.diminisher)}</span><span class="lbl">÷ ${d.diminisher}, rounded</span></div>
       </div>
     </div>
   </div>
@@ -279,15 +313,21 @@ function wirePublished(){
   const g = () => campaign().gme;
   const d = () => campaign().gme.deconstructed;
 
+  // Lines hold user text (Expected Scene, Meaning words, Event Focus rows), so
+  // escape HTML first, then turn the **bold** / *italic* markers into tags.
   const applyMd = lines => `<div class="result-box event">${
-    lines.map(l => l.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>')).join('<br>')
+    lines.map(l => escapeAttr(l).replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>')).join('<br>')
   }</div>`;
 
-  function rollElementLines(why){
-    const ae = rollAdventureElement(d());
+  // `use` is a key of ELEMENT_USE: what to do with the Element where it was rolled.
+  function rollElementLines(use, opts){
+    const prev = d().latestPage;
+    const ae = rollAdventureElement(d(), opts);
+    const why = opts && opts.reroll ? ` (page ${prev} unusable — rolled again)` : '';
+    const ask = opts && opts.reroll ? '' : ' Then sum it up in one word for the Meaning List.';
     return {
       ae,
-      line: `Adventure Element${why ? ` (${why})` : ''}: ${d().adventureDie}(${ae.dieResult})${ae.wrapped ? ' — wrapped past the end' : ''} → page **${ae.page}**, 1d6(${ae.secRoll}) → **${ae.section}**. Read that section, interpret it, then add a one-word summary to the Meaning List.`
+      line: `Adventure Element${why}: ${d().adventureDie}(${ae.dieResult})${ae.wrapped ? ' — wrapped past the end' : ''} → page **${ae.page}**, 1d6(${ae.secRoll}) → **${ae.section}**. ${ELEMENT_USE[use || 'free']}${ask}`
     };
   }
 
@@ -314,7 +354,14 @@ function wirePublished(){
 
   /* ---- Adventure Element ---- */
   document.getElementById('btnPubRollElement').addEventListener('click', () => {
-    const { line } = rollElementLines();
+    const { line } = rollElementLines('free');
+    pubElementHtml = applyMd([line]);
+    addLog('Published Adventures', `**Adventure Element** — ` + line);
+    renderActive();
+  });
+  document.getElementById('btnPubRerollPage').addEventListener('click', () => {
+    if(!d().pageHistory.length) return;
+    const { line } = rollElementLines('reroll', { reroll: true });
     pubElementHtml = applyMd([line]);
     addLog('Published Adventures', `**Adventure Element** — ` + line);
     renderActive();
@@ -364,7 +411,7 @@ function wirePublished(){
     if(over) type = even ? 'Crisis Scene' : 'Expected Scene';
     else type = even ? 'Interrupt Scene' : 'Altered Scene';
 
-    const expText = (g().expectedScene || '').trim();
+    const expText = (g().expectedScene || '').trim().replace(/\s*\n\s*/g, ' ');
     const lines = [`1d10: **${roll}** vs Chaos Factor **${cf}** → **${type}**`];
     if(expText) lines.push(`Expected: *${escapeMd(expText)}*`);
 
@@ -372,14 +419,14 @@ function wirePublished(){
       lines.push('Your Expected Scene starts as imagined. Play it as a normal Mythic Scene — no Adventure Element.');
     } else if(type === 'Altered Scene'){
       lines.push('Use your Expected Scene, but add a rolled Adventure Element:');
-      lines.push(rollElementLines().line);
+      lines.push(rollElementLines('altered').line);
     } else if(type === 'Interrupt Scene'){
       const fRoll = rollDie(100);
       const focus = rollEventFocus(g().eventFocusTable, fRoll);
-      lines.push(`Event Focus (1d100: ${fRoll}) → **${escapeMd(focus)}**. Instead of a Meaning word, roll an Adventure Element:`);
-      lines.push(rollElementLines().line);
+      lines.push(`Ignore your Expected Scene. Random Event — Event Focus (1d100: ${fRoll}) → **${escapeMd(focus)}**. Instead of a Meaning word, roll an Adventure Element:`);
+      lines.push(rollElementLines('interrupt').line);
     } else { // Crisis Scene
-      lines.push('An even roll above the Chaos Factor triggers a **Crisis Scene** — generated below:');
+      lines.push('An even roll above the Chaos Factor replaces the Expected Scene with a **Crisis Scene** — generated below:');
       lines.push(...crisisSceneLines());
     }
 
@@ -397,43 +444,48 @@ function wirePublished(){
     const r = rollDie(10);
     const total = r + cpp;
     const el = crisisElement(total);
-    const lines = [`Crisis Scene Element — 1d10(${r}) + ${cpp} Crisis PP = **${total}** → **${el.label}**`];
+    const lines = [
+      `Crisis Scene Element — 1d10(${r}) + ${cpp} Crisis PP = **${total}** → **${el.label}**`,
+      'Make it dramatic: a crisis erupts (a twist, a betrayal, a disaster) or a crisis is resolved (a rescue, a breakthrough).'
+    ];
     let ppDelta = el.key === 'elementMinus6' ? -6 : 1;
+    const wordFallback = 'If the word gives you no good idea, roll an Adventure Element (panel above) and interpret both together.';
 
     if(el.key === 'element' || el.key === 'elementMinus6'){
-      lines.push(rollElementLines().line);
+      lines.push(rollElementLines('crisis').line);
     } else if(el.key === 'list'){
       if(dec.meaningList.length){
         const slot = rollDie(10);
         const word = dec.meaningList[slot - 1];
         if(word){
-          lines.push(`1d10 on the Meaning List → slot ${slot} → **${word}**. Interpret it as a dramatic Crisis; if you can't, roll an Adventure Element to combine with it.`);
+          lines.push(`1d10 on the Meaning List → slot ${slot} → **${escapeMd(word)}**. Interpret it into the Crisis. ${wordFallback}`);
         } else {
           lines.push(`1d10 on the Meaning List → slot ${slot} → *(blank)* → roll an Adventure Element instead:`);
-          lines.push(rollElementLines().line);
+          lines.push(rollElementLines('crisis').line);
         }
       } else {
         lines.push('Meaning List is empty → roll an Adventure Element instead:');
-        lines.push(rollElementLines().line);
+        lines.push(rollElementLines('crisis').line);
       }
     } else if(el.key === 'listPP'){
+      // "1d10 + Progress Points" uses the PP before this Crisis's own +1
       const r2 = rollDie(10);
       const t2 = r2 + cpp;
       const word = dec.meaningList[t2 - 1];
       if(t2 <= 20 && word){
-        lines.push(`1d10(${r2}) + ${cpp} PP = ${t2} on the Meaning List → **${word}**. Interpret it as a dramatic Crisis.`);
+        lines.push(`1d10(${r2}) + ${cpp} PP = ${t2} on the Meaning List → **${escapeMd(word)}**. Interpret it into the Crisis. ${wordFallback}`);
       } else {
-        lines.push(`1d10(${r2}) + ${cpp} PP = ${t2} on the Meaning List → ${t2 > 20 ? 'over 20' : 'blank / empty'} → roll an Adventure Element instead:`);
-        lines.push(rollElementLines().line);
+        lines.push(`1d10(${r2}) + ${cpp} PP = ${t2} on the Meaning List → ${t2 > 20 ? 'over 20' : 'blank slot'} → roll an Adventure Element instead:`);
+        lines.push(rollElementLines('crisis').line);
       }
     } else if(el.key === 'special'){
       const sr = rollDie(100);
       const sp = specialElement(sr);
       ppDelta = sp.pp;
       lines.push(`Special — 1d100(${sr}) → **${sp.label}**: ${sp.note}`);
-      lines.push(rollElementLines().line);
+      lines.push(rollElementLines('special').line);
     } else if(el.key === 'conclusion'){
-      lines.push('**Conclusion** — build a Scene where the adventure\'s main goal could be resolved (a final showdown, etc.). It needn\'t actually end the adventure. Roll an Adventure Element from the panel above if you want more inspiration.');
+      lines.push('**Conclusion** — build a Scene where the adventure\'s main goal could be resolved (a final showdown, etc.). It needn\'t end the adventure, and the PC can still fail. If you keep playing and get Conclusion again, apply it to the PC\'s current main goal. Roll an Adventure Element (panel above) if you want more inspiration.');
     }
 
     const before = dec.crisisPP;
@@ -457,17 +509,22 @@ function wirePublished(){
   });
 
   /* ---- Adventure Meaning List ---- */
-  function addMeaning(){
-    const el = document.getElementById('pubMeaningInput');
+  // Both word inputs (Meaning List card + Adventure Element card) add here;
+  // each added word pays off one pending Adventure Element.
+  function addMeaning(inputId){
+    const el = document.getElementById(inputId);
     const v = el.value.trim();
     if(!v || d().meaningList.length >= 20) return;
     d().meaningList.push(v);
+    d().pendingWords = Math.min(Math.max(0, (d().pendingWords || 0) - 1), 20 - d().meaningList.length);
     persist();
     addLog('Published Adventures', `**Meaning List** — added "${escapeMd(v)}" (${d().meaningList.length}/20).`);
     renderActive();
   }
-  document.getElementById('btnPubAddMeaning').addEventListener('click', addMeaning);
-  document.getElementById('pubMeaningInput').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addMeaning(); } });
+  [['pubMeaningInput', 'btnPubAddMeaning'], ['pubElementWord', 'btnPubElementWord']].forEach(([inputId, btnId]) => {
+    document.getElementById(btnId).addEventListener('click', () => addMeaning(inputId));
+    document.getElementById(inputId).addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addMeaning(inputId); } });
+  });
   document.querySelectorAll('[data-mn-rm]').forEach(b => b.addEventListener('click', () => {
     const [removed] = d().meaningList.splice(Number(b.dataset.mnRm), 1);
     persist();
@@ -490,8 +547,7 @@ function wirePublished(){
   });
   const scaleIn = document.getElementById('pubScaleValue');
   scaleIn.addEventListener('input', () => {
-    const v = Number(scaleIn.value);
-    const out = document.getElementById('pubScaleResult');
-    out.textContent = Number.isFinite(v) && scaleIn.value !== '' ? String(Math.round(v / DIMINISHER_DIV[d().diminisher])) : '—';
+    pubScaleInput = scaleIn.value;
+    document.getElementById('pubScaleResult').textContent = pubScaled(pubScaleInput, d().diminisher);
   });
 }

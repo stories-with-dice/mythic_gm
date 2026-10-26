@@ -219,7 +219,9 @@ STORE = {
                eventFocusTable: [{max, result}],   // editable Random Event Focus Table (1d100 bands)
                deconstructed: {                     // Published Adventures tab (Mythic Mag #50)
                  title, pageCount, adventureDie, latestPage, pageHistory:[int],
-                 firstSceneConcept, meaningList:[str]<=20, crisisPP, diminisher },
+                 firstSceneConcept, meaningList:[str]<=20,
+                 pendingWords,   // Adventure Elements still owed a Meaning List word
+                 crisisPP, diminisher },
                threeAct: {                           // 3-Act Story tab (Mythic Mag #42)
                  storyThread, act:1|2|3, phase:'acts'|'resolution'|'closing'|'done',
                  outer:[0-4,0-4,0-4], inner:[int,int,int], npcIntroduced, pcProtected } },
@@ -246,7 +248,11 @@ Meaning word; **Interrupt** = `rollEventFocus()` against `gme.eventFocusTable`
 
 `gme.deconstructed` is the Published Adventures tab's own state; `freshDeconstructed()`
 / `sanitizeDeconstructed()` / `ADVENTURE_DICE` / `DIMINISHER_VALUES` are in
-`03-state-persistence.js`. That tab deliberately reads and writes the *shared*
+`03-state-persistence.js`. Every Adventure Element rolled (except an "Unusable page — roll
+again" reroll) adds 1 to `pendingWords`; every word added to the Meaning List
+removes 1. It never exceeds the free list slots (`20 - meaningList.length`).
+The tab's result HTML escapes user text (Expected Scene, Meaning words, Event
+Focus rows) before it applies the `**bold**` / `*italic*` markers. That tab deliberately reads and writes the *shared*
 `gme.chaosFactor` / `sceneNumber` / `expectedScene` / `threads` / `characters` /
 `eventFocusTable` (same campaign, one scene clock) and adds only the
 deconstructed-specific panels on top.
@@ -532,8 +538,9 @@ collapse toggle — and (`12`) the Published Adventures tab —
 `adventureDieOptions` / `rollAdventureDie` / `crisisElement` / `specialElement`
 tables, the running page counter + wrap, the Deconstructed scene test's four
 outcomes (incl. Crisis Scene generation and its Crisis PP maths), the shared
-Chaos Factor / End Scene, the Adventure Meaning List, the Diminisher helper,
-and `sanitizeDeconstructed()` — and (`13`) the Player Emulator tab — the
+Chaos Factor / End Scene, the Adventure Meaning List and its `pendingWords`
+counter, the "Unusable page" reroll, HTML escaping of user text in results,
+the Diminisher helper, and `sanitizeDeconstructed()` — and (`13`) the Player Emulator tab — the
 re-sorted `PE_RESPONSE_TYPES` / `peResponseType` mapping, `PE_NPC_MOODS` /
 `PE_OUTLOOKS`, `peRatingLabel`, `peBiasedRoll` / `peRollType` / `peRollMood`
 Advantage/Disadvantage, the 10-segment `peBuildChart` / `peChartResponseAt`,

@@ -124,6 +124,37 @@ describe('Published Adventures tab', () => {
       expect(dec().latestPage).toBe(7);
       expect($('#pubElementResult')).toContain('wrapped');
     });
+    it('each new Element owes a Meaning List word; adding a word pays one off', async () => {
+      await withRolls([13, 1], () => click('#btnPubRollElement'));
+      await withRolls([2, 1], () => click('#btnPubRollElement'));
+      expect(dec().pendingWords).toBe(2);
+      expect($('#panelHost')).toContain('2 Adventure Elements still need');
+      setValue('#pubElementWord', 'Mine');
+      click('#btnPubElementWord');                                   // quick-add in the Element card
+      expect(dec().meaningList).toEqual(['Mine']);
+      expect(dec().pendingWords).toBe(1);
+      setValue('#pubMeaningInput', 'Workshop');
+      click('#btnPubAddMeaning');
+      expect(dec().pendingWords).toBe(0);
+      expect(document.querySelector('.pub-pending')).toBeNull();
+      setValue('#pubMeaningInput', 'Extra');                         // a word with nothing pending stays at 0
+      click('#btnPubAddMeaning');
+      expect(dec().pendingWords).toBe(0);
+    });
+    it('"Unusable page" rolls on from the last page and owes no extra word', async () => {
+      expect($('#btnPubRerollPage').disabled).toBe(true);
+      await withRolls([13, 1], () => click('#btnPubRollElement'));
+      await withRolls([5, 2], () => click('#btnPubRerollPage'));    // 13 + 5 = 18
+      expect(dec().latestPage).toBe(18);
+      expect(dec().pageHistory).toEqual([13, 18]);
+      expect(dec().pendingWords).toBe(1);
+      expect($('#pubElementResult')).toContain('page 13 unusable');
+    });
+    it('warns until the page count is set', () => {
+      expect($('#panelHost')).toContain('so the page counter wraps');
+      setValue('#pubPageCount', '64');
+      expect($('#panelHost').textContent.includes('so the page counter wraps')).toBe(false);
+    });
     it('Reset page tracker clears the counter and history', async () => {
       await withRolls([13, 1], () => click('#btnPubRollElement'));
       await withDialogs({ confirm: true }, () => click('#btnPubResetPages'));
@@ -152,10 +183,19 @@ describe('Published Adventures tab', () => {
       expect($('#pubCrisisResult')).toContain('Crisis Scene');   // mirrored into the Crisis card
     });
 
+    it('escapes user text (Expected Scene) in the result HTML', async () => {
+      setValue('#pubExpectedScene', 'Open the <b>vault</b>');
+      await withRolls([9], () => click('#btnPubTestScene'));
+      const box = $('#pubSceneTestResult');
+      expect(box.querySelector('b b')).toBeNull();
+      expect(box.textContent).toContain('Open the <b>vault</b>');
+    });
+
     it('roll within CF and odd => Altered Scene + Adventure Element', async () => {
       await withRolls([3, 15, 4], () => click('#btnPubTestScene'));
       expect($('#pubSceneTestResult')).toContain('Altered Scene');
       expect($('#pubSceneTestResult')).toContain('Adventure Element');
+      expect($('#pubSceneTestResult')).toContain('Add it to your Expected Scene');
       expect(dec().latestPage).toBe(15);
     });
 
@@ -233,6 +273,21 @@ describe('Published Adventures tab', () => {
       expect($('#pubCrisisResult')).toContain('ROLLING BACK');
       expect(dec().crisisPP).toBe(1);
     });
+    it('a Meaning List word is escaped in the Crisis result', async () => {
+      dec().meaningList = ['<i>Mine</i>']; persist(); showTab('pub');
+      // 1d10=10 (+0 = 10) => "1d10 List"; slot 1d10=1 => the word
+      await withRolls([10, 1], () => click('#btnPubCrisis'));
+      expect($('#pubCrisisResult').querySelector('b i')).toBeNull();
+      expect($('#pubCrisisResult').textContent).toContain('<i>Mine</i>');
+    });
+    it('16+ rolls an Adventure Element and subtracts 6 Crisis PP', async () => {
+      dec().crisisPP = 7; persist(); showTab('pub');
+      // 1d10=9 (+7 = 16) => Element, PP −6; d20=4, d6=1
+      await withRolls([9, 4, 1], () => click('#btnPubCrisis'));
+      expect(dec().crisisPP).toBe(1);
+      expect(dec().latestPage).toBe(4);
+      expect($('#pubCrisisResult')).toContain('7 − 6 → 1');
+    });
     it('manual Crisis PP −1 floors at 0', () => {
       dec().crisisPP = 0; persist(); showTab('pub');
       click('#btnPubCppMinus');
@@ -249,6 +304,8 @@ describe('Published Adventures tab', () => {
       setValue('#pubScaleValue', '200');
       expect($('#pubScaleResult').textContent).toBe('40');
       setValue('#pubDiminisher', '1/10');
+      expect($('#pubScaleValue').value).toBe('200');         // the value survives the re-render
+      expect($('#pubScaleResult').textContent).toBe('20');
       setValue('#pubScaleValue', '95');
       expect($('#pubScaleResult').textContent).toBe('10');   // round(95/10)
     });
@@ -258,7 +315,7 @@ describe('Published Adventures tab', () => {
     it('a fresh campaign has the default deconstructed state', () => {
       expect(freshCampaign().gme.deconstructed).toEqual({
         title: '', pageCount: 0, adventureDie: 'd20', latestPage: 0, pageHistory: [],
-        firstSceneConcept: '', meaningList: [], crisisPP: 0, diminisher: '1/3'
+        firstSceneConcept: '', meaningList: [], pendingWords: 0, crisisPP: 0, diminisher: '1/3'
       });
     });
     it('repairs junk: bad die -> d20, negatives -> 0, bad diminisher -> 1/3, list capped, pages filtered', () => {
@@ -279,12 +336,18 @@ describe('Published Adventures tab', () => {
     it('keeps valid deconstructed data', () => {
       const c = sanitizeCampaign({ gme: { deconstructed: {
         title: 'X', pageCount: 256, adventureDie: 'd100', latestPage: 187,
-        pageHistory: [61, 88, 187], meaningList: ['Mine', 'Workshop'], crisisPP: 3, diminisher: '1/10',
+        pageHistory: [61, 88, 187], meaningList: ['Mine', 'Workshop'], pendingWords: 1, crisisPP: 3, diminisher: '1/10',
       } } });
       expect(c.gme.deconstructed).toEqual({
         title: 'X', pageCount: 256, adventureDie: 'd100', latestPage: 187, pageHistory: [61, 88, 187],
-        firstSceneConcept: '', meaningList: ['Mine', 'Workshop'], crisisPP: 3, diminisher: '1/10'
+        firstSceneConcept: '', meaningList: ['Mine', 'Workshop'], pendingWords: 1, crisisPP: 3, diminisher: '1/10'
       });
+    });
+    it('caps pendingWords at the free Meaning List slots; junk -> 0', () => {
+      const full = Array.from({ length: 19 }, (_, i) => 'w' + i);
+      expect(sanitizeCampaign({ gme: { deconstructed: { meaningList: full, pendingWords: 5 } } }).gme.deconstructed.pendingWords).toBe(1);
+      expect(sanitizeCampaign({ gme: { deconstructed: { pendingWords: 'x' } } }).gme.deconstructed.pendingWords).toBe(0);
+      expect(sanitizeCampaign({ gme: { deconstructed: { pendingWords: -3 } } }).gme.deconstructed.pendingWords).toBe(0);
     });
   });
 });
