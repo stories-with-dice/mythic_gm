@@ -33,6 +33,7 @@ window.resetApp = function resetApp() {
   pubCrisisHtml = '';
   pubElementHtml = '';
   pubMeaningRollHtml = '';
+  pubScaleInput = '';
   pubFlowOpen = false;
   peEncounterHtml = '';
   peResponseHtml = {};

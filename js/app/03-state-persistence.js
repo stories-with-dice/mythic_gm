@@ -43,6 +43,7 @@ function freshDeconstructed(){
     pageHistory: [],         // every rolled page, in order
     firstSceneConcept: "",
     meaningList: [],          // Adventure Meaning List — single words, max 20
+    pendingWords: 0,         // Adventure Elements rolled that still need a Meaning List word
     crisisPP: 0,             // Crisis Scene Progress Points
     diminisher: "1/3"
   };
@@ -234,7 +235,7 @@ function sanitizeDeconstructed(raw){
   const d = (raw && typeof raw === "object") ? raw : {};
   const base = freshDeconstructed();
   const posInt = (v, dflt) => (Number.isFinite(v) && v >= 0) ? Math.round(v) : dflt;
-  return {
+  const out = {
     title: typeof d.title === "string" ? d.title : "",
     pageCount: posInt(d.pageCount, 0),
     adventureDie: ADVENTURE_DICE.includes(d.adventureDie) ? d.adventureDie : base.adventureDie,
@@ -246,9 +247,13 @@ function sanitizeDeconstructed(raw){
     meaningList: Array.isArray(d.meaningList)
       ? d.meaningList.filter(s => typeof s === "string" && s.trim()).map(s => s.trim()).slice(0, 20)
       : [],
+    pendingWords: 0,
     crisisPP: posInt(d.crisisPP, 0),
     diminisher: DIMINISHER_VALUES.includes(d.diminisher) ? d.diminisher : base.diminisher
   };
+  // never more pending words than free slots left in the 20-word list
+  out.pendingWords = Math.min(posInt(d.pendingWords, 0), 20 - out.meaningList.length);
+  return out;
 }
 
 function sanitizeCampaign(raw){
