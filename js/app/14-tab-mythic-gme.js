@@ -60,7 +60,6 @@ function oneMeaningWord(){
 let gmeSceneTestHtml = '';
 let gmeListRollHtml = { threads: '', characters: '' };
 let gmeTrackResultHtml = {};   // track id -> last action's result HTML
-let gmeFocusEditorOpen = false; // Random Event Focus Table editor collapsed by default
 
 function renderMythicGME(){
   const g = campaign().gme;
@@ -129,19 +128,9 @@ function renderMythicGME(){
     </div>`;
   }).join('');
 
-  const focusRows = g.eventFocusTable.map((r, i) => {
-    const lo = (i === 0 ? 0 : g.eventFocusTable[i - 1].max) + 1;
-    return `<tr>
-      <td class="range"><span class="small-note">${lo <= r.max ? lo : r.max}&ndash;</span><input type="number" min="1" max="100" data-focus-max="${i}" class="field-input" value="${r.max}"></td>
-      <td><input type="text" data-focus-result="${i}" class="field-input" value="${escapeAttr(r.result)}"></td>
-      <td><button class="btn small danger" data-focus-rm="${i}" ${g.eventFocusTable.length <= 1 ? 'disabled' : ''}>&#10005;</button></td>
-    </tr>`;
-  }).join('');
-  const focusCustomised = JSON.stringify(g.eventFocusTable) !== JSON.stringify(DEFAULT_EVENT_FOCUS);
 
   return `
-  <h2 class="tool-title">Mythic Game Master Emulator (full 2e)</h2>
-  <p class="tool-desc">The full Mythic Scene loop: keep your Threads and Characters Lists, track the Chaos Factor, and test each Expected Scene against it. Fate Questions here use the same odds logic as <b>Ask the Game Master</b>.</p>
+  ${tabHeader(`Mythic Game Master Emulator (full 2e)`, `The full Mythic Scene loop: keep your Threads and Characters Lists, track the Chaos Factor, and test each Expected Scene against it. Fate Questions here use the same odds logic as <b>Ask the Game Master</b>.`)}
 
   <div class="card">
     <h3 class="block-title">Chaos Factor &amp; Scene</h3>
@@ -173,27 +162,6 @@ function renderMythicGME(){
       <button class="btn" id="btnGmeEndScene">End Scene &amp; Update CF</button>
     </div>
     <div class="small-note">Ends Scene ${g.sceneNumber}, adjusts the Chaos Factor, and advances to Scene ${g.sceneNumber + 1}.</div>
-  </div>
-
-  <div class="card">
-    <div class="row" style="justify-content:space-between; align-items:center;">
-      <h3 class="block-title" style="margin:0; padding:0; border:0;">Random Event Focus Table</h3>
-      <button class="btn small" id="btnGmeFocusToggle">${gmeFocusEditorOpen ? 'Done' : 'Edit'}</button>
-    </div>
-    <div class="small-note" style="margin-top:6px;">Rolled (1d100) when a Scene test comes up <b>Interrupt</b>.${focusCustomised ? ' Customised for this campaign.' : ''}</div>
-    ${gmeFocusEditorOpen ? `
-    <div style="overflow-x:auto;">
-      <table class="gme-focus-table">
-        <thead><tr><th>Range (1d100)</th><th>Event Focus</th><th></th></tr></thead>
-        <tbody>${focusRows}</tbody>
-      </table>
-    </div>
-    <div class="row" style="margin-top:10px;">
-      <button class="btn small" id="btnGmeFocusAdd">Add row</button>
-      <button class="btn small" id="btnGmeFocusReset">Reset to default</button>
-    </div>
-    <div class="small-note" style="margin-top:6px;">Ranges run in order from 1; each row sets the top of its band. A roll above the last row uses the last row.</div>
-    ` : ''}
   </div>
 
   <div class="grid2">
@@ -306,47 +274,6 @@ function wireMythicGME(){
     gmeSceneTestHtml = '';
     persist();
     addLog('Mythic GME', `**Scene ${ended} ended** — PC ${inControl ? 'in control → Chaos Factor −1' : 'not in control → Chaos Factor +1'} (now ${gme.chaosFactor}). Beginning Scene ${gme.sceneNumber}.`);
-    renderActive();
-  });
-
-  /* ----- Random Event Focus Table editor (collapsible) ----- */
-  document.getElementById('btnGmeFocusToggle').addEventListener('click', ()=>{
-    gmeFocusEditorOpen = !gmeFocusEditorOpen;
-    renderActive();
-  });
-  document.querySelectorAll('[data-focus-max]').forEach(el=> el.addEventListener('change', ()=>{
-    const i = Number(el.dataset.focusMax);
-    let v = Math.round(Number(el.value));
-    if(!Number.isFinite(v)) v = g().eventFocusTable[i].max;
-    g().eventFocusTable[i].max = Math.max(1, Math.min(100, v));
-    g().eventFocusTable.sort((a, b) => a.max - b.max);
-    persist();
-    renderActive();
-  }));
-  document.querySelectorAll('[data-focus-result]').forEach(el=> el.addEventListener('change', ()=>{
-    const i = Number(el.dataset.focusResult);
-    g().eventFocusTable[i].result = el.value.trim() || '(unnamed)';
-    persist();
-  }));
-  document.querySelectorAll('[data-focus-rm]').forEach(b=> b.addEventListener('click', ()=>{
-    if(g().eventFocusTable.length <= 1) return;
-    g().eventFocusTable.splice(Number(b.dataset.focusRm), 1);
-    persist();
-    renderActive();
-  }));
-  const focusAdd = document.getElementById('btnGmeFocusAdd');
-  if(focusAdd) focusAdd.addEventListener('click', ()=>{
-    g().eventFocusTable.push({ max: 100, result: 'New Focus' });
-    g().eventFocusTable.sort((a, b) => a.max - b.max);
-    persist();
-    renderActive();
-  });
-  const focusReset = document.getElementById('btnGmeFocusReset');
-  if(focusReset) focusReset.addEventListener('click', ()=>{
-    if(!confirm('Reset the Random Event Focus Table to the default 12 rows?')) return;
-    g().eventFocusTable = DEFAULT_EVENT_FOCUS.map(r => ({ ...r }));
-    persist();
-    addLog('Mythic GME', '**Random Event Focus Table** reset to default.');
     renderActive();
   });
 

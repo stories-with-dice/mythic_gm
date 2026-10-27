@@ -196,21 +196,17 @@ describe('Dropbox sync', () => {
     expect(s256.challenge).toBe(dropboxBase64url(await dbxSha256(new TextEncoder().encode(s256.verifier))));
   });
 
-  it('is off by default: the button says Dropbox, and a save makes no network call', () => {
-    expect($('#btnDropbox').textContent).toContain('Dropbox');
+  it('is off by default: no status badge, and a save makes no network call', () => {
+    expect($('#dbxStatus').hidden).toBe(true);
     dbxLocalEdit();
     expect(dbx.timer).toBeNull();
     expect(fake.calls).toHaveLength(0);
   });
 
-  it('the campaign-bar button opens the panel; the close button and Escape close it', () => {
-    click('#btnDropbox');
-    expect($('#dropboxOverlay').classList.contains('open')).toBe(true);
-    click('#dbxPanelClose');
-    expect($('#dropboxOverlay').classList.contains('open')).toBe(false);
-    click('#btnDropbox');
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-    expect($('#dropboxOverlay').classList.contains('open')).toBe(false);
+  it('the panel is in the Settings modal', () => {
+    click('#btnSettings');
+    expect($('#settingsOverlay').classList.contains('open')).toBe(true);
+    expect($('#settingsDropbox #dbxConnect')).toBeTruthy();
   });
 
   it('no app key means Connect is disabled', () => {
@@ -226,7 +222,7 @@ describe('Dropbox sync', () => {
     expect(url.searchParams.get('token_access_type')).toBe('offline');
     expect(opened[0].opener).toBeNull();
     expect(dbx.status).toBe('synced');
-    expect($('#btnDropbox')).toContain('Synced');
+    expect($('#dbxStatus')).toContain('Synced');
     const f = fake.only();
     expect(f.path).toBe('/' + DBX_FILE_NAME);
     expect(f.content).toBe(dropboxSyncText());
@@ -279,7 +275,7 @@ describe('Dropbox sync', () => {
     await dropboxFlush();
     expect(dbx.status).toBe('signed-out');
     expect(dropboxHasToken()).toBe(false);
-    expect($('#btnDropbox')).toContain('Reconnect');
+    expect($('#dbxStatus')).toContain('Reconnect');
     expect(fake.only().content.indexOf('while signed out')).toBe(-1);
 
     await connect();
@@ -526,7 +522,7 @@ describe('Dropbox sync', () => {
     dropboxClearToken();
     await dbxNewTab();
     expect(dbx.status).toBe('signed-out');
-    expect($('#btnDropbox')).toContain('Reconnect');
+    expect($('#dbxStatus')).toContain('Reconnect');
   });
 
   it('a pulled file goes through sanitizeCampaign(); a file with no campaigns is an error', async () => {
@@ -539,7 +535,7 @@ describe('Dropbox sync', () => {
     fake.edit(f.id, JSON.stringify({ mythicToolkitSync: 1, campaigns: {} }));
     await dropboxSyncNow();
     expect(dbx.status).toBe('error');
-    expect($('#btnDropbox')).toContain('Sync error');
+    expect($('#dbxStatus')).toContain('Sync error');
   });
 
   it('Import reads the Dropbox file and adds every campaign in it', async () => {

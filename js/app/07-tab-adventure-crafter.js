@@ -5,8 +5,7 @@ function renderAdventure(){
   const adv = campaign().adventure;
   const themeOptions = THEMES.map(t=>`<option value="${t}">${t}</option>`).join('');
   return `
-  <h2 class="tool-title">One-Page Adventure Crafter</h2>
-  <p class="tool-desc">Determine a Main Theme once per adventure, then generate Turning Points — five Plot Points whose words you weave into the next twist.</p>
+  ${tabHeader(`One-Page Adventure Crafter`, `Determine a Main Theme once per adventure, then generate Turning Points — five Plot Points whose words you weave into the next twist.`)}
 
   <div class="card">
     <h3 class="block-title">Main Theme</h3>

@@ -76,13 +76,14 @@ split a pure cut-and-paste with zero behaviour change. Consequences to respect:
 
 ```
 index.html                  shell only: <head> links + the body skeleton
-                            (header/.campaign-bar incl. the select#themeSelect
-                            theme picker, the "☁ Dropbox" button#btnDropbox and the "?" Help button,
+                            (header/.campaign-bar incl. the "⚙ Settings"
+                            button#btnSettings (with the span#dbxStatus Dropbox
+                            badge) and the "?" Help button,
                             nav#tabNav, div#panelSplit > main#panelHost +
                             aside#panelHostRight, section#noteSection,
                             section#logSection, footer.site-footer
                             (license + attribution line), div#helpOverlay,
-                            div#dropboxOverlay, div#dropboxModal) + the
+                            div#settingsOverlay, div#dropboxModal) + the
                             ordered <script> list.
 css/
   vendor-easymde.css        vendor CSS (EasyMDE + CodeMirror)
@@ -100,24 +101,25 @@ js/app/                     the app, one file per former `===== SECTION =====`
 | `01-data-tables.js`              | Every table transcribed from the cheat sheet: `DISCOVER_ACTION/DESC`, `ASK_ODDS`, `PLOT_ROWS`/`THEMES`, `LOCATION_DESCRIPTORS`/`areaElement()`, `CREATURE_DESCRIPTORS`/`ABILITY_WORDS`/behavior tables, `CHARACTER_DESCRIPTORS`/`NPC_STAT_MOD`/`behaviorContext()`, `MYSTERY_DESCRIPTORS`/`mysteryElement()`/`pickDie()` |
 | `02-dice-markdown-utils.js`      | `rollDie`, `timestamp`, `escapeMd` (Markdown-table-safe only), `escapeAttr` (HTML-attribute-safe) |
 | `03-state-persistence.js`        | `STORAGE_KEY`, `freshCampaign()`, `sanitizeBox()`/`sanitizeCampaign()` (import validation), `loadStore()`/`saveStore()`, `STORE`, `campaign()`, `persist()`, `addLog()` |
-| `04-tab-render-scaffolding.js`   | `TABS`, `currentTab`, `rightTab` (split-right pane, see "Split view" below), `renderTabNav()`, `renderActive()`, `wireActive()`, `tabRenderers()`/`tabWirers()` (lazy lookups, safe to call only after every file has loaded) |
+| `04-tab-render-scaffolding.js`   | `TABS`, `currentTab`, `rightTab` (split-right pane, see "Split view" below), `renderTabNav()`, `renderActive()`, `wireActive()`, `tabRenderers()`/`tabWirers()` (lazy lookups, safe to call only after every file has loaded); `saveView()` / `loadView()` / `restoreViewTabs()` (see "Split view"); `tabHeader(title, descHtml)` + `isIntroOpen()` / `setIntroOpen()` (the shared tab-intro toggle, see "Collapsible cards") |
 | `05-campaign-bar.js`             | `renderCampaignBar()`, `clearNoteDraft()`, `wireCampaignBar()` (New/Rename/Delete/Export/Import) |
 | `06-tab-game-master.js`          | `renderGM()` / `wireGM()`; `randomEventWords()` — a Discover Meaning Action+Description pair, shared with the Mythic GME tab's Interrupt Scene; `rollInspirationSource()` — weighted roll on Discover Meaning's editable Random Inspiration Source list |
 | `07-tab-adventure-crafter.js`    | `renderAdventure()` / `wireAdventure()` |
-| `08-tab-location-crafter.js`     | `REGION_START_PP`, `renderLocation()` / `wireLocation()` |
+| `08-tab-location-crafter.js`     | `REGION_START_PP`, `renderLocation()` / `wireLocation()`; `locSetupOpen` (collapsible Region Setup card) |
 | `09-tab-creature-crafter.js`     | `renderCreature()` / `wireCreature()` |
 | `10-tab-character-crafter.js`    | `CHAR_CATEGORIES`, `renderCharacter()` / `wireCharacter()` |
 | `11-tab-mystery-matrix.js`       | `boxByUid`, `renderMatrixTable()`, `renderMystery()`, `addBox`, `rollMysteryWords`, `toggleConnection`, `connectionExists`, `checkClincherByConnections`, `rollMatrixTarget`, `wireMystery()` |
 | `12-quick-note.js`              | `noteMDE`, `renderNoteSection()` / `wireNoteSection()` |
 | `13-campaign-log.js`            | `buildLogMarkdown()` (raw MD, source of truth), `renderLogHtml()` (MD→sanitized HTML for display only), `renderLogSection()` / `wireLogSection()` |
-| `14-tab-mythic-gme.js`         | **Full Mythic GME 2e** tab — **first in `TABS`, the default landing tab** (the others are One-Page Mythic): `discoveryCheckResult()`, `DISCOVERY_ODDS`, `sceneAdjustment()` / `SCENE_ADJUSTMENTS`, `rollEventFocus()`, `oneMeaningWord()`, `renderMythicGME()` / `wireMythicGME()`. Threads/Characters Lists, Chaos Factor, Expected-Scene test (Altered → Scene Adjustment + word; Interrupt → editable Event Focus table + word), collapsible Thread Progress Tracks, collapsible editable Random Event Focus Table. Fate Questions here call `askTheGM()` from the GM tab. |
-| `15-tab-published-adventures.js` | **Published Adventures** tab (2nd in `TABS`) — "Deconstruct The Known" (Mythic Magazine #50). **Shares `gme.chaosFactor` / `sceneNumber` / `expectedScene` / lists / `eventFocusTable`** with the Mythic GME tab; its own state is `gme.deconstructed`. `ADVENTURE_DIE_BANDS` / `adventureDieOptions()` / `rollAdventureDie()`, `PAGE_SECTIONS`, `crisisElement()` (Crisis Scene Element Table), `specialElement()` (Special Elements Table), `rollAdventureElement()` (page counter + wrap), `renderPublished()` / `wirePublished()`, plus a collapsible `PUB_FLOW_HTML` "How it works" flowchart. Its scene test is the Deconstructed variant: `>CF & odd → Expected`, `>CF & even → Crisis Scene`, `≤CF → Altered (odd, +Adventure Element) / Interrupt (even, +Event Focus +Adventure Element)`. |
+| `14-tab-mythic-gme.js`         | **Full Mythic GME 2e** tab — **first in `TABS`, the default landing tab** (the others are One-Page Mythic): `discoveryCheckResult()`, `DISCOVERY_ODDS`, `sceneAdjustment()` / `SCENE_ADJUSTMENTS`, `rollEventFocus()`, `oneMeaningWord()`, `renderMythicGME()` / `wireMythicGME()`. Threads/Characters Lists, Chaos Factor, Expected-Scene test (Altered → Scene Adjustment + word; Interrupt → editable Event Focus table + word), collapsible Thread Progress Tracks. The Random Event Focus Table is edited only in the Settings modal (file 21); the tab has no card for it. Fate Questions here call `askTheGM()` from the GM tab. |
+| `15-tab-published-adventures.js` | **Published Adventures** tab (2nd in `TABS`) — "Deconstruct The Known" (Mythic Magazine #50). **Shares `gme.chaosFactor` / `sceneNumber` / `expectedScene` / lists / `eventFocusTable`** with the Mythic GME tab; its own state is `gme.deconstructed`. `ADVENTURE_DIE_BANDS` / `adventureDieOptions()` / `rollAdventureDie()`, `PAGE_SECTIONS`, `crisisElement()` (Crisis Scene Element Table), `specialElement()` (Special Elements Table), `rollAdventureElement()` (page counter + wrap), `renderPublished()` / `wirePublished()`, plus a `PUB_FLOW_HTML` "How it works" flowchart, shown with the tab intro by the **?** button (`tabHeader()`, see "Collapsible cards"). Its scene test is the Deconstructed variant: `>CF & odd → Expected`, `>CF & even → Crisis Scene`, `≤CF → Altered (odd, +Adventure Element) / Interrupt (even, +Event Focus +Adventure Element)`. |
 | `16-tab-player-emulator.js`      | **Player Emulator** tab (last in `TABS`) — a solo "player emulator" from *Cloud Empress: Solo Protocol*. `PE_RESPONSE_TYPES` (Character Response Types re-sorted **most-minus → most-plus**, 50 rows / 1d100) + `peResponseType()`; `PE_NPC_MOODS` (1d10) + `peNpcMood()`; `PE_OUTLOOKS` (1d10, roll-and-display only — `PE_WILDCARD_OUTLOOK` is the one that changes a roll); `peRatingLabel()` / `peRatingClass()`; `peBiasedRoll(sides, mode)` (Adv = keep lowest, Dis = keep highest) with `peRollType(mode)` = 1d100 for a Character Type and `peRollMood(mode)` = 1d10 for an NPC mood (the add-NPC dropdown, persisted as `npcMoodMode`); `peBuildChart(mode)` (weighted 10-segment Response Chart); `peChartResponseAt()`; `pePcResponse()`; `renderPlayerEmu()` / `wirePlayerEmu()`. Generates a whole encounter's mood at once: every tracked PC responds (1d10 on their chart, or a fresh 1d100 on the full table if their Outlook is Wild card), every NPC has one mood, and all conflict ratings plus a manual adjustment are summed — total ≥ +4 ⇒ a violent encounter begins. The per-PC "Roll response" button caches its result in module-level `peLastResponse` / `peResponseHtml` (both cleared on PC removal or chart rebuild); the encounter generator's `useHeldResponses` checkbox (default on) reuses that held response instead of re-rolling, and writes any fresh rolls back so the PC cards stay in sync. |
-| `17-tab-three-act-story.js`      | **3-Act Story** tab (3rd in `TABS`, right after Published Adventures) — the "Mythic 3-Act Story Structure" worksheet (Mythic Magazine #42), a screenwriting Setup/Conflict/Resolution overlay on normal Mythic play. **Shares `gme.chaosFactor` / `sceneNumber` / `threads` / `characters` / `eventFocusTable`** with the Mythic GME tab; its own state is `gme.threeAct`. Each Act has an **outer** circle track (`THREE_ACT_BEATS`, 4 slots, the 4th ends the Act — mark one per distinct Story Beat achieved in a Scene) and an **inner** circle track (`THREE_ACT_INNER_EVENTS`, uncapped — mark one whenever a Scene has no Story Beat; `threeActInnerEvent()` looks up which Act Event fires, cycling the last entry once the list is exhausted). `fireThreeActEvent()` resolves one triggered Act Event: rolls dice per the rules (Story Thread Activity / Conflict / Twist? / New Conflict? — the last recurses into Conflict), skips the one-time Incident Scene / Introduce NPC events once their condition is already met, and rolls a Meaning word pair (`randomEventWords()`, from the Game Master tab) for flavor. A Conflict roll of 8-10 surfaces a suggested new blocking Thread with an inline "Add to Threads List" button. `renderThreeAct()` / `wireThreeAct()`; an optional "Start In Media Res" button (Act 1, before anything happens) fires all three opening Act Events at once; phases progress `acts → resolution → closing → done` as Act 3's outer track completes, mirroring the worksheet's Resolution/Closing Scenes; a collapsible `THREE_ACT_FLOW_HTML` "How it works" flowchart matches the Published Adventures tab's pattern. The circle counts/order were read off the worksheet graphic itself (the PDF's extracted text scrambles the spiral layout). |
+| `17-tab-three-act-story.js`      | **3-Act Story** tab (3rd in `TABS`, right after Published Adventures) — the "Mythic 3-Act Story Structure" worksheet (Mythic Magazine #42), a screenwriting Setup/Conflict/Resolution overlay on normal Mythic play. **Shares `gme.chaosFactor` / `sceneNumber` / `threads` / `characters` / `eventFocusTable`** with the Mythic GME tab; its own state is `gme.threeAct`. Each Act has an **outer** circle track (`THREE_ACT_BEATS`, 4 slots, the 4th ends the Act — mark one per distinct Story Beat achieved in a Scene) and an **inner** circle track (`THREE_ACT_INNER_EVENTS`, uncapped — mark one whenever a Scene has no Story Beat; `threeActInnerEvent()` looks up which Act Event fires, cycling the last entry once the list is exhausted). `fireThreeActEvent()` resolves one triggered Act Event: rolls dice per the rules (Story Thread Activity / Conflict / Twist? / New Conflict? — the last recurses into Conflict), skips the one-time Incident Scene / Introduce NPC events once their condition is already met, and rolls a Meaning word pair (`randomEventWords()`, from the Game Master tab) for flavor. A Conflict roll of 8-10 surfaces a suggested new blocking Thread with an inline "Add to Threads List" button. `renderThreeAct()` / `wireThreeAct()`; an optional "Start In Media Res" button (Act 1, before anything happens) fires all three opening Act Events at once; phases progress `acts → resolution → closing → done` as Act 3's outer track completes, mirroring the worksheet's Resolution/Closing Scenes; a `THREE_ACT_FLOW_HTML` "How it works" flowchart is shown with the tab intro by the **?** button, the same as the Published Adventures tab. The circle counts/order were read off the worksheet graphic itself (the PDF's extracted text scrambles the spiral layout). |
 | `18-help.js`                    | Help overlay ("?" button in the campaign bar) — `HELP_OVERVIEW_SVG` (inline SVG map of how the tools connect), `renderHelpContent()` / `openHelp()` / `closeHelp()` / `wireHelp()`. Pure informational content, no persisted state. Its last section (`#help-credits`) holds the license and attribution — keep it in step with `NOTICE.md` and the `footer.site-footer` in `index.html`. Its Published Adventures section embeds that tab's own `PUB_FLOW_HTML` verbatim (see file 15) rather than restating it, so the two can't drift apart. |
 | `19-dropbox-sync.js`            | Optional **Dropbox sync** of every campaign — ported from the osr_keeper project's `js/dropbox.js`. PKCE sign-in (`dropboxConnect()` / `dropboxFinishConnect()`), token refresh, `dropboxDecideSync()`, `dropboxSyncNow()`, `dropboxNoteSave()` (called by `persist()`), the conflict dialog (`openDropboxModal()`, `dropboxUseRemoteCopy()` / `dropboxUseLocalCopy()`), and the panel (`renderDropbox()`, `wireDropbox()`, `initDropbox()`). See "Dropbox sync" below. |
 | `20-themes.js`                  | Color + font themes — `UI_THEMES` (`classic` = "Case file", `fantasy`, `sf`, `horror`), `THEME_KEY`, `loadTheme()` / `applyTheme()` / `setTheme()` / `wireTheme()`. A theme is only `<html data-theme="…">`; `css/app.css` redefines the `:root` tokens per theme. The file applies the saved theme at load, before the first render. See "Design system quick reference". |
-| `21-init.js`                    | `DOMContentLoaded` handler that kicks everything off (incl. `wireHelp()`, `wireTheme()`, then `wireDropbox()` + `initDropbox()` last) |
+| `21-settings.js`                | **Settings modal** ("⚙ Settings" in the campaign bar, `div#settingsOverlay`) — `settingsOpen`, `settingsTablesOpen`, `wireSettings()` (builds the shell once: Theme section with `#themeSelect`, Dropbox section `#settingsDropbox`, Random tables section `#settingsTables`; owns the Escape key for Settings and the Dropbox conflict dialog), `openSettings(table)` / `closeSettings()`, `renderSettingsTables()` / `wireSettingsTables()` — collapsible `<details>` editors for the Random Event Focus Table (`gme.eventFocusTable`) and the Random Inspiration Source (`gm.inspiration.entries`). See "Settings modal" below. |
+| `22-init.js`                    | `DOMContentLoaded` handler that kicks everything off: `restoreViewTabs()` first, then the renders, `wireHelp()`, `wireSettings()`, `wireTheme()`, `wireDropbox()`, the scroll restore, and `initDropbox()` last |
 
 ## The render/wire convention (every tab follows this — keep it consistent)
 
@@ -165,9 +167,17 @@ Left-clicking a tab behaves as before: it becomes the main pane's tab.
 
 State is two module-level `let`s in `04-tab-render-scaffolding.js`:
 `currentTab` (main pane) and `rightTab` (split-right pane, `null` when
-unsplit). **Neither is persisted** — same as `currentTab` always was, a
-reload lands back on the default tab, unsplit. This is a deliberate,
-matching choice, not an oversight.
+unsplit). **Both survive a reload of the browser tab**, with the window
+scroll position: `saveView()` writes `{ currentTab, rightTab, scrollY }` to
+`sessionStorage[VIEW_KEY]` (`mythicToolkit_view`) after every tab change
+and on `pagehide`. At boot, `restoreViewTabs()` (first in `22-init.js`)
+puts the tabs back before the first render, and the init handler scrolls
+to `scrollY` on the next frame (`history.scrollRestoration = 'manual'`,
+because the browser's own restore runs before the script renders the page).
+`loadView()` drops unknown tab ids and a `rightTab` equal to `currentTab`.
+Like `STORE`, the view clears when the browser tab closes; it is not in
+`STORE`, so it is not exported or synced. The Settings modal's open state
+is not saved.
 
 **Invariant: `currentTab` and `rightTab` are never equal.** Every tab's
 `render<Tab>()`/`wire<Tab>()` pair uses hardcoded, page-unique DOM ids
@@ -187,6 +197,39 @@ enforces the invariant on every click:
 
 A tab pinned right is marked in the nav with a `.split-right` class (a gold
 top accent) independent of `.active` (which still marks the main tab).
+
+## Collapsible cards
+
+Cards that you set once, or read only now and then, collapse behind a
+**Show / Hide** button (`btn small`, in the card's title row). The open
+state is a module-level `let`, read by `render<Tab>()` and flipped by a
+click handler that calls `renderActive()`. While a card is collapsed, its
+fields are not in the DOM, so `wire<Tab>()` guards each lookup with
+`if(el)`. A collapsed card shows one `small-note` line with its current
+values. These states are not saved: a reload collapses them again.
+
+| Card | Tab (file) | State | Collapsed line |
+|---|---|---|---|
+| The Prepared Adventure | Published Adventures (15) | `pubPreparedOpen` | title, page count, Adventure Die |
+| Diminisher Value | Published Adventures (15) | `pubDimOpen` | current Diminisher |
+| The Story Thread | 3-Act Story (17) | `threeActThreadOpen` (`null` = open until a Story Thread is set) | Story Thread, PC protected |
+| Region Setup | Location Crafter (08) | `locSetupOpen` | region size |
+| Reference tables | Player Emulator (16) | `peRefOpen` | short description |
+
+**Tab intros.** Every tab starts with `tabHeader(title, descHtml, moreHtml)`
+(04): the `h2.tool-title` plus a round **?** button right after it
+(`.intro-toggle[data-intro-toggle]`, `aria-expanded`, gold `.open` state). The intro paragraph (`p.tool-desc`) shows only
+while it is open. One setting covers every tab and both panes. It is
+collapsed by default and kept in `localStorage` (`introKey()` =
+`mythicToolkit_intro`, with the same test prefix as the Dropbox and theme
+keys). `wireActive()` wires the button, so a tab's own `wire<Tab>()` does
+nothing for it. The Published Adventures and 3-Act Story tabs pass their
+"How it works" flowchart (`PUB_FLOW_HTML` / `THREE_ACT_FLOW_HTML`) as
+`moreHtml`, so the **?** shows it below the intro (`.tool-intro-more`); they
+have no separate "How it works" card. The tab header CSS (`.tool-head`,
+`.intro-toggle`) is in the base styles next to `h2.tool-title`, not in a
+theme block.
+`resetApp()` (tests) closes every one of these.
 
 ## Gotcha: re-rendering wipes transient result displays
 
@@ -241,9 +284,9 @@ STORE = {
 ```
 
 `gm.inspiration` is the Game Master tab's own state — a user-editable weighted
-list under Discover Meaning, collapsed behind a checkbox (`enabled`) and, when
-open, an "Edit list" toggle (mirroring the Random Event Focus Table pattern
-below). `freshInspirationEntries()` (the 5 defaults) and `freshGm()` /
+list under Discover Meaning, collapsed behind a checkbox (`enabled`). The
+list is edited only in the Settings modal (`21-settings.js`); the tab has no
+Edit button. `freshInspirationEntries()` (the 5 defaults) and `freshGm()` /
 `sanitizeGm()` live in `03-state-persistence.js`; `rollInspirationSource()`
 (weighted 1..totalWeight pick, walking the list in order) is in
 `06-tab-game-master.js`, next to `randomEventWords()`.
@@ -415,7 +458,7 @@ user's Dropbox and keeps it in sync. There is no backend, so:
 - **When it runs**: `dropboxNoteSave()` (from every `persist()`) debounces an
   upload by `DBX_UPLOAD_DELAY` (4 s), but never longer than `DBX_MAX_WAIT`
   (30 s) after the first unsynced save. `initDropbox()` (last in
-  `21-init.js`) syncs at boot. The tab returning to the foreground re-checks
+  `22-init.js`) syncs at boot. The tab returning to the foreground re-checks
   Dropbox (at most once a minute), and going to the background flushes a
   pending upload. The `online` event also syncs. While `#dropboxModal` is
   open (status `conflict`), saves don't sync. The dialog names only the
@@ -427,17 +470,47 @@ user's Dropbox and keeps it in sync. There is no backend, so:
   and applies only to the conflicting campaigns; the others are merged as in
   step 5. The plan is made again from `dbx.conflict.text` and the current
   `STORE.campaigns` at each use, so an edit made while the dialog waits is
-  kept. The campaign-bar button and the panel's **Resolve** reopen it. A
+  kept. The panel's **Resolve** button reopens it. A
   window `focus` also re-checks Dropbox (at most once a minute), because a
   window that stays visible next to another app gets no `visibilitychange`.
   **Disconnect** revokes the token (best effort) and forgets it, and keeps
   the app key.
-- **UI**: `#btnDropbox` in the campaign bar shows the status (`Dropbox`,
-  `Synced`, `Saving…`, `Reconnect`, `Resolve`, `Sync error`) and opens
-  `#dropboxOverlay` (the panel). `wireDropbox()` builds the panel and modal
-  markup **once**; `renderDropbox()` only toggles and fills it. So a status
+- **UI**: the panel is the Dropbox section of the Settings modal
+  (`#settingsDropbox`, see "Settings modal" below). The `#dbxStatus` badge
+  inside the campaign bar's `#btnSettings` shows the status (`Synced`,
+  `Saving…`, `Reconnect`, `Resolve`, `Sync error`); it is hidden while sync
+  is off. `wireDropbox()` builds the panel and modal markup **once**;
+  `renderDropbox()` only toggles and fills it. So a status
   change never wipes a half-typed code or app key. This is a deliberate
   exception to the render/wire "rebuild the HTML" convention.
+
+## Settings modal (`js/app/21-settings.js`)
+
+Every per-device or per-campaign setting is in one modal, opened by
+`#btnSettings` in the campaign bar. `wireSettings()` builds the shell once,
+before `wireTheme()` and `wireDropbox()` fill their sections. Sections, in
+order:
+
+1. **Theme** — `#themeSelect` (20-themes.js).
+2. **Dropbox sync** — the panel from 19-dropbox-sync.js, in `#settingsDropbox`.
+   It is never rebuilt, so a half-typed code survives (see "Dropbox sync").
+3. **Random tables** — `#settingsTables`, the current campaign's editable
+   tables, each a `<details>` editor: Random Event Focus Table
+   (`gme.eventFocusTable`) and Random Inspiration Source
+   (`gm.inspiration.entries`). The ids are the ones the tab editors had
+   (`data-focus-*`, `#btnGmeFocusAdd`, `data-insp-*`, `#btnGmInspAdd`, …).
+
+Only `#settingsTables` re-renders. `renderActive()` calls
+`renderSettingsTables()` while `settingsOpen`, so the editors follow every
+campaign switch and Dropbox pull. A structural edit (a max, a weight, add,
+remove, reset) calls `persist()` + `renderActive()`; a text edit only calls
+`persist()`, so the focus moves on normally. `settingsTablesOpen` keeps each
+editor's open state across re-renders and re-opens.
+The tabs have no Edit buttons for these tables: the user edits them only
+in Settings. `openSettings(table)` still takes an optional key
+(`'eventFocus'` / `'inspiration'`) that expands that editor; the specs use it. To add another editable table, add a
+`<details data-settings-table="<key>">` block, a key in
+`settingsTablesOpen`, and its handlers in `wireSettingsTables()`.
 
 ## The log: Markdown is the source of truth, HTML is a view
 
@@ -569,7 +642,7 @@ re-render" cache pattern, Mystery Matrix connection/Clincher logic, the
 Quick Note → Log → sanitised-HTML pipeline, (`11`) the Mythic GME tab —
 Chaos Factor clamp, Expected-Scene test (Altered → Scene Adjustment + word,
 Interrupt → Event Focus + word) with `sceneAdjustment()` / `rollEventFocus()`
-unit tests, the collapsible editable Event Focus Table, list add/dupe/remove/roll,
+unit tests, the Event Focus Table editor (in Settings only, no card on the tab), list add/dupe/remove/roll,
 Progress Track progress / auto-Flashpoint / Conclusion / Discovery Check /
 collapse toggle — and (`12`) the Published Adventures tab —
 `adventureDieOptions` / `rollAdventureDie` / `crisisElement` / `specialElement`
@@ -591,9 +664,15 @@ Master tab's Random Inspiration Source: `sanitizeGm()` / `freshGm()` (in `03`)
 — default-list fallback on junk input, weight clamped 1-100, label
 trimmed/truncated — plus the tab UI: the enable checkbox showing/hiding the
 section, a weighted roll via `rollInspirationSource()`, the "last result
-survives re-render" cache when the editor is toggled, editing a label/weight,
+survives re-render" cache across a Settings edit, no editor or Edit button
+on the tab, `openSettings('inspiration')` expanding the list, editing a label/weight,
 add/remove entries (remove disabled at 1 remaining), and Reset to default.
-Spec `04` also covers the themes (`#themeSelect` options, `<html data-theme>`
+Spec `04` also covers the tab intros (collapsed by default, one shared
+setting across tabs and panes, saved in `localStorage`), the saved view (`saveView()` after a tab change,
+`restoreViewTabs()`, `loadView()` dropping bad ids and junk), the Settings
+modal (sections, close by button / backdrop / Escape, an expanded editor
+staying expanded after an edit and a re-open, the editors following a
+campaign switch), the themes (`#themeSelect` options, `<html data-theme>`
 and the `localStorage` key on change, the fallback to Case file for an unknown
 id, a theme change keeping the current tab) and the split view (right-click a tab): unsplit by default,
 right-click pins a tab right without disturbing the main tab, right-clicking
@@ -609,7 +688,10 @@ enforces. Spec `14` covers the Help overlay ("?" button) — opens with a
 section for every tool, embeds the Published Adventures tab's own
 `PUB_FLOW_HTML` verbatim, its table-of-contents links all resolve to real
 section ids, and it closes via its own close button, a backdrop click,
-or Escape (but not a click inside the panel). Spec `15` covers the 3-Act
+or Escape (but not a click inside the panel). Specs `07`, `12` and `15` also cover the collapsible cards (Region Setup;
+The Prepared Adventure, Diminisher Value and the flowchart behind the **?**;
+The Story Thread's automatic open state and the flowchart behind the **?**).
+Spec `15` covers the 3-Act
 Story tab — `threeActInnerEvent()`'s Act 1/2/3 sequences (incl. cycling past
 the end), `fireThreeActEvent()`'s dice thresholds and one-time-condition
 skips (Incident Scene / Introduce NPC) for every Act Event including New

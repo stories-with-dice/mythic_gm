@@ -10,8 +10,7 @@ const CHAR_CATEGORIES = [
 let charWords = {identity:[], mind:[], body:[], talent:[]};
 function renderCharacter(){
   return `
-  <h2 class="tool-title">One-Page Character Crafter</h2>
-  <p class="tool-desc">Roll Identity, Mind, Body and Talent keywords, then weave them into a one-sentence description of who this NPC is.</p>
+  ${tabHeader(`One-Page Character Crafter`, `Roll Identity, Mind, Body and Talent keywords, then weave them into a one-sentence description of who this NPC is.`)}
 
   <div class="grid2">
     ${CHAR_CATEGORIES.map(c=>`

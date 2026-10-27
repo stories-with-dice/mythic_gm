@@ -4,7 +4,19 @@ describe('Location Crafter tab', () => {
 
   beforeEach(() => { resetApp(); showTab('location'); });
 
+  it('Region Setup is collapsed by default and shows the region size', () => {
+    expect($('#btnLocSetupToggle').textContent).toBe('Show');
+    expect($('#regionSize')).toBeNull();
+    expect($('#panelHost')).toContain('Region size: Average');
+    click('#btnLocSetupToggle');
+    expect($('#btnLocSetupToggle').textContent).toBe('Hide');
+    expect($('#regionSize')).toBeTruthy();
+    click('#btnLocSetupToggle');
+    expect($('#regionSize')).toBeNull();
+  });
+
   it('Start New Region seeds PP from the region size and resets counts', async () => {
+    click('#btnLocSetupToggle');
     setValue('#regionSize', 'Small');            // Small => start PP +3
     await withDialogs({ confirm: true }, () => click('#btnStartRegion'));
     const loc = campaign().location;

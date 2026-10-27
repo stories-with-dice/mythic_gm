@@ -1,6 +1,6 @@
 /* =========================================================================
    THEMES
-   Color + font themes, picked in the campaign bar (#themeSelect). A theme is
+   Color + font themes, picked in the Settings modal (#themeSelect). A theme is
    only <html data-theme="...">: css/app.css redefines the :root tokens per
    theme. The choice is a per-device preference, so it lives in localStorage
    (THEME_KEY), not in STORE, and is not synced to Dropbox.

@@ -18,19 +18,20 @@ describe('Published Adventures tab', () => {
     });
   });
 
-  describe('"How it works" flowchart', () => {
-    it('is collapsed by default and toggles open/closed', () => {
-      expect($('#btnPubFlowToggle').textContent).toBe('Show');
+  describe('"How it works" flowchart (behind the ? intro toggle)', () => {
+    it('has no How it works card; the ? shows the intro and the flowchart', () => {
+      expect($('#btnPubFlowToggle')).toBeNull();
       expect(document.querySelector('.pub-flow')).toBeNull();
-      click('#btnPubFlowToggle');
-      expect($('#btnPubFlowToggle').textContent).toBe('Hide');
-      const flow = document.querySelector('.pub-flow');
+      expect($('#panelHost .tool-desc')).toBeNull();
+      click('#panelHost [data-intro-toggle]');
+      expect($('#panelHost .tool-desc')).toContain('one giant Meaning table');
+      const flow = document.querySelector('#panelHost .tool-intro-more .pub-flow');
       expect(flow).toBeTruthy();
       expect(flow).toContain('Test vs Chaos Factor');
       expect(flow).toContain('Crisis Scene');
       expect(flow).toContain('Adventure Die');
       expect($$('.pub-flow .flow-branch li')).toHaveLength(4);
-      click('#btnPubFlowToggle');
+      click('#panelHost [data-intro-toggle]');
       expect(document.querySelector('.pub-flow')).toBeNull();
     });
   });
@@ -88,7 +89,21 @@ describe('Published Adventures tab', () => {
   });
 
   describe('The Prepared Adventure panel', () => {
+    it('is collapsed by default; the collapsed line shows title, pages and die', () => {
+      expect($('#btnPubPreparedToggle').textContent).toBe('Show');
+      expect($('#pubTitle')).toBeNull();
+      expect($('#panelHost')).toContain('No title yet');
+      click('#btnPubPreparedToggle');
+      setValue('#pubTitle', 'The <Sword>');
+      setValue('#pubPageCount', '64');
+      click('#btnPubPreparedToggle');
+      expect($('#pubTitle')).toBeNull();
+      expect($('#panelHost')).toContain('The <Sword>');   // escaped, so it shows as text
+      expect($('#panelHost')).toContain('64 pages');
+      expect($('#panelHost')).toContain('Adventure Die ' + dec().adventureDie);
+    });
     it('persists title / first-scene concept', () => {
+      click('#btnPubPreparedToggle');
       setValue('#pubTitle', 'The Sword Of Cacinth Castle');
       setValue('#pubFirstScene', 'Working for the great dwarf artificer.');
       expect(dec().title).toBe('The Sword Of Cacinth Castle');
@@ -96,6 +111,7 @@ describe('Published Adventures tab', () => {
     });
     it('setting the page count snaps the Adventure Die to a valid option', () => {
       expect(dec().adventureDie).toBe('d20');
+      click('#btnPubPreparedToggle');
       setValue('#pubPageCount', '10');            // 10 pages -> only d4
       expect(dec().pageCount).toBe(10);
       expect(dec().adventureDie).toBe('d4');
@@ -152,6 +168,7 @@ describe('Published Adventures tab', () => {
     });
     it('warns until the page count is set', () => {
       expect($('#panelHost')).toContain('so the page counter wraps');
+      click('#btnPubPreparedToggle');
       setValue('#pubPageCount', '64');
       expect($('#panelHost').textContent.includes('so the page counter wraps')).toBe(false);
     });
@@ -298,7 +315,13 @@ describe('Published Adventures tab', () => {
   });
 
   describe('Diminisher Value', () => {
+    it('is collapsed by default and shows the current Diminisher', () => {
+      expect($('#btnPubDimToggle').textContent).toBe('Show');
+      expect($('#pubDiminisher')).toBeNull();
+      expect($('#panelHost')).toContain('Diminisher ' + dec().diminisher);
+    });
     it('stores the choice and its divide helper scales a value', () => {
+      click('#btnPubDimToggle');
       setValue('#pubDiminisher', '1/5');
       expect(dec().diminisher).toBe('1/5');
       setValue('#pubScaleValue', '200');

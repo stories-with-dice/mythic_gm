@@ -4,8 +4,7 @@
 function renderGM(){
   const oddsOptions = Object.keys(ASK_ODDS).map(k=>`<option value="${k}" ${k==='50/50 or Unknown'?'selected':''}>${k}</option>`).join('');
   return `
-  <h2 class="tool-title">One-Page Game Master Emulator</h2>
-  <p class="tool-desc">Ask yes/no questions and let the odds decide, or roll up an evocative word pair when you need inspiration rather than a verdict.</p>
+  ${tabHeader(`One-Page Game Master Emulator`, `Ask yes/no questions and let the odds decide, or roll up an evocative word pair when you need inspiration rather than a verdict.`)}
 
   <div class="card">
     <h3 class="block-title">Ask the Game Master</h3>
@@ -47,7 +46,6 @@ function renderGM(){
   `;
 }
 let gmWordLog = []; // transient list of discover-meaning words rolled this session (per-tab view only)
-let gmInspEditorOpen = false; // Random Inspiration Source list editor collapsed by default
 let lastInspirationHtml = ''; // cached so an unrelated renderActive() doesn't wipe it
 
 // Weighted pick from the Random Inspiration Source list: 1..totalWeight, walk
@@ -63,14 +61,9 @@ function rollInspirationSource(entries){
   return { roll, total, entry: entries[entries.length - 1] };
 }
 
+// The list itself is edited in the Settings modal (21-settings.js).
 function renderInspirationSection(){
   const insp = campaign().gm.inspiration;
-  const rows = insp.entries.map((e, i) => `
-    <tr>
-      <td><input type="text" data-insp-label="${i}" class="field-input" value="${escapeAttr(e.label)}"></td>
-      <td class="weight"><input type="number" min="1" max="100" data-insp-weight="${i}" class="field-input" value="${e.weight}"></td>
-      <td><button class="btn small danger" data-insp-rm="${i}" ${insp.entries.length <= 1 ? 'disabled' : ''}>&#10005;</button></td>
-    </tr>`).join('');
 
   return `
   <label class="row" style="align-items:center; gap:8px; cursor:pointer;">
@@ -78,24 +71,11 @@ function renderInspirationSection(){
     <span>Random Inspiration Source</span>
   </label>
   ${insp.enabled ? `
-    <p class="small-note" style="margin-top:4px;">Roll for where a piece of random inspiration comes from. Weight an entry higher to make it more likely.</p>
+    <p class="small-note" style="margin-top:4px;">Roll for where a piece of random inspiration comes from. Edit the list and its weights in Settings.</p>
     <div class="row">
       <button class="btn primary" id="btnRollInspiration" ${insp.entries.length ? '' : 'disabled'}>Roll Inspiration Source</button>
-      <button class="btn small" id="btnGmInspEditToggle">${gmInspEditorOpen ? 'Done' : 'Edit list'}</button>
     </div>
     <div id="inspirationResult" style="margin-top:10px;">${lastInspirationHtml}</div>
-    ${gmInspEditorOpen ? `
-    <div style="overflow-x:auto;">
-      <table class="gm-insp-table">
-        <thead><tr><th>Source</th><th>Weight</th><th></th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-    <div class="row" style="margin-top:10px;">
-      <button class="btn small" id="btnGmInspAdd">Add entry</button>
-      <button class="btn small" id="btnGmInspReset">Reset to default</button>
-    </div>
-    ` : ''}
   ` : ''}`;
 }
 
@@ -165,46 +145,4 @@ function wireGM(){
     addLog('Random Inspiration Source', `**Random Inspiration Source** — Roll: ${res.roll} of ${res.total} → **${escapeMd(res.entry.label)}**`);
   });
 
-  const inspEditToggle = document.getElementById('btnGmInspEditToggle');
-  if(inspEditToggle) inspEditToggle.addEventListener('click', ()=>{
-    gmInspEditorOpen = !gmInspEditorOpen;
-    renderActive();
-  });
-
-  document.querySelectorAll('[data-insp-label]').forEach(el=> el.addEventListener('change', ()=>{
-    const i = Number(el.dataset.inspLabel);
-    const entries = campaign().gm.inspiration.entries;
-    entries[i].label = el.value.trim() || entries[i].label;
-    persist();
-  }));
-  document.querySelectorAll('[data-insp-weight]').forEach(el=> el.addEventListener('change', ()=>{
-    const i = Number(el.dataset.inspWeight);
-    const entries = campaign().gm.inspiration.entries;
-    let v = Math.round(Number(el.value));
-    if(!Number.isFinite(v)) v = entries[i].weight;
-    entries[i].weight = Math.max(1, Math.min(100, v));
-    persist();
-    renderActive();
-  }));
-  document.querySelectorAll('[data-insp-rm]').forEach(b=> b.addEventListener('click', ()=>{
-    const entries = campaign().gm.inspiration.entries;
-    if(entries.length <= 1) return;
-    entries.splice(Number(b.dataset.inspRm), 1);
-    persist();
-    renderActive();
-  }));
-  const inspAdd = document.getElementById('btnGmInspAdd');
-  if(inspAdd) inspAdd.addEventListener('click', ()=>{
-    campaign().gm.inspiration.entries.push({ label: 'New Source', weight: 1 });
-    persist();
-    renderActive();
-  });
-  const inspReset = document.getElementById('btnGmInspReset');
-  if(inspReset) inspReset.addEventListener('click', ()=>{
-    if(!confirm('Reset the Random Inspiration Source list to the default 5 entries?')) return;
-    campaign().gm.inspiration.entries = freshInspirationEntries();
-    persist();
-    addLog('Random Inspiration Source', '**Random Inspiration Source** list reset to default.');
-    renderActive();
-  });
 }

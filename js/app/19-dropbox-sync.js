@@ -92,7 +92,6 @@ function dropboxFreshRuntime(){
 let dbxConfig = dropboxLoadConfig();
 let dbxSync = dropboxLoadSync();
 let dbx = dropboxFreshRuntime();
-let dbxPanelOpen = false;
 
 function dropboxSaveConfig(){ dropboxWriteJson(localStorage, DBX_CONFIG_KEY, dbxConfig); }
 function dropboxSaveSync(){ dropboxWriteJson(sessionStorage, DBX_SYNC_KEY, dbxSync); }
@@ -683,12 +682,14 @@ function dropboxStatusText(){
 // The panel markup is built once (wireDropbox), and this only updates it, so
 // a half-typed code or app key is never wiped by a status change.
 function renderDropbox(){
-  const btn = document.getElementById('btnDropbox');
-  if(btn){
+  // Status badge on the campaign bar's Settings button; hidden while sync is off.
+  const badge = document.getElementById('dbxStatus');
+  if(badge){
     const v = DBX_STATUS_VIEW[dbxConfig.enabled ? dbx.status : 'off'] || DBX_STATUS_VIEW.off;
-    btn.className = 'btn small dbx-status' + (v.cls ? ' ' + v.cls : '');
-    btn.textContent = '☁ ' + v.label;
-    btn.title = dropboxStatusText();
+    badge.hidden = !dbxConfig.enabled;
+    badge.className = 'dbx-status' + (v.cls ? ' ' + v.cls : '');
+    badge.textContent = '☁ ' + v.label;
+    badge.title = dropboxStatusText();
   }
   const hint = document.getElementById('dbxHint');
   if(!hint) return;
@@ -713,9 +714,7 @@ function renderDropbox(){
 
 function renderDropboxPanelHtml(){
   return `
-  <div class="dbx-inner" role="dialog" aria-labelledby="dbxPanelTitle">
-    <button class="btn small dbx-close" id="dbxPanelClose" title="Close" aria-label="Close">&times;</button>
-    <h3 class="block-title" id="dbxPanelTitle">Dropbox sync</h3>
+  <div class="dbx-panel">
     <p class="hint" id="dbxHint">&nbsp;</p>
     <div class="dbx-code-row" id="dbxCodeRow" hidden>
       <input type="text" id="dbxCode" placeholder="Paste the code from Dropbox" spellcheck="false" autocomplete="off">
@@ -762,17 +761,7 @@ function renderDropboxModalHtml(){
   </div>`;
 }
 
-function openDropboxPanel(){
-  dbxPanelOpen = true;
-  document.getElementById('dropboxOverlay').classList.add('open');
-  renderDropbox();
-}
-function closeDropboxPanel(){
-  dbxPanelOpen = false;
-  document.getElementById('dropboxOverlay').classList.remove('open');
-}
-
-// Called from the DOMContentLoaded handler (21-init.js), after the first render.
+// Called from the DOMContentLoaded handler (22-init.js), after the first render.
 function initDropbox(){
   renderDropbox();
   if(!dbxConfig.enabled) return;
@@ -780,19 +769,13 @@ function initDropbox(){
   else dropboxSetStatus('signed-out');
 }
 
+// The panel lives in the Settings modal (#settingsDropbox, built by
+// wireSettings() in 21-settings.js, which also handles Escape).
 function wireDropbox(){
-  const overlay = document.getElementById('dropboxOverlay');
   const modal = document.getElementById('dropboxModal');
-  overlay.innerHTML = renderDropboxPanelHtml();
+  document.getElementById('settingsDropbox').innerHTML = renderDropboxPanelHtml();
   modal.innerHTML = renderDropboxModalHtml();
   const on = (id, type, fn) => document.getElementById(id).addEventListener(type, fn);
-  on('btnDropbox', 'click', () => {
-    // Reconnect needs the code row, which is in the panel.
-    if(dbx.status === 'conflict') openDropboxModal();
-    else{ openDropboxPanel(); if(dbxConfig.enabled && dbx.status === 'signed-out') dropboxConnect(); }
-  });
-  on('dbxPanelClose', 'click', closeDropboxPanel);
-  overlay.addEventListener('click', e => { if(e.target === overlay) closeDropboxPanel(); });
   on('dbxConnect', 'click', () => dropboxConnect());
   on('dbxFinish', 'click', () => dropboxFinishConnect(document.getElementById('dbxCode').value));
   on('dbxCode', 'keydown', e => { if(e.key === 'Enter') dropboxFinishConnect(e.target.value); });
@@ -810,11 +793,6 @@ function wireDropbox(){
   on('dbxUseLocal', 'click', () => dropboxUseLocalCopy());
   on('dbxExport', 'click', () => document.getElementById('btnExportCampaign').click());
   on('dbxLater', 'click', closeDropboxModal);
-  document.addEventListener('keydown', e => {
-    if(e.key !== 'Escape') return;
-    closeDropboxModal();
-    if(dbxPanelOpen) closeDropboxPanel();
-  });
   // Another device may have changed the file: check when the tab comes back.
   // Going to the background flushes a pending upload instead of waiting.
   document.addEventListener('visibilitychange', () => {

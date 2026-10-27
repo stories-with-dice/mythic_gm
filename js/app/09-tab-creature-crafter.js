@@ -3,8 +3,7 @@
    ========================================================================= */
 function renderCreature(){
   return `
-  <h2 class="tool-title">One-Page Creature Crafter</h2>
-  <p class="tool-desc">Roll up what a creature looks like, how it behaves, and what it can do — statted loosely enough to bolt onto any system.</p>
+  ${tabHeader(`One-Page Creature Crafter`, `Roll up what a creature looks like, how it behaves, and what it can do — statted loosely enough to bolt onto any system.`)}
 
   <div class="grid2">
     <div>

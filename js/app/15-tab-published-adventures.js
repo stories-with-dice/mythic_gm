@@ -114,7 +114,8 @@ let pubCrisisHtml = '';
 let pubElementHtml = '';
 let pubMeaningRollHtml = '';
 let pubScaleInput = '';    // Diminisher "Scale a value" input, kept across re-renders
-let pubFlowOpen = false;   // "How it works" flowchart, collapsed by default
+let pubPreparedOpen = false; // "The Prepared Adventure" card, collapsed by default
+let pubDimOpen = false;      // "Diminisher Value" card, collapsed by default
 
 function pubScaled(raw, diminisher){
   const v = Number(raw);
@@ -178,20 +179,15 @@ function renderPublished(){
     : '';
 
   return `
-  <h2 class="tool-title">Published Adventures — Deconstruct The Known</h2>
-  <p class="tool-desc">Run a prepared adventure as one giant Meaning table. Roll a page, roll a section, and interpret what you find into the ongoing story. Chaos Factor, scene count, Lists and the Event Focus Table are shared with the <b>Mythic GME</b> tab.</p>
+  ${tabHeader(`Published Adventures — Deconstruct The Known`, `Run a prepared adventure as one giant Meaning table. Roll a page, roll a section, and interpret what you find into the ongoing story. Chaos Factor, scene count, Lists and the Event Focus Table are shared with the <b>Mythic GME</b> tab.`, PUB_FLOW_HTML)}
 
   <div class="card">
     <div class="row" style="justify-content:space-between; align-items:center;">
-      <h3 class="block-title" style="margin:0; padding:0; border:0;">How it works</h3>
-      <button class="btn small" id="btnPubFlowToggle">${pubFlowOpen ? 'Hide' : 'Show'}</button>
+      <h3 class="block-title" style="margin:0; padding:0; border:0;">The Prepared Adventure</h3>
+      <button class="btn small" id="btnPubPreparedToggle">${pubPreparedOpen ? 'Hide' : 'Show'}</button>
     </div>
-    ${pubFlowOpen ? PUB_FLOW_HTML : '<div class="small-note" style="margin-top:6px;">A quick flowchart of the Deconstructed Adventures loop.</div>'}
-  </div>
-
-  <div class="card">
-    <h3 class="block-title">The Prepared Adventure</h3>
-    <div class="row" style="align-items:flex-end;">
+    ${pubPreparedOpen ? `
+    <div class="row" style="align-items:flex-end; margin-top:10px;">
       <div class="field" style="flex:1; min-width:200px;">
         <label for="pubTitle">Adventure title</label>
         <input type="text" id="pubTitle" class="field-input" value="${escapeAttr(d.title)}" placeholder="e.g. The Sword Of Cacinth Castle">
@@ -209,6 +205,7 @@ function renderPublished(){
       <label for="pubFirstScene">First Scene concept</label>
       <textarea id="pubFirstScene" class="field-input" rows="5" style="width:100%; resize:vertical;" placeholder="Roll a few Adventure Elements below, then weave them into why the PC is here.">${escapeAttr(d.firstSceneConcept)}</textarea>
     </div>
+    ` : `<div class="small-note" style="margin-top:6px;">${d.title ? `<b>${escapeAttr(d.title)}</b>` : 'No title yet'} &middot; ${d.pageCount ? `${d.pageCount} pages` : 'page count not set'} &middot; Adventure Die ${d.adventureDie}</div>`}
   </div>
 
   <div class="card">
@@ -220,7 +217,7 @@ function renderPublished(){
       <button class="btn small" id="btnPubResetPages" ${d.pageHistory.length ? '' : 'disabled'}>Reset page tracker</button>
     </div>
     <div class="small-note" style="margin-top:8px;">Pages rolled: ${histStr}</div>
-    ${d.pageCount ? '' : '<div class="small-note">Enter the <b>Total pages</b> above so the page counter wraps back to the start at the end of the book.</div>'}
+    ${d.pageCount ? '' : '<div class="small-note">Enter the <b>Total pages</b> under The Prepared Adventure so the page counter wraps back to the start at the end of the book.</div>'}
     <div id="pubElementResult" style="margin-top:12px;">${pubElementHtml}</div>
     ${pendingNote}
     <div class="row" style="margin-top:8px;">
@@ -290,8 +287,12 @@ function renderPublished(){
     </div>
 
     <div class="card">
-      <h3 class="block-title">Diminisher Value</h3>
-      <p class="small-note" style="margin-top:-4px;">Scale a party-sized adventure down to your lone PC.</p>
+      <div class="row" style="justify-content:space-between; align-items:center;">
+        <h3 class="block-title" style="margin:0; padding:0; border:0;">Diminisher Value</h3>
+        <button class="btn small" id="btnPubDimToggle">${pubDimOpen ? 'Hide' : 'Show'}</button>
+      </div>
+      ${pubDimOpen ? `
+      <p class="small-note" style="margin-top:6px;">Scale a party-sized adventure down to your lone PC.</p>
       <div class="field" style="max-width:120px;">
         <label for="pubDiminisher">Diminisher</label>
         <select id="pubDiminisher" class="field-input">${dim}</select>
@@ -304,6 +305,7 @@ function renderPublished(){
         </div>
         <div class="pp-readout"><span class="num" id="pubScaleResult">${pubScaled(pubScaleInput, d.diminisher)}</span><span class="lbl">÷ ${d.diminisher}, rounded</span></div>
       </div>
+      ` : `<div class="small-note" style="margin-top:6px;">Diminisher <b>${d.diminisher}</b>. Show to change it or scale a value.</div>`}
     </div>
   </div>
   `;
@@ -331,18 +333,18 @@ function wirePublished(){
     };
   }
 
-  document.getElementById('btnPubFlowToggle').addEventListener('click', () => {
-    pubFlowOpen = !pubFlowOpen;
+  /* ---- The Prepared Adventure (collapsible; its fields exist only while open) ---- */
+  document.getElementById('btnPubPreparedToggle').addEventListener('click', () => {
+    pubPreparedOpen = !pubPreparedOpen;
     renderActive();
   });
-
-  /* ---- The Prepared Adventure ---- */
   const title = document.getElementById('pubTitle');
-  title.addEventListener('input', () => { d().title = title.value; persist(); });
+  if(title) title.addEventListener('input', () => { d().title = title.value; persist(); });
   const firstScene = document.getElementById('pubFirstScene');
-  firstScene.addEventListener('input', () => { d().firstSceneConcept = firstScene.value; persist(); });
+  if(firstScene) firstScene.addEventListener('input', () => { d().firstSceneConcept = firstScene.value; persist(); });
 
-  document.getElementById('pubPageCount').addEventListener('change', e => {
+  const pageCount = document.getElementById('pubPageCount');
+  if(pageCount) pageCount.addEventListener('change', e => {
     const v = Math.max(0, Math.round(Number(e.target.value)) || 0);
     d().pageCount = v;
     const opts = adventureDieOptions(v);
@@ -350,7 +352,8 @@ function wirePublished(){
     persist();
     renderActive();
   });
-  document.getElementById('pubAdvDie').addEventListener('change', e => { d().adventureDie = e.target.value; persist(); });
+  const advDie = document.getElementById('pubAdvDie');
+  if(advDie) advDie.addEventListener('change', e => { d().adventureDie = e.target.value; persist(); });
 
   /* ---- Adventure Element ---- */
   document.getElementById('btnPubRollElement').addEventListener('click', () => {
@@ -541,12 +544,17 @@ function wirePublished(){
     document.getElementById('pubMeaningRollResult').innerHTML = pubMeaningRollHtml;
   });
 
-  /* ---- Diminisher ---- */
-  document.getElementById('pubDiminisher').addEventListener('change', e => {
+  /* ---- Diminisher (collapsible; its fields exist only while open) ---- */
+  document.getElementById('btnPubDimToggle').addEventListener('click', () => {
+    pubDimOpen = !pubDimOpen;
+    renderActive();
+  });
+  const dimSel = document.getElementById('pubDiminisher');
+  if(dimSel) dimSel.addEventListener('change', e => {
     d().diminisher = e.target.value; persist(); renderActive();
   });
   const scaleIn = document.getElementById('pubScaleValue');
-  scaleIn.addEventListener('input', () => {
+  if(scaleIn) scaleIn.addEventListener('input', () => {
     pubScaleInput = scaleIn.value;
     document.getElementById('pubScaleResult').textContent = pubScaled(pubScaleInput, d().diminisher);
   });

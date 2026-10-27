@@ -5,9 +5,12 @@
    (`rightTab`), instead of switching the main pane's `currentTab`. The two
    are kept mutually exclusive (a tab can't be both at once) so every tab's
    DOM ids stay unique on the page — see the invariant enforced in
-   renderTabNav()'s contextmenu handler below. Neither `currentTab` nor
-   `rightTab` is persisted (same as before the split view existed); a
-   reload always lands back on the default tab, unsplit.
+   renderTabNav()'s contextmenu handler below.
+
+   View state: `currentTab`, `rightTab` and the window scroll position are
+   kept in sessionStorage (VIEW_KEY) by saveView(), so a reload of this
+   browser tab comes back to the same tabs at the same place. Like STORE,
+   it clears when the browser tab closes, and it is not exported or synced.
    ========================================================================= */
 const TABS = [
   {id:'gme', label:'Mythic GME'},
@@ -23,6 +26,63 @@ const TABS = [
 ];
 let currentTab = 'gme';
 let rightTab = null;   // tab id pinned to the split-right pane, or null when unsplit
+
+const VIEW_KEY = 'mythicToolkit_view';
+
+// Called after every tab change, and on pagehide (which also fires on reload)
+// for the scroll position.
+function saveView(){
+  try{
+    sessionStorage.setItem(VIEW_KEY, JSON.stringify({ currentTab, rightTab, scrollY: Math.round(window.scrollY) }));
+  }catch(_){}
+}
+// Reads the saved view, or null. Unknown tab ids are dropped, and the
+// currentTab/rightTab invariant is enforced again.
+function loadView(){
+  try{
+    const v = JSON.parse(sessionStorage.getItem(VIEW_KEY));
+    if(!v || typeof v !== 'object') return null;
+    const known = id => TABS.some(t => t.id === id);
+    const main = known(v.currentTab) ? v.currentTab : 'gme';
+    const right = known(v.rightTab) && v.rightTab !== main ? v.rightTab : null;
+    const scrollY = Number.isFinite(v.scrollY) && v.scrollY > 0 ? v.scrollY : 0;
+    return { currentTab: main, rightTab: right, scrollY };
+  }catch(_){ return null; }
+}
+// Called first in the DOMContentLoaded handler (22-init.js), before the first render.
+function restoreViewTabs(){
+  const v = loadView();
+  if(!v) return null;
+  currentTab = v.currentTab;
+  rightTab = v.rightTab;
+  return v;
+}
+
+// Tab intros: the `tool-desc` paragraph under each tab's title. One shared
+// "?" toggle beside every tab's title (tabHeader()), collapsed by
+// default and remembered in this browser (localStorage, like the theme).
+// A tab can pass `moreHtml` (the Published Adventures and 3-Act Story
+// "How it works" flowcharts) to show below the intro paragraph.
+let introOpen = null;   // read lazily: the key prefix is set in 19-dropbox-sync.js
+function introKey(){ return DBX_KEY_PREFIX + 'mythicToolkit_intro'; }
+function isIntroOpen(){
+  if(introOpen === null){
+    try{ introOpen = localStorage.getItem(introKey()) === '1'; }catch(_){ introOpen = false; }
+  }
+  return introOpen;
+}
+function setIntroOpen(open){
+  introOpen = !!open;
+  try{ localStorage.setItem(introKey(), introOpen ? '1' : '0'); }catch(_){}
+}
+function tabHeader(title, descHtml, moreHtml){
+  const open = isIntroOpen();
+  return `<div class="tool-head">
+    <h2 class="tool-title">${title}</h2>
+    <button type="button" class="btn small intro-toggle${open ? ' open' : ''}" data-intro-toggle aria-expanded="${open}" title="${open ? 'Hide' : 'Show'} what this tab does" aria-label="${open ? 'Hide' : 'Show'} the tab intro">?</button>
+  </div>
+  ${open ? `<p class="tool-desc">${descHtml}</p>${moreHtml ? `<div class="tool-intro-more">${moreHtml}</div>` : ''}` : ''}`;
+}
 
 // Lazy lookups (not top-level object literals) because these name functions
 // defined in files that load *after* this one; only safe to call once
@@ -48,15 +108,17 @@ function renderTabNav(){
       currentTab = id;
       renderTabNav();
       renderActive();
+      saveView();
     });
     b.addEventListener('contextmenu', (e)=>{
       e.preventDefault();
       const id = b.dataset.tab;
-      if(id === rightTab){ rightTab = null; renderTabNav(); renderActive(); return; }   // right-click again = close split
+      if(id === rightTab){ rightTab = null; renderTabNav(); renderActive(); saveView(); return; }   // right-click again = close split
       if(id === currentTab) currentTab = (TABS.find(t=>t.id!==id) || {id:currentTab}).id;  // don't collide with the new rightTab
       rightTab = id;
       renderTabNav();
       renderActive();
+      saveView();
     });
   });
 }
@@ -80,8 +142,14 @@ function renderActive(){
   }
 
   wireActive();
+  if(settingsOpen) renderSettingsTables();   // 21-settings.js: keep the table editors in step
 }
 function wireActive(){
+  // The intro toggle is the same in every tab (and in both panes).
+  document.querySelectorAll('[data-intro-toggle]').forEach(b => b.addEventListener('click', ()=>{
+    setIntroOpen(!isIntroOpen());
+    renderActive();
+  }));
   tabWirers()[currentTab]();
   if(rightTab){
     tabWirers()[rightTab]();
@@ -89,6 +157,7 @@ function wireActive(){
       rightTab = null;
       renderTabNav();
       renderActive();
+      saveView();
     });
   }
 }

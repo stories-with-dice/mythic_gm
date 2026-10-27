@@ -131,7 +131,9 @@ function fireThreeActEvent(type, ta){
 // transient result HTML, cached against renderActive() (see AGENTS.md gotcha)
 let threeActResultHtml = '';
 let threeActThreadSuggestion = null;
-let threeActFlowOpen = false;
+// "The Story Thread" card: null = automatic (open until a Story Thread is
+// set), true/false once the user clicks Show/Hide.
+let threeActThreadOpen = null;
 
 const THREE_ACT_FLOW_HTML = `
 <div class="pub-flow">
@@ -193,10 +195,15 @@ function renderThreeAct(){
     const beatRows = beats.map(b => `<label><input type="checkbox" data-beat="${b.key}"> ${b.label}</label>`).join('');
     const canStartInMediaRes = ta.act === 1 && ta.outer[0] === 0 && ta.inner[0] === 0 && !established;
 
+    const threadOpen = threeActThreadOpen === null ? !established : threeActThreadOpen;
     bodyHtml = `
     <div class="card">
-      <h3 class="block-title">The Story Thread</h3>
-      <p class="small-note" style="margin-top:-4px;">A single, important Thread your adventure resolves. Pick any Thread from the shared Threads List, or let Act 1 generate one for you (mark a Scene with no Story Beat).</p>
+      <div class="row" style="justify-content:space-between; align-items:center;">
+        <h3 class="block-title" style="margin:0; padding:0; border:0;">The Story Thread</h3>
+        <button class="btn small" id="btn3aThreadToggle">${threadOpen ? 'Hide' : 'Show'}</button>
+      </div>
+      ${threadOpen ? `
+      <p class="small-note" style="margin-top:6px;">A single, important Thread your adventure resolves. Pick any Thread from the shared Threads List, or let Act 1 generate one for you (mark a Scene with no Story Beat).</p>
       <div class="field">
         <label for="threeActThreadInput">Story Thread</label>
         <input type="text" id="threeActThreadInput" class="field-input" style="width:100%;" value="${escapeAttr(ta.storyThread)}" placeholder="e.g. Find the journal">
@@ -206,6 +213,7 @@ function renderThreeAct(){
       <div class="row" style="margin-top:10px;">
         <label style="display:flex; align-items:center; gap:8px; font-size:13px;"><input type="checkbox" id="threeActPcProtected" ${ta.pcProtected ? 'checked' : ''}> Protect the PC (Tension can't remove them from play — house rule, p.24)</label>
       </div>
+      ` : `<div class="small-note" style="margin-top:6px;">${established ? `Story Thread: <b>${escapeAttr(ta.storyThread)}</b>` : 'No Story Thread yet'}${ta.pcProtected ? ' &middot; PC protected' : ''}</div>`}
     </div>
 
     <div class="card">
@@ -255,16 +263,7 @@ function renderThreeAct(){
   }
 
   return `
-  <h2 class="tool-title">3-Act Story Structure</h2>
-  <p class="tool-desc">A classic screenwriting Setup / Conflict / Resolution overlay on top of Mythic play (Mythic Magazine #42). Chaos Factor, Scenes, Lists and the Event Focus Table are shared with the <b>Mythic GME</b> tab.</p>
-
-  <div class="card">
-    <div class="row" style="justify-content:space-between; align-items:center;">
-      <h3 class="block-title" style="margin:0; padding:0; border:0;">How it works</h3>
-      <button class="btn small" id="btn3aFlowToggle">${threeActFlowOpen ? 'Hide' : 'Show'}</button>
-    </div>
-    ${threeActFlowOpen ? THREE_ACT_FLOW_HTML : '<div class="small-note" style="margin-top:6px;">A quick flowchart of the outer/inner circle tracks and the three Acts.</div>'}
-  </div>
+  ${tabHeader(`3-Act Story Structure`, `A classic screenwriting Setup / Conflict / Resolution overlay on top of Mythic play (Mythic Magazine #42). Chaos Factor, Scenes, Lists and the Event Focus Table are shared with the <b>Mythic GME</b> tab.`, THREE_ACT_FLOW_HTML)}
 
   ${protectedBanner}
   <div class="card">
@@ -284,16 +283,18 @@ function wireThreeAct(){
     lines.map(l => l.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>')).join('<br>')
   }</div>`;
 
-  document.getElementById('btn3aFlowToggle').addEventListener('click', () => {
-    threeActFlowOpen = !threeActFlowOpen;
-    renderActive();
-  });
-
   if(ta().phase === 'acts'){
+    // The Story Thread card's fields exist only while it is open.
+    document.getElementById('btn3aThreadToggle').addEventListener('click', () => {
+      const open = threeActThreadOpen === null ? !ta().storyThread.trim() : threeActThreadOpen;
+      threeActThreadOpen = !open;
+      renderActive();
+    });
     const threadInput = document.getElementById('threeActThreadInput');
-    threadInput.addEventListener('input', () => { ta().storyThread = threadInput.value; persist(); });
+    if(threadInput) threadInput.addEventListener('input', () => { ta().storyThread = threadInput.value; persist(); });
 
-    document.getElementById('threeActPcProtected').addEventListener('change', e => {
+    const pcProtected = document.getElementById('threeActPcProtected');
+    if(pcProtected) pcProtected.addEventListener('change', e => {
       ta().pcProtected = e.target.checked; persist();
     });
 

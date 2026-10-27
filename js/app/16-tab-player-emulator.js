@@ -260,8 +260,7 @@ function renderPlayerEmu(){
   const outlookRows = PE_OUTLOOKS.map((o, i) => `<tr><td class="band">${i + 1}</td><td><b>${o.name}</b> — ${o.text}</td></tr>`).join('');
 
   return `
-  <h2 class="tool-title">Player Emulator</h2>
-  <p class="tool-desc">Emulate a traveling party from <i>Cloud Empress: Solo Protocol</i>. Give each PC an Outlook and a weighted Character Response Chart, then generate the mood of an encounter in one roll: every PC responds, every NPC has a mood, the +/− conflict ratings are summed (a + and a − cancel), and if the tension reaches <b>+ + + +</b> a violent encounter begins.</p>
+  ${tabHeader(`Player Emulator`, `Emulate a traveling party from <i>Cloud Empress: Solo Protocol</i>. Give each PC an Outlook and a weighted Character Response Chart, then generate the mood of an encounter in one roll: every PC responds, every NPC has a mood, the +/− conflict ratings are summed (a + and a − cancel), and if the tension reaches <b>+ + + +</b> a violent encounter begins.`)}
 
   <div class="card">
     <h3 class="block-title">Player Characters</h3>

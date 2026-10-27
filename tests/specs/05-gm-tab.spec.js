@@ -90,17 +90,26 @@ describe('Game Master tab', () => {
       expect(lastLog().md).toContain('**Random book**');
     });
 
-    it('the last result survives an unrelated re-render of the tab (e.g. opening the editor)', async () => {
+    it('the last result survives an unrelated re-render of the tab (e.g. a weight edit in Settings)', async () => {
       click('#gmInspEnabled');
       await withRolls([1], () => click('#btnRollInspiration'));
-      click('#btnGmInspEditToggle'); // triggers renderActive(); the result panel must not be wiped
+      openSettings('inspiration');
+      setValue('[data-insp-weight="2"]', '5'); // triggers renderActive(); the result panel must not be wiped
       expect($('#inspirationResult')).toContain('Random Map');
     });
 
-    it('Edit list toggles the weight/label table open, and heavier weights win more rolls', async () => {
+    it('the tab has no editor or Edit button: the list is edited in Settings', () => {
+      click('#gmInspEnabled');
+      expect($('#btnGmInspEdit')).toBeNull();
+      expect($$('#panelHost [data-insp-label]')).toHaveLength(0);
+    });
+
+    it('openSettings(\'inspiration\') expands the list, and heavier weights win more rolls', async () => {
       click('#gmInspEnabled');
       expect($$('[data-insp-label]')).toHaveLength(0);
-      click('#btnGmInspEditToggle');
+      openSettings('inspiration');
+      expect($('#settingsOverlay').classList.contains('open')).toBe(true);
+      expect($('#settingsTables details[data-settings-table="inspiration"]').open).toBe(true);
       expect($$('[data-insp-label]')).toHaveLength(5);
       setValue('[data-insp-weight="0"]', '10'); // "Random Map" now weight 10, total 14
       expect(campaign().gm.inspiration.entries[0].weight).toBe(10);
@@ -110,14 +119,14 @@ describe('Game Master tab', () => {
 
     it('editing a label persists the trimmed value', () => {
       click('#gmInspEnabled');
-      click('#btnGmInspEditToggle');
+      openSettings('inspiration');
       setValue('[data-insp-label="1"]', '  Old Newspaper  ');
       expect(campaign().gm.inspiration.entries[1].label).toBe('Old Newspaper');
     });
 
     it('Add entry appends a new weight-1 row', () => {
       click('#gmInspEnabled');
-      click('#btnGmInspEditToggle');
+      openSettings('inspiration');
       click('#btnGmInspAdd');
       expect(campaign().gm.inspiration.entries.length).toBe(6);
       expect($$('[data-insp-label]')).toHaveLength(6);
@@ -125,7 +134,7 @@ describe('Game Master tab', () => {
 
     it('Remove is disabled on the last remaining entry', () => {
       click('#gmInspEnabled');
-      click('#btnGmInspEditToggle');
+      openSettings('inspiration');
       for (let i = 0; i < 4; i++) click('[data-insp-rm="0"]');
       expect(campaign().gm.inspiration.entries.length).toBe(1);
       expect($('[data-insp-rm="0"]').disabled).toBe(true);
@@ -133,7 +142,7 @@ describe('Game Master tab', () => {
 
     it('Reset to default restores the 5 default entries and logs it', async () => {
       click('#gmInspEnabled');
-      click('#btnGmInspEditToggle');
+      openSettings('inspiration');
       click('#btnGmInspAdd');
       await withDialogs({ confirm: true }, () => click('#btnGmInspReset'));
       expect(campaign().gm.inspiration.entries).toEqual(freshCampaign().gm.inspiration.entries);

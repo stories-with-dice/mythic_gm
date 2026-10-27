@@ -295,6 +295,21 @@ h2.tool-title{
   margin:0 0 4px;
   color:var(--text);
 }
+/* Tab header: title + the "?" intro toggle (tabHeader() in 04). */
+.tool-head{
+  display:flex; align-items:center; gap:12px;
+  margin-bottom:18px;
+}
+.tool-head h2.tool-title{margin:0;}
+.tool-head + p.tool-desc{margin-top:-10px;}
+.btn.small.intro-toggle{
+  flex:none;
+  width:24px; height:24px; padding:0; border-radius:50%;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-family:var(--font-display); font-weight:700; font-size:13px; line-height:1;
+}
+.btn.small.intro-toggle.open{border-color:var(--gold); color:var(--gold-bright);}
+.tool-intro-more{margin:-8px 0 22px;}
 p.tool-desc{
   color:var(--text-dim);
   font-size:13.5px;
@@ -681,7 +696,7 @@ table.matrix-table{
 .gm-insp-table td{padding:3px 6px; border-top:1px solid var(--line-soft); vertical-align:middle;}
 .gm-insp-table input.field-input{padding:4px 6px;}
 .gm-insp-table td:first-child input.field-input{width:100%;}
-.gm-insp-table td.weight input.field-input{width:64px;}
+.gm-insp-table td.weight input.field-input{width:64px; min-width:0;}
 
 /* ===== Mythic GME tab ===== */
 .gme-list{list-style:none; margin:10px 0 0; padding:0;}
@@ -766,7 +781,7 @@ table.matrix-table{
 .gme-focus-table td.range{white-space:nowrap;}
 .gme-focus-table td.range .small-note{display:inline; margin-right:2px;}
 .gme-focus-table input.field-input{padding:4px 6px;}
-.gme-focus-table td.range input.field-input{width:64px;}
+.gme-focus-table td.range input.field-input{width:64px; min-width:0;}
 .gme-focus-table td:nth-child(2) input.field-input{width:100%;}
 
 /* ===== Player Emulator tab ===== */
@@ -889,12 +904,6 @@ table.matrix-table{
   border-radius:8px; padding:22px 26px 24px;
   box-shadow:0 20px 60px rgba(0,0,0,0.45);
 }
-.dbx-close{
-  position:absolute; top:12px; right:12px;
-  width:28px; height:28px; border-radius:50%; padding:0;
-  display:flex; align-items:center; justify-content:center;
-  font-size:16px; line-height:1;
-}
 .dbx-actions{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 4px;}
 .dbx-code-row{display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 2px;}
 .dbx-code-row input{flex:1 1 200px; min-width:0;}
@@ -923,5 +932,55 @@ table.matrix-table{
 }
 .site-footer a{color:var(--gold);}
 
-/* ---------- Theme picker (campaign bar) ---------- */
+/* ---------- Campaign picker (campaign bar) ---------- */
 .campaign-bar select{padding:3px 6px; font-size:12px;}
+
+/* ---------- Settings modal (js/app/21-settings.js) ---------- */
+.settings-btn{display:inline-flex; align-items:center; gap:6px;}
+.settings-btn .dbx-status{
+  border:1px solid currentColor; border-radius:10px;
+  padding:0 6px; font-size:11px; line-height:16px;
+}
+.settings-btn .dbx-status[hidden]{display:none;}
+.settings-overlay{
+  display:none;
+  position:fixed; inset:0; z-index:105;
+  background:rgba(8,10,14,0.72);
+  padding:6vh 20px;
+  overflow-y:auto;
+}
+.settings-overlay.open{display:block;}
+.settings-inner{
+  position:relative;
+  max-width:760px; margin:0 auto;
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:8px; padding:24px 28px 28px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.45);
+}
+.settings-close{
+  position:absolute; top:14px; right:14px;
+  width:30px; height:30px; border-radius:50%; padding:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:17px; line-height:1;
+}
+.settings-section{margin-top:22px;}
+.settings-section .field select{min-width:200px;}
+.settings-table{
+  margin-top:10px;
+  border:1px solid var(--line-soft); border-radius:6px;
+  background:var(--panel-2);
+  padding:8px 12px;
+}
+.settings-table[open]{padding-bottom:12px;}
+.settings-table summary{
+  cursor:pointer;
+  font-family:var(--font-display); font-weight:600; color:var(--text);
+}
+.settings-table[open] summary{margin-bottom:8px;}
+.settings-tag{
+  margin-left:6px; font-family:var(--font-mono); font-size:11px; font-weight:400;
+  color:var(--gold-bright);
+}
+@media (max-width:640px){
+  .settings-inner{padding:18px 16px 20px;}
+}

@@ -49,8 +49,7 @@ function renderMatrixTable(m){
 function renderMystery(){
   const m = campaign().mystery;
   return `
-  <h2 class="tool-title">One-Page Mystery Matrix</h2>
-  <p class="tool-desc">Track Clues (rows) and Suspects (columns) — check a box wherever a Connection exists between them. Max 20 boxes.</p>
+  ${tabHeader(`One-Page Mystery Matrix`, `Track Clues (rows) and Suspects (columns) — check a box wherever a Connection exists between them. Max 20 boxes.`)}
 
   <div class="card">
     <h3 class="block-title">Add to the Matrix</h3>

@@ -5,12 +5,15 @@ const REGION_START_PP = { "Small":3, "Average":0, "Large":-3 };
 function renderLocation(){
   const loc = campaign().location;
   return `
-  <h2 class="tool-title">One-Page Location Crafter</h2>
-  <p class="tool-desc">Explore a Region one Area at a time. Progress Points bias the Area Elements roll — the deeper you explore, the more likely you are to find what you're looking for.</p>
+  ${tabHeader(`One-Page Location Crafter`, `Explore a Region one Area at a time. Progress Points bias the Area Elements roll — the deeper you explore, the more likely you are to find what you're looking for.`)}
 
   <div class="card">
-    <h3 class="block-title">Region Setup</h3>
-    <div class="row">
+    <div class="row" style="justify-content:space-between; align-items:center;">
+      <h3 class="block-title" style="margin:0; padding:0; border:0;">Region Setup</h3>
+      <button class="btn small" id="btnLocSetupToggle">${locSetupOpen ? 'Hide' : 'Show'}</button>
+    </div>
+    ${locSetupOpen ? `
+    <div class="row" style="margin-top:10px;">
       <div class="field">
         <label for="regionSize">Region size</label>
         <select id="regionSize" class="field-input">
@@ -22,6 +25,7 @@ function renderLocation(){
       <div class="field"><label>&nbsp;</label><button class="btn danger" id="btnStartRegion">Start New Region</button></div>
     </div>
     <div class="small-note">Starting a new region resets Progress Points, the Area count, and the Complete flag for this campaign.</div>
+    ` : `<div class="small-note" style="margin-top:6px;">Region size: <b>${loc.regionSize}</b>. Show to change it or start a new Region.</div>`}
   </div>
 
   <div class="card">
@@ -45,12 +49,20 @@ function renderLocation(){
   `;
 }
 let lastAreaResultHtml = '';
+let locSetupOpen = false; // "Region Setup" card, collapsed by default
 function wireLocation(){
-  document.getElementById('regionSize').addEventListener('change', e=>{
+  document.getElementById('btnLocSetupToggle').addEventListener('click', ()=>{
+    locSetupOpen = !locSetupOpen;
+    renderActive();
+  });
+  // The Region Setup fields exist only while the card is open.
+  const regionSize = document.getElementById('regionSize');
+  if(regionSize) regionSize.addEventListener('change', e=>{
     campaign().location.regionSize = e.target.value;
     persist();
   });
-  document.getElementById('btnStartRegion').addEventListener('click', ()=>{
+  const startRegion = document.getElementById('btnStartRegion');
+  if(startRegion) startRegion.addEventListener('click', ()=>{
     if(!confirm("Start a new Region? This resets Progress Points, Area count and Complete status.")) return;
     const loc = campaign().location;
     loc.pp = REGION_START_PP[loc.regionSize];

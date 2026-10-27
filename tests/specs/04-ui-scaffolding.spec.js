@@ -112,6 +112,135 @@ describe('UI scaffolding', () => {
     });
   });
 
+  describe('tab intros (tabHeader())', () => {
+    it('are collapsed by default; Intro shows them on every tab and is remembered', () => {
+      expect($('#panelHost .tool-desc')).toBeNull();
+      const btn = $('#panelHost [data-intro-toggle]');
+      expect(btn.textContent).toBe('?');
+      expect(btn.getAttribute('aria-expanded')).toBe('false');
+      expect(btn.previousElementSibling.classList.contains('tool-title')).toBe(true);   // right after the title
+      click('#panelHost [data-intro-toggle]');
+      expect($('#panelHost .tool-desc')).toContain('full Mythic Scene loop');
+      expect($('#panelHost [data-intro-toggle]').getAttribute('aria-expanded')).toBe('true');
+      expect(localStorage.getItem(introKey())).toBe('1');
+      showTab('location');
+      expect($('#panelHost .tool-desc')).toContain('one Area at a time');   // shared state
+      click('#panelHost [data-intro-toggle]');
+      expect($('#panelHost .tool-desc')).toBeNull();
+      expect(localStorage.getItem(introKey())).toBe('0');
+    });
+
+    it('the ? sits on the title line in every theme (header CSS is not theme-scoped)', () => {
+      for (const t of UI_THEMES) {
+        setTheme(t.id);
+        const head = $('#panelHost .tool-head');
+        expect(getComputedStyle(head).display).toBe('flex');
+        const title = head.querySelector('.tool-title').getBoundingClientRect();
+        const btn = head.querySelector('[data-intro-toggle]').getBoundingClientRect();
+        expect(btn.left > title.right).toBe(true);    // to the right of the title
+        expect(btn.top < title.bottom).toBe(true);     // on the same line
+      }
+      setTheme('classic');
+    });
+
+    it('the toggle works in the split-right pane too', () => {
+      rightClickTab('gm');
+      click('#panelHostRight [data-intro-toggle]');
+      expect($('#panelHostRight .tool-desc')).toContain('Ask yes/no questions');
+      expect($('#panelHost .tool-desc')).toBeTruthy();   // same setting for both panes
+    });
+  });
+
+  describe('saved view (tabs + scroll across a reload)', () => {
+    it('a tab change saves the main tab, the split tab and the scroll position', () => {
+      click($$('#tabNav button').find(b => b.dataset.tab === 'mystery'));
+      rightClickTab('gm');
+      const v = JSON.parse(sessionStorage.getItem(VIEW_KEY));
+      expect(v.currentTab).toBe('mystery');
+      expect(v.rightTab).toBe('gm');
+      expect(typeof v.scrollY).toBe('number');
+    });
+
+    it('closing the split saves rightTab as null', () => {
+      rightClickTab('gm');
+      rightClickTab('gm');
+      expect(JSON.parse(sessionStorage.getItem(VIEW_KEY)).rightTab).toBe(null);
+    });
+
+    it('restoreViewTabs() brings the saved tabs back, as a reload does', () => {
+      sessionStorage.setItem(VIEW_KEY, JSON.stringify({ currentTab: 'location', rightTab: 'creature', scrollY: 420 }));
+      const v = restoreViewTabs();
+      expect(currentTab).toBe('location');
+      expect(rightTab).toBe('creature');
+      expect(v.scrollY).toBe(420);
+    });
+
+    it('drops unknown tab ids, a split equal to the main tab, and junk', () => {
+      sessionStorage.setItem(VIEW_KEY, JSON.stringify({ currentTab: 'nope', rightTab: 'gme', scrollY: -5 }));
+      expect(loadView()).toEqual({ currentTab: 'gme', rightTab: null, scrollY: 0 });
+      sessionStorage.setItem(VIEW_KEY, '{bad json');
+      expect(loadView()).toBe(null);
+      expect(restoreViewTabs()).toBe(null);
+      expect(currentTab).toBe('gme');
+    });
+  });
+
+  describe('settings modal (21-settings.js)', () => {
+    it('the campaign bar has a Settings button, and no theme picker or Dropbox button of its own', () => {
+      expect($('#btnSettings')).toBeTruthy();
+      expect($('#campaignBar #themeSelect')).toBeNull();
+      expect($('#btnDropbox')).toBeNull();
+    });
+
+    it('Settings opens with the Theme, Dropbox sync and Random tables sections', () => {
+      expect($('#settingsOverlay').classList.contains('open')).toBe(false);
+      click('#btnSettings');
+      const o = $('#settingsOverlay');
+      expect(o.classList.contains('open')).toBe(true);
+      expect(o.querySelector('#themeSelect')).toBeTruthy();
+      expect(o.querySelector('#dbxConnect')).toBeTruthy();
+      expect($$('#settingsTables details[data-settings-table]').map(d => d.dataset.settingsTable)).toEqual(['eventFocus', 'inspiration']);
+      expect($$('#settingsTables details').every(d => !d.open)).toBe(true);
+      expect($('#settingsTables')).toContain(STORE.current);
+    });
+
+    it('closes with its close button, a backdrop click or Escape, but not a click inside', () => {
+      click('#btnSettings');
+      click('.settings-inner');
+      expect($('#settingsOverlay').classList.contains('open')).toBe(true);
+      click('#settingsClose');
+      expect($('#settingsOverlay').classList.contains('open')).toBe(false);
+      click('#btnSettings');
+      click('#settingsOverlay');
+      expect($('#settingsOverlay').classList.contains('open')).toBe(false);
+      click('#btnSettings');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      expect($('#settingsOverlay').classList.contains('open')).toBe(false);
+    });
+
+    it('an expanded editor stays expanded after an edit and after a re-open', () => {
+      click('#btnSettings');
+      const d = $('#settingsTables details[data-settings-table="eventFocus"]');
+      d.open = true;
+      d.dispatchEvent(new Event('toggle'));
+      click('#btnGmeFocusAdd');   // re-renders #settingsTables
+      expect($('#settingsTables details[data-settings-table="eventFocus"]').open).toBe(true);
+      expect($('#settingsTables')).toContain('customised');
+      click('#settingsClose');
+      click('#btnSettings');
+      expect($('#settingsTables details[data-settings-table="eventFocus"]').open).toBe(true);
+    });
+
+    it('the editors follow a campaign switch while open', async () => {
+      click('#btnSettings');
+      settingsTablesOpen.inspiration = true;
+      campaign().gm.inspiration.entries.push({ label: 'Only In First', weight: 1 });
+      await withDialogs({ prompt: 'Settings Second' }, () => click('#btnNewCampaign'));
+      expect($('#settingsTables')).toContain('Settings Second');
+      expect($('#settingsTables')).not.toContain('Only In First');
+    });
+  });
+
   describe('campaign bar', () => {
     it('lists campaigns and marks the current one selected', () => {
       const sel = $('#campaignSelect');

@@ -26,25 +26,29 @@ window.resetApp = function resetApp() {
   gmeSceneTestHtml = '';
   gmeListRollHtml = { threads: '', characters: '' };
   gmeTrackResultHtml = {};
-  gmeFocusEditorOpen = false;
-  gmInspEditorOpen = false;
   lastInspirationHtml = '';
   pubSceneTestHtml = '';
   pubCrisisHtml = '';
   pubElementHtml = '';
   pubMeaningRollHtml = '';
   pubScaleInput = '';
-  pubFlowOpen = false;
+  pubPreparedOpen = false;
+  pubDimOpen = false;
+  locSetupOpen = false;
+  threeActThreadOpen = null;
   peEncounterHtml = '';
   peResponseHtml = {};
   peLastResponse = {};
   peRefOpen = false;
   threeActResultHtml = '';
   threeActThreadSuggestion = null;
-  threeActFlowOpen = false;
   helpOpen = false;
   const helpOverlay = document.getElementById('helpOverlay');
   if(helpOverlay){ helpOverlay.classList.remove('open'); helpOverlay.innerHTML = ''; }
+
+  // Tab intros (04-tab-render-scaffolding.js): collapsed, test-prefixed key cleared.
+  try { localStorage.removeItem(introKey()); } catch (_) {}
+  introOpen = null;
 
   // Theme (20-themes.js): back to the default, with the test-prefixed key cleared.
   try { localStorage.removeItem(THEME_KEY); } catch (_) {}
@@ -62,8 +66,15 @@ window.resetApp = function resetApp() {
   dbxSync = dropboxLoadSync();
   dbx = dropboxFreshRuntime();
   closeDropboxModal();
-  closeDropboxPanel();
   renderDropbox();
+
+  // Settings modal (21-settings.js): closed, every table editor collapsed.
+  closeSettings();
+  settingsTablesOpen = { eventFocus: false, inspiration: false };
+  document.getElementById('settingsTables').innerHTML = '';
+
+  // Saved view (04-tab-render-scaffolding.js): no tabs or scroll from an earlier spec.
+  try { sessionStorage.removeItem(VIEW_KEY); } catch (_) {}
 
   renderCampaignBar();
   renderTabNav();

@@ -364,16 +364,22 @@ describe('Mythic GME tab', () => {
   describe('Random Event Focus Table editor', () => {
     beforeEach(() => { resetApp(); showTab('gme'); });
 
-    it('is collapsed by default and expands on Edit', () => {
-      expect($('#btnGmeFocusToggle').textContent).toBe('Edit');
+    it('lives in Settings only: the tab has no card or Edit button for it', () => {
+      expect($('#btnGmeFocusEdit')).toBeNull();
+      expect($('#panelHost')).not.toContain('Random Event Focus Table');
+    });
+
+    it('openSettings(\'eventFocus\') opens Settings with the table expanded', () => {
       expect($$('[data-focus-max]')).toHaveLength(0);
-      click('#btnGmeFocusToggle');
-      expect($('#btnGmeFocusToggle').textContent).toBe('Done');
+      openSettings('eventFocus');
+      expect($('#settingsOverlay').classList.contains('open')).toBe(true);
+      expect($('#settingsTables details[data-settings-table="eventFocus"]').open).toBe(true);
+      expect($('#settingsTables details[data-settings-table="inspiration"]').open).toBe(false);
       expect($$('[data-focus-max]')).toHaveLength(12);
     });
 
     it('editing a result persists it without collapsing the editor', () => {
-      click('#btnGmeFocusToggle');
+      openSettings('eventFocus');
       setValue('[data-focus-result="3"]', 'Custom Focus');
       expect(campaign().gme.eventFocusTable[3].result).toBe('Custom Focus');
       expect(JSON.parse(sessionStorage.getItem('mythicToolkit_v1'))
@@ -382,7 +388,7 @@ describe('Mythic GME tab', () => {
     });
 
     it('editing a max re-sorts the rows', () => {
-      click('#btnGmeFocusToggle');
+      openSettings('eventFocus');
       setValue('[data-focus-max="0"]', '90');   // "Remote Event" jumps to near the end
       const table = campaign().gme.eventFocusTable;
       expect(table.map(r => r.max)).toEqual(table.map(r => r.max).slice().sort((a, b) => a - b));
@@ -390,7 +396,7 @@ describe('Mythic GME tab', () => {
     });
 
     it('Add row / Remove row / Reset to default', async () => {
-      click('#btnGmeFocusToggle');
+      openSettings('eventFocus');
       click('#btnGmeFocusAdd');
       expect(campaign().gme.eventFocusTable.length).toBe(13);
       click('[data-focus-rm="0"]');
@@ -401,7 +407,7 @@ describe('Mythic GME tab', () => {
     });
 
     it('a customised table is what an Interrupt Scene rolls against', async () => {
-      click('#btnGmeFocusToggle');
+      openSettings('eventFocus');
       setValue('[data-focus-result="0"]', 'HOUSE RULE');   // covers rolls 1-5
       campaign().gme.chaosFactor = 9; persist(); showTab('gme');
       // 2 => Interrupt (<= CF 9, even); focus-roll 3 => row 0 => "HOUSE RULE"; col 1; word 10

@@ -21,15 +21,33 @@ describe('3-Act Story tab', () => {
     });
   });
 
-  describe('"How it works" flowchart', () => {
-    it('is collapsed by default and toggles open/closed', () => {
-      expect($('#btn3aFlowToggle').textContent).toBe('Show');
+  describe('"How it works" flowchart (behind the ? intro toggle)', () => {
+    it('has no How it works card; the ? shows the intro and the flowchart', () => {
+      expect($('#btn3aFlowToggle')).toBeNull();
       expect(document.querySelector('.pub-flow')).toBeNull();
-      click('#btn3aFlowToggle');
-      expect($('#btn3aFlowToggle').textContent).toBe('Hide');
-      expect(document.querySelector('.pub-flow')).toBeTruthy();
-      click('#btn3aFlowToggle');
+      click('#panelHost [data-intro-toggle]');
+      expect($('#panelHost .tool-desc')).toContain('screenwriting');
+      expect(document.querySelector('#panelHost .tool-intro-more .pub-flow')).toBeTruthy();
+      click('#panelHost [data-intro-toggle]');
       expect(document.querySelector('.pub-flow')).toBeNull();
+    });
+  });
+
+  describe('The Story Thread card', () => {
+    it('is open while no Story Thread is set, and collapsed by default once one is', () => {
+      expect($('#btn3aThreadToggle').textContent).toBe('Hide');
+      expect($('#threeActThreadInput')).toBeTruthy();
+      ta().storyThread = 'Find the journal'; persist(); showTab('threeAct');
+      expect($('#btn3aThreadToggle').textContent).toBe('Show');
+      expect($('#threeActThreadInput')).toBeNull();
+      expect($('#panelHost')).toContain('Story Thread: Find the journal');
+    });
+    it('Show / Hide override the automatic state', () => {
+      click('#btn3aThreadToggle');
+      expect($('#threeActThreadInput')).toBeNull();
+      expect($('#panelHost')).toContain('No Story Thread yet');
+      click('#btn3aThreadToggle');
+      expect($('#threeActThreadInput')).toBeTruthy();
     });
   });
 
