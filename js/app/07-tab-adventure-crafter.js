@@ -11,7 +11,7 @@ function renderAdventure(){
   <div class="card">
     <h3 class="block-title">Main Theme</h3>
     <div class="row">
-      <div class="pp-readout"><span class="num" style="font-size:22px;">${adv.mainTheme || '—'}</span><span class="lbl">current main theme</span></div>
+      <div class="pp-readout"><span class="num" style="font-size:16px;">${adv.mainTheme || '—'}</span><span class="lbl">current main theme</span></div>
     </div>
     <div class="row" style="margin-top:12px;">
       <button class="btn primary" id="btnRollTheme">Roll 1d10 for Theme</button>

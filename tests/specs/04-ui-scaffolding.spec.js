@@ -173,4 +173,40 @@ describe('UI scaffolding', () => {
       expect(clean.mystery.boxes[0].connections).toEqual([]);
     });
   });
+
+  describe('themes (20-themes.js)', () => {
+    it('lists every UI_THEMES entry in #themeSelect, Case file by default', () => {
+      const opts = $$('#themeSelect option').map(o => o.value);
+      expect(opts).toEqual(UI_THEMES.map(t => t.id));
+      expect($('#themeSelect').value).toBe('classic');
+      expect(document.documentElement.dataset.theme).toBe(undefined);
+    });
+
+    it('choosing a theme sets <html data-theme> and remembers it in localStorage', () => {
+      const sel = $('#themeSelect');
+      sel.value = 'horror';
+      sel.dispatchEvent(new Event('change'));
+      expect(document.documentElement.dataset.theme).toBe('horror');
+      expect(localStorage.getItem(THEME_KEY)).toBe('horror');
+      expect(loadTheme()).toBe('horror');
+      expect(getComputedStyle(document.documentElement).getPropertyValue('--ink').trim()).toBe('#100e0e');
+    });
+
+    it('Case file removes the attribute; an unknown id falls back to it', () => {
+      setTheme('sf');
+      expect(document.documentElement.dataset.theme).toBe('sf');
+      setTheme('neon');
+      expect(document.documentElement.dataset.theme).toBe(undefined);
+      expect($('#themeSelect').value).toBe('classic');
+      localStorage.setItem(THEME_KEY, 'junk');
+      expect(loadTheme()).toBe('classic');
+    });
+
+    it('a theme change keeps the current tab and its content', () => {
+      click($$('#tabNav button').find(b => b.dataset.tab === 'mystery'));
+      setTheme('fantasy');
+      expect(currentTab).toBe('mystery');
+      expect($('#panelHost')).toContain('One-Page Mystery Matrix');
+    });
+  });
 });

@@ -156,7 +156,7 @@ function renderMythicGME(){
 
     <div class="field" style="margin-top:14px;">
       <label for="gmeExpectedScene">Expected Scene — how you think Scene ${g.sceneNumber} will start</label>
-      <textarea id="gmeExpectedScene" class="field-input" rows="2" style="width:100%; resize:vertical;" placeholder="e.g. The PC drops in on the suspect at his workplace to question him.">${escapeAttr(g.expectedScene)}</textarea>
+      <textarea id="gmeExpectedScene" class="field-input" rows="5" style="width:100%; resize:vertical;" placeholder="e.g. The PC drops in on the suspect at his workplace to question him.">${escapeAttr(g.expectedScene)}</textarea>
     </div>
     <div class="row"><button class="btn primary" id="btnGmeTestScene">Test vs Chaos Factor</button></div>
     <div id="gmeSceneTestResult" style="margin-top:12px;">${gmeSceneTestHtml}</div>

@@ -772,7 +772,7 @@ function closeDropboxPanel(){
   document.getElementById('dropboxOverlay').classList.remove('open');
 }
 
-// Called from the DOMContentLoaded handler (20-init.js), after the first render.
+// Called from the DOMContentLoaded handler (21-init.js), after the first render.
 function initDropbox(){
   renderDropbox();
   if(!dbxConfig.enabled) return;

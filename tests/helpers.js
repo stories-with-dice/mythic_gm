@@ -46,6 +46,10 @@ window.resetApp = function resetApp() {
   const helpOverlay = document.getElementById('helpOverlay');
   if(helpOverlay){ helpOverlay.classList.remove('open'); helpOverlay.innerHTML = ''; }
 
+  // Theme (20-themes.js): back to the default, with the test-prefixed key cleared.
+  try { localStorage.removeItem(THEME_KEY); } catch (_) {}
+  applyTheme('classic');
+
   // Dropbox sync (19-dropbox-sync.js): off, no tokens, no bookkeeping. The
   // keys carry the test prefix set in tests.html, never the real app's.
   clearTimeout(dbx.timer);

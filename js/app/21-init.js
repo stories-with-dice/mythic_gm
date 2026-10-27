@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   renderNoteSection();
   renderLogSection();
   wireHelp();
+  wireTheme();
   wireDropbox();
   initDropbox(); // last: syncs this tab's campaigns, if Dropbox sync is on
 });

@@ -76,8 +76,8 @@ split a pure cut-and-paste with zero behaviour change. Consequences to respect:
 
 ```
 index.html                  shell only: <head> links + the body skeleton
-                            (header/.campaign-bar incl. the "☁ Dropbox"
-                            button#btnDropbox and the "?" Help button,
+                            (header/.campaign-bar incl. the select#themeSelect
+                            theme picker, the "☁ Dropbox" button#btnDropbox and the "?" Help button,
                             nav#tabNav, div#panelSplit > main#panelHost +
                             aside#panelHostRight, section#noteSection,
                             section#logSection, footer.site-footer
@@ -116,7 +116,8 @@ js/app/                     the app, one file per former `===== SECTION =====`
 | `17-tab-three-act-story.js`      | **3-Act Story** tab (3rd in `TABS`, right after Published Adventures) — the "Mythic 3-Act Story Structure" worksheet (Mythic Magazine #42), a screenwriting Setup/Conflict/Resolution overlay on normal Mythic play. **Shares `gme.chaosFactor` / `sceneNumber` / `threads` / `characters` / `eventFocusTable`** with the Mythic GME tab; its own state is `gme.threeAct`. Each Act has an **outer** circle track (`THREE_ACT_BEATS`, 4 slots, the 4th ends the Act — mark one per distinct Story Beat achieved in a Scene) and an **inner** circle track (`THREE_ACT_INNER_EVENTS`, uncapped — mark one whenever a Scene has no Story Beat; `threeActInnerEvent()` looks up which Act Event fires, cycling the last entry once the list is exhausted). `fireThreeActEvent()` resolves one triggered Act Event: rolls dice per the rules (Story Thread Activity / Conflict / Twist? / New Conflict? — the last recurses into Conflict), skips the one-time Incident Scene / Introduce NPC events once their condition is already met, and rolls a Meaning word pair (`randomEventWords()`, from the Game Master tab) for flavor. A Conflict roll of 8-10 surfaces a suggested new blocking Thread with an inline "Add to Threads List" button. `renderThreeAct()` / `wireThreeAct()`; an optional "Start In Media Res" button (Act 1, before anything happens) fires all three opening Act Events at once; phases progress `acts → resolution → closing → done` as Act 3's outer track completes, mirroring the worksheet's Resolution/Closing Scenes; a collapsible `THREE_ACT_FLOW_HTML` "How it works" flowchart matches the Published Adventures tab's pattern. The circle counts/order were read off the worksheet graphic itself (the PDF's extracted text scrambles the spiral layout). |
 | `18-help.js`                    | Help overlay ("?" button in the campaign bar) — `HELP_OVERVIEW_SVG` (inline SVG map of how the tools connect), `renderHelpContent()` / `openHelp()` / `closeHelp()` / `wireHelp()`. Pure informational content, no persisted state. Its last section (`#help-credits`) holds the license and attribution — keep it in step with `NOTICE.md` and the `footer.site-footer` in `index.html`. Its Published Adventures section embeds that tab's own `PUB_FLOW_HTML` verbatim (see file 15) rather than restating it, so the two can't drift apart. |
 | `19-dropbox-sync.js`            | Optional **Dropbox sync** of every campaign — ported from the osr_keeper project's `js/dropbox.js`. PKCE sign-in (`dropboxConnect()` / `dropboxFinishConnect()`), token refresh, `dropboxDecideSync()`, `dropboxSyncNow()`, `dropboxNoteSave()` (called by `persist()`), the conflict dialog (`openDropboxModal()`, `dropboxUseRemoteCopy()` / `dropboxUseLocalCopy()`), and the panel (`renderDropbox()`, `wireDropbox()`, `initDropbox()`). See "Dropbox sync" below. |
-| `20-init.js`                    | `DOMContentLoaded` handler that kicks everything off (incl. `wireHelp()`, then `wireDropbox()` + `initDropbox()` last) |
+| `20-themes.js`                  | Color + font themes — `UI_THEMES` (`classic` = "Case file", `fantasy`, `sf`, `horror`), `THEME_KEY`, `loadTheme()` / `applyTheme()` / `setTheme()` / `wireTheme()`. A theme is only `<html data-theme="…">`; `css/app.css` redefines the `:root` tokens per theme. The file applies the saved theme at load, before the first render. See "Design system quick reference". |
+| `21-init.js`                    | `DOMContentLoaded` handler that kicks everything off (incl. `wireHelp()`, `wireTheme()`, then `wireDropbox()` + `initDropbox()` last) |
 
 ## The render/wire convention (every tab follows this — keep it consistent)
 
@@ -414,7 +415,7 @@ user's Dropbox and keeps it in sync. There is no backend, so:
 - **When it runs**: `dropboxNoteSave()` (from every `persist()`) debounces an
   upload by `DBX_UPLOAD_DELAY` (4 s), but never longer than `DBX_MAX_WAIT`
   (30 s) after the first unsynced save. `initDropbox()` (last in
-  `20-init.js`) syncs at boot. The tab returning to the foreground re-checks
+  `21-init.js`) syncs at boot. The tab returning to the foreground re-checks
   Dropbox (at most once a minute), and going to the background flushes a
   pending upload. The `online` event also syncs. While `#dropboxModal` is
   open (status `conflict`), saves don't sync. The dialog names only the
@@ -592,7 +593,9 @@ trimmed/truncated — plus the tab UI: the enable checkbox showing/hiding the
 section, a weighted roll via `rollInspirationSource()`, the "last result
 survives re-render" cache when the editor is toggled, editing a label/weight,
 add/remove entries (remove disabled at 1 remaining), and Reset to default.
-Spec `04` also covers the split view (right-click a tab): unsplit by default,
+Spec `04` also covers the themes (`#themeSelect` options, `<html data-theme>`
+and the `localStorage` key on change, the fallback to Case file for an unknown
+id, a theme change keeping the current tab) and the split view (right-click a tab): unsplit by default,
 right-click pins a tab right without disturbing the main tab, right-clicking
 a different tab moves the split, right-clicking the pinned tab again (or its
 own close button) closes it, the `currentTab`/`rightTab` invariant holds even
@@ -646,9 +649,24 @@ native focus, say so rather than asserting from code inspection.
 Dark, restrained "case-file" theme; CSS custom properties in `:root`
 (`--ink`, `--panel`, `--moss` = clue/confirm green, `--rust` = suspect/danger
 red, `--gold` = highlight/solved accent, `--font-display` = serif for
-labels/headings, `--font-mono` for numbers/dice/log). Reuse these tokens
-for any new UI rather than hardcoding colors — the whole point of the
-tokens is that a future re-theme only touches `:root`.
+labels/headings, `--font-mono` for numbers/dice/log and every `.result-box`).
+Reuse these tokens for any new UI rather than hardcoding colors. For a tint,
+use `color-mix(in srgb, var(--gold) 14%, transparent)`, not an `rgba()` of
+the default color — a hardcoded color does not follow the theme.
+
+**Themes.** `:root[data-theme="fantasy"|"sf"|"horror"]` blocks in `app.css`
+redefine the same tokens (and the font stacks); "Case file" is plain `:root`
+with no attribute. A few heading rules are theme-specific (Sci-fi uppercases
+titles, Horror colors block titles `--rust-bright`). Rules every theme
+keeps: no pure black background, no pure white text, desaturated accents,
+and at least 4.5:1 contrast for `--text` and `--text-dim` on `--ink`,
+`--panel` and `--panel-2` (check a new palette with a WCAG contrast
+calculation). Fonts are system stacks only — no web fonts, the app is
+offline. The chosen theme is a per-device preference in
+`localStorage[THEME_KEY]` (`mythicToolkit_theme`, with the same test prefix
+as the Dropbox keys). It is not in `STORE`, so it is not exported or synced.
+To add a theme: add a `UI_THEMES` entry and a `:root[data-theme="<id>"]`
+block.
 
 ## Things intentionally left as-is (don't "fix" without being asked)
 

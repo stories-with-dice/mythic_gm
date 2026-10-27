@@ -56,6 +56,9 @@
     <button class="btn small" id="btnImportCampaign">Import</button>
     <input type="file" id="importFileInput" accept="application/json,.json" style="display:none;">
     <span class="campaign-bar-divider"></span>
+    <label for="themeSelect">Theme</label>
+    <select id="themeSelect"></select>
+    <span class="campaign-bar-divider"></span>
     <button class="btn small dbx-status" id="btnDropbox" title="Dropbox sync">&#9729; Dropbox</button>
     <button class="btn small help-btn" id="btnHelp" title="Help &amp; overview" aria-label="Help &amp; overview">?</button>
   </div>
@@ -106,7 +109,8 @@
 <script src="../js/app/17-tab-three-act-story.js"></script>
 <script src="../js/app/18-help.js"></script>
 <script src="../js/app/19-dropbox-sync.js"></script>
-<script src="../js/app/20-init.js"></script>
+<script src="../js/app/20-themes.js"></script>
+<script src="../js/app/21-init.js"></script>
 
 <!-- ===== Test runner, helpers, specs (runner first: it defines describe/it/expect) ===== -->
 <script src="runner.js"></script>

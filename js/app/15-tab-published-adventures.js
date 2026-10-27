@@ -207,7 +207,7 @@ function renderPublished(){
     </div>
     <div class="field" style="margin-top:12px;">
       <label for="pubFirstScene">First Scene concept</label>
-      <textarea id="pubFirstScene" class="field-input" rows="2" style="width:100%; resize:vertical;" placeholder="Roll a few Adventure Elements below, then weave them into why the PC is here.">${escapeAttr(d.firstSceneConcept)}</textarea>
+      <textarea id="pubFirstScene" class="field-input" rows="5" style="width:100%; resize:vertical;" placeholder="Roll a few Adventure Elements below, then weave them into why the PC is here.">${escapeAttr(d.firstSceneConcept)}</textarea>
     </div>
   </div>
 
@@ -241,7 +241,7 @@ function renderPublished(){
     </div>
     <div class="field" style="margin-top:14px;">
       <label for="pubExpectedScene">Expected Scene — how you think Scene ${g.sceneNumber} will start</label>
-      <textarea id="pubExpectedScene" class="field-input" rows="2" style="width:100%; resize:vertical;" placeholder="e.g. Gandle explores the next layer of the cavern.">${escapeAttr(g.expectedScene)}</textarea>
+      <textarea id="pubExpectedScene" class="field-input" rows="5" style="width:100%; resize:vertical;" placeholder="e.g. Gandle explores the next layer of the cavern.">${escapeAttr(g.expectedScene)}</textarea>
     </div>
     <div class="row"><button class="btn primary" id="btnPubTestScene">Test vs Chaos Factor</button></div>
     <div class="small-note" style="margin-top:-2px;">&gt; CF &amp; odd → Expected &nbsp;·&nbsp; &gt; CF &amp; even → <b>Crisis Scene</b> &nbsp;·&nbsp; ≤ CF → Altered (odd) / Interrupt (even), each with an Adventure Element.</div>

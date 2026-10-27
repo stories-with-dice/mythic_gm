@@ -19,12 +19,80 @@
   --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, 'Cascadia Mono', 'SFMono-Regular', 'Courier New', monospace;
 }
+
+/* ---------- Themes (js/app/20-themes.js sets <html data-theme="...">) ----------
+   Each theme only redefines the :root tokens above, plus a few heading rules.
+   Shared rules for every theme (dark-UI guidance): no pure black background,
+   no pure white text, accents desaturated so they don't "vibrate" on the dark
+   ground, body text >= 4.5:1 contrast. Fonts are system stacks only: the app
+   is offline, so no web fonts. */
+:root[data-theme="fantasy"]{
+  /* candle-lit tome: warm umber, parchment text, gilt and herb-green accents */
+  --ink:#17120c;
+  --ink-2:#1e1810;
+  --panel:#251d14;
+  --panel-2:#2f251a;
+  --line:#4d3e2a;
+  --line-soft:#382d20;
+  --text:#ebdfc4;
+  --text-dim:#a8977a;
+  --moss:#8c9c5e;
+  --moss-bright:#b8c68e;
+  --rust:#a04b33;
+  --rust-bright:#d27c5e;
+  --gold:#c9a24a;
+  --gold-bright:#e6c675;
+  --font-display: 'Palatino Linotype', Palatino, 'Book Antiqua', 'URW Palladio L', Georgia, serif;
+  --font-body: 'Iowan Old Style', Charter, 'Bitstream Charter', 'Sitka Text', Georgia, serif;
+}
+:root[data-theme="sf"]{
+  /* ship console: cool slate, ice-blue highlights, signal-green confirm */
+  --ink:#0d1218;
+  --ink-2:#111821;
+  --panel:#16202b;
+  --panel-2:#1c2835;
+  --line:#2e4054;
+  --line-soft:#223142;
+  --text:#d6e2ec;
+  --text-dim:#8a9cad;
+  --moss:#5fb58a;
+  --moss-bright:#93d8b0;
+  --rust:#c0584f;
+  --rust-bright:#e58a80;
+  --gold:#5ea7d2;
+  --gold-bright:#8fcaee;
+  --font-display: 'Avenir Next Condensed', 'Bahnschrift', 'DIN Alternate', 'Roboto Condensed', 'Arial Narrow', sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, Menlo, Consolas, 'Cascadia Mono', monospace;
+}
+:root[data-theme="sf"] h2.tool-title,
+:root[data-theme="sf"] h3.block-title,
+:root[data-theme="sf"] .brand h1{text-transform:uppercase; letter-spacing:.06em;}
+:root[data-theme="horror"]{
+  /* crypt: charcoal with a red cast, bone text, dried-blood and lichen accents */
+  --ink:#100e0e;
+  --ink-2:#161314;
+  --panel:#1c1819;
+  --panel-2:#241e1f;
+  --line:#413637;
+  --line-soft:#2d2526;
+  --text:#ddd5c8;
+  --text-dim:#978b81;
+  --moss:#7e8d6b;
+  --moss-bright:#a9b690;
+  --rust:#8f3030;
+  --rust-bright:#d26a62;
+  --gold:#a8865a;
+  --gold-bright:#cbab7b;
+  --font-display: Baskerville, 'Baskerville Old Face', 'Hoefler Text', Garamond, 'Times New Roman', serif;
+}
+:root[data-theme="horror"] h3.block-title{color:var(--rust-bright);}
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
 body{
   background:
-    radial-gradient(ellipse at 20% -10%, rgba(127,156,120,0.06), transparent 45%),
-    radial-gradient(ellipse at 90% 0%, rgba(162,72,60,0.05), transparent 40%),
+    radial-gradient(ellipse at 20% -10%, color-mix(in srgb, var(--moss) 6%, transparent), transparent 45%),
+    radial-gradient(ellipse at 90% 0%, color-mix(in srgb, var(--rust) 5%, transparent), transparent 40%),
     var(--ink);
   color:var(--text);
   font-family:var(--font-body);
@@ -114,21 +182,22 @@ select:focus, .field-input:focus, button:focus-visible{
   background:var(--panel-2);
   border:1px solid var(--line);
   color:var(--text);
-  padding:7px 12px;
+  padding:5px 10px;
+  font-size:13px;
   border-radius:3px;
   transition:border-color .12s ease, background .12s ease;
 }
 .btn:hover{border-color:var(--text-dim);}
 .btn.primary{
-  background:linear-gradient(180deg, var(--moss), #6d8867);
-  border-color:#5f7a5a;
-  color:#12160f;
+  background:linear-gradient(180deg, var(--moss), color-mix(in srgb, var(--moss) 86%, black));
+  border-color:color-mix(in srgb, var(--moss) 75%, black);
+  color:var(--ink);
   font-weight:600;
 }
 .btn.primary:hover{background:linear-gradient(180deg, var(--moss-bright), var(--moss));}
 .btn.danger{border-color:var(--rust); color:var(--rust-bright);}
-.btn.danger:hover{background:rgba(162,72,60,0.12);}
-.btn.small{padding:4px 9px; font-size:12px;}
+.btn.danger:hover{background:color-mix(in srgb, var(--rust) 12%, transparent);}
+.btn.small{padding:3px 8px; font-size:11.5px;}
 .btn:disabled{opacity:.4; cursor:not-allowed;}
 
 /* ---------- Tabs (folder-tab motif) ---------- */
@@ -265,20 +334,23 @@ textarea.field-input{min-width:260px; resize:vertical;}
   margin-top:14px;
   border-left:3px solid var(--moss);
   background:var(--panel-2);
-  padding:12px 14px;
+  padding:10px 12px;
   border-radius:0 4px 4px 0;
+  font-family:var(--font-mono);
+  font-size:12.5px;
+  line-height:1.6;
 }
 .result-box.no{border-left-color:var(--rust);}
 .result-box.event{border-left-color:var(--gold);}
 .roll-num{
   font-family:var(--font-mono);
-  font-size:22px;
+  font-size:15px;
   color:var(--gold-bright);
 }
 .answer-tag{
   display:inline-block;
   font-family:var(--font-display);
-  font-size:17px;
+  font-size:14px;
   font-weight:700;
   padding:1px 2px;
 }
@@ -302,7 +374,7 @@ textarea.field-input{min-width:260px; resize:vertical;}
   gap:10px;
   font-family:var(--font-mono);
 }
-.pp-readout .num{font-size:34px; color:var(--gold-bright);}
+.pp-readout .num{font-size:22px; color:var(--gold-bright);}
 .pp-readout .lbl{font-size:12px; color:var(--text-dim);}
 
 /* ---------- 3-Act Story: outer/inner circle tracks ---------- */
@@ -393,9 +465,9 @@ table.matrix-table{
 .matrix-table th.suspect-col.solved{
   outline:2px solid var(--gold-bright);
   outline-offset:-2px;
-  background:rgba(187,154,82,0.14);
+  background:color-mix(in srgb, var(--gold) 14%, transparent);
 }
-.matrix-table td.solved-col{background:rgba(187,154,82,0.07);}
+.matrix-table td.solved-col{background:color-mix(in srgb, var(--gold) 7%, transparent);}
 .matrix-table .col-lbl, .matrix-table .row-lbl{
   font-family:var(--font-display);
   font-size:12.5px;
@@ -456,13 +528,13 @@ table.matrix-table{
 }
 .EasyMDEContainer .CodeMirror-cursor{border-left-color:var(--text);}
 .EasyMDEContainer .CodeMirror-selected,
-.EasyMDEContainer .CodeMirror-focused .CodeMirror-selected{background:rgba(163,193,153,0.32) !important;}
+.EasyMDEContainer .CodeMirror-focused .CodeMirror-selected{background:color-mix(in srgb, var(--moss-bright) 32%, transparent) !important;}
 .EasyMDEContainer .CodeMirror-line::selection,
 .EasyMDEContainer .CodeMirror-line>span::selection,
 .EasyMDEContainer .CodeMirror-line>span>span::selection,
 .EasyMDEContainer .CodeMirror-line::-moz-selection,
 .EasyMDEContainer .CodeMirror-line>span::-moz-selection,
-.EasyMDEContainer .CodeMirror-line>span>span::-moz-selection{background:rgba(163,193,153,0.32) !important;}
+.EasyMDEContainer .CodeMirror-line>span>span::-moz-selection{background:color-mix(in srgb, var(--moss-bright) 32%, transparent) !important;}
 .cm-s-easymde .cm-header{color:var(--gold-bright);}
 .cm-s-easymde .cm-strong{color:var(--gold-bright);}
 .cm-s-easymde .cm-em{color:var(--moss-bright);}
@@ -477,7 +549,7 @@ table.matrix-table{
   opacity:1;
 }
 .editor-toolbar button{
-  color:rgba(255,255,255,0.78) !important;
+  color:color-mix(in srgb, var(--text) 80%, transparent) !important;
   border:1px solid transparent;
 }
 .editor-toolbar button:hover,.editor-toolbar button.active{
@@ -588,7 +660,7 @@ table.matrix-table{
 .banner-solved{
   margin-top:14px;
   border:1px solid var(--gold);
-  background:rgba(187,154,82,0.1);
+  background:color-mix(in srgb, var(--gold) 10%, transparent);
   color:var(--gold-bright);
   padding:12px 14px;
   border-radius:4px;
@@ -850,3 +922,6 @@ table.matrix-table{
   text-align:center;
 }
 .site-footer a{color:var(--gold);}
+
+/* ---------- Theme picker (campaign bar) ---------- */
+.campaign-bar select{padding:3px 6px; font-size:12px;}
