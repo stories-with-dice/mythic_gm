@@ -113,7 +113,7 @@ describe('UI scaffolding', () => {
   });
 
   describe('tab intros (tabHeader())', () => {
-    it('are collapsed by default; Intro shows them on every tab and is remembered', () => {
+    it('are collapsed by default; the ? opens only its own tab and is remembered', () => {
       expect($('#panelHost .tool-desc')).toBeNull();
       const btn = $('#panelHost [data-intro-toggle]');
       expect(btn.textContent).toBe('?');
@@ -122,12 +122,18 @@ describe('UI scaffolding', () => {
       click('#panelHost [data-intro-toggle]');
       expect($('#panelHost .tool-desc')).toContain('full Mythic Scene loop');
       expect($('#panelHost [data-intro-toggle]').getAttribute('aria-expanded')).toBe('true');
-      expect(localStorage.getItem(introKey())).toBe('1');
+      expect(JSON.parse(localStorage.getItem(introKey()))).toEqual(['gme']);
       showTab('location');
-      expect($('#panelHost .tool-desc')).toContain('one Area at a time');   // shared state
+      expect($('#panelHost .tool-desc')).toBeNull();   // each tab has its own state
+      click('#panelHost [data-intro-toggle]');
+      expect($('#panelHost .tool-desc')).toContain('one Area at a time');
+      showTab('gme');
       click('#panelHost [data-intro-toggle]');
       expect($('#panelHost .tool-desc')).toBeNull();
-      expect(localStorage.getItem(introKey())).toBe('0');
+      expect(JSON.parse(localStorage.getItem(introKey()))).toEqual(['location']);
+      introOpen = null;   // a reload reads the saved state again
+      expect(isIntroOpen('location')).toBe(true);
+      expect(isIntroOpen('gme')).toBe(false);
     });
 
     it('the ? sits on the title line in every theme (header CSS is not theme-scoped)', () => {
@@ -143,11 +149,16 @@ describe('UI scaffolding', () => {
       setTheme('classic');
     });
 
-    it('the toggle works in the split-right pane too', () => {
+    it('the toggle in the split-right pane opens only that pane', () => {
       rightClickTab('gm');
       click('#panelHostRight [data-intro-toggle]');
       expect($('#panelHostRight .tool-desc')).toContain('Ask yes/no questions');
-      expect($('#panelHost .tool-desc')).toBeTruthy();   // same setting for both panes
+      expect($('#panelHost .tool-desc')).toBeNull();
+      click('#panelHost [data-intro-toggle]');
+      expect($('#panelHost .tool-desc')).toBeTruthy();
+      click('#panelHostRight [data-intro-toggle]');
+      expect($('#panelHostRight .tool-desc')).toBeNull();
+      expect($('#panelHost .tool-desc')).toBeTruthy();
     });
   });
 

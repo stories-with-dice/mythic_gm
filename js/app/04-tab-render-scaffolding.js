@@ -58,30 +58,41 @@ function restoreViewTabs(){
   return v;
 }
 
-// Tab intros: the `tool-desc` paragraph under each tab's title. One shared
-// "?" toggle beside every tab's title (tabHeader()), collapsed by
-// default and remembered in this browser (localStorage, like the theme).
-// A tab can pass `moreHtml` (the Published Adventures and 3-Act Story
-// "How it works" flowcharts) to show below the intro paragraph.
-let introOpen = null;   // read lazily: the key prefix is set in 19-dropbox-sync.js
+// Tab intros: the `tool-desc` paragraph under each tab's title. A "?"
+// toggle beside every tab's title (tabHeader()). Each tab has its own
+// open state, collapsed by default and remembered in this browser
+// (localStorage, like the theme), so a "?" in one pane does not open the
+// other pane's intro. A tab can pass `moreHtml` (the Published Adventures
+// and 3-Act Story "How it works" flowcharts) to show below the intro.
+let introOpen = null;   // Set of tab ids; read lazily: the key prefix is set in 19-dropbox-sync.js
+let introTab = null;    // the tab renderActive() is rendering, for tabHeader()
 function introKey(){ return DBX_KEY_PREFIX + 'mythicToolkit_intro'; }
-function isIntroOpen(){
+function introOpenTabs(){
   if(introOpen === null){
-    try{ introOpen = localStorage.getItem(introKey()) === '1'; }catch(_){ introOpen = false; }
+    let ids = [];
+    try{ ids = JSON.parse(localStorage.getItem(introKey()) || '[]'); }catch(_){}
+    introOpen = new Set(Array.isArray(ids) ? ids.filter(id => TABS.some(t => t.id === id)) : []);
   }
   return introOpen;
 }
-function setIntroOpen(open){
-  introOpen = !!open;
-  try{ localStorage.setItem(introKey(), introOpen ? '1' : '0'); }catch(_){}
+function isIntroOpen(tab){ return introOpenTabs().has(tab); }
+function setIntroOpen(tab, open){
+  const ids = introOpenTabs();
+  if(open) ids.add(tab); else ids.delete(tab);
+  try{ localStorage.setItem(introKey(), JSON.stringify([...ids])); }catch(_){}
 }
 function tabHeader(title, descHtml, moreHtml){
-  const open = isIntroOpen();
+  const tab = introTab;
+  const open = isIntroOpen(tab);
   return `<div class="tool-head">
     <h2 class="tool-title">${title}</h2>
-    <button type="button" class="btn small intro-toggle${open ? ' open' : ''}" data-intro-toggle aria-expanded="${open}" title="${open ? 'Hide' : 'Show'} what this tab does" aria-label="${open ? 'Hide' : 'Show'} the tab intro">?</button>
+    <button type="button" class="btn small intro-toggle${open ? ' open' : ''}" data-intro-toggle="${tab}" aria-expanded="${open}" title="${open ? 'Hide' : 'Show'} what this tab does" aria-label="${open ? 'Hide' : 'Show'} the tab intro">?</button>
   </div>
   ${open ? `<p class="tool-desc">${descHtml}</p>${moreHtml ? `<div class="tool-intro-more">${moreHtml}</div>` : ''}` : ''}`;
+}
+function renderTab(id){
+  introTab = id;
+  try{ return tabRenderers()[id](); } finally { introTab = null; }
 }
 
 // Lazy lookups (not top-level object literals) because these name functions
@@ -124,7 +135,7 @@ function renderTabNav(){
 }
 
 function renderActive(){
-  document.getElementById('panelHost').innerHTML = tabRenderers()[currentTab]();
+  document.getElementById('panelHost').innerHTML = renderTab(currentTab);
 
   const splitWrap = document.getElementById('panelSplit');
   const rightHost = document.getElementById('panelHostRight');
@@ -135,7 +146,7 @@ function renderActive(){
         <span class="split-right-title">${TABS.find(t=>t.id===rightTab).label}</span>
         <button type="button" class="btn small split-close" id="btnCloseSplit" title="Close split view" aria-label="Close split view">&times;</button>
       </div>
-      <div class="split-right-body">${tabRenderers()[rightTab]()}</div>`;
+      <div class="split-right-body">${renderTab(rightTab)}</div>`;
   } else {
     splitWrap.classList.remove('split');
     rightHost.innerHTML = '';
@@ -145,9 +156,10 @@ function renderActive(){
   if(settingsOpen) renderSettingsTables();   // 21-settings.js: keep the table editors in step
 }
 function wireActive(){
-  // The intro toggle is the same in every tab (and in both panes).
+  // The intro toggle is the same in every tab (and in both panes); it flips only its own tab.
   document.querySelectorAll('[data-intro-toggle]').forEach(b => b.addEventListener('click', ()=>{
-    setIntroOpen(!isIntroOpen());
+    const tab = b.dataset.introToggle;
+    setIntroOpen(tab, !isIntroOpen(tab));
     renderActive();
   }));
   tabWirers()[currentTab]();

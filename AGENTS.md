@@ -219,10 +219,12 @@ values. These states are not saved: a reload collapses them again.
 **Tab intros.** Every tab starts with `tabHeader(title, descHtml, moreHtml)`
 (04): the `h2.tool-title` plus a round **?** button right after it
 (`.intro-toggle[data-intro-toggle]`, `aria-expanded`, gold `.open` state). The intro paragraph (`p.tool-desc`) shows only
-while it is open. One setting covers every tab and both panes. It is
-collapsed by default and kept in `localStorage` (`introKey()` =
-`mythicToolkit_intro`, with the same test prefix as the Dropbox and theme
-keys). `wireActive()` wires the button, so a tab's own `wire<Tab>()` does
+while it is open. Each tab has its own open state, so the **?** in one pane
+does not open the other pane's intro. `renderActive()` renders each pane
+through `renderTab(id)`, which sets `introTab` so `tabHeader()` knows its
+tab. Every intro is collapsed by default; the open tab ids are kept in
+`localStorage` as a JSON array (`introKey()` = `mythicToolkit_intro`, with
+the same test prefix as the Dropbox and theme keys). `wireActive()` wires the button, so a tab's own `wire<Tab>()` does
 nothing for it. The Published Adventures and 3-Act Story tabs pass their
 "How it works" flowchart (`PUB_FLOW_HTML` / `THREE_ACT_FLOW_HTML`) as
 `moreHtml`, so the **?** shows it below the intro (`.tool-intro-more`); they
@@ -667,8 +669,8 @@ section, a weighted roll via `rollInspirationSource()`, the "last result
 survives re-render" cache across a Settings edit, no editor or Edit button
 on the tab, `openSettings('inspiration')` expanding the list, editing a label/weight,
 add/remove entries (remove disabled at 1 remaining), and Reset to default.
-Spec `04` also covers the tab intros (collapsed by default, one shared
-setting across tabs and panes, saved in `localStorage`), the saved view (`saveView()` after a tab change,
+Spec `04` also covers the tab intros (collapsed by default, one open
+state per tab, so each pane toggles only its own, saved in `localStorage`), the saved view (`saveView()` after a tab change,
 `restoreViewTabs()`, `loadView()` dropping bad ids and junk), the Settings
 modal (sections, close by button / backdrop / Escape, an expanded editor
 staying expanded after an edit and a re-open, the editors following a
