@@ -36,7 +36,7 @@ describe('Help overlay', () => {
   it('the table of contents links resolve to real sections in the page', () => {
     click('#btnHelp');
     const links = $$('.help-toc a');
-    expect(links).toHaveLength(6);
+    expect(links).toHaveLength(7);
     links.forEach(a => {
       const id = a.getAttribute('href').slice(1);
       expect(document.getElementById(id)).toBeTruthy();

@@ -840,3 +840,13 @@ table.matrix-table{
 .dbx-compare{margin:8px 0; padding-left:18px; font-size:13px;}
 .dbx-compare li{margin:4px 0;}
 .dbx-code-row[hidden]{display:none;}
+
+/* ---------- Site footer (license & attribution) ---------- */
+.site-footer{
+  margin-top:22px;
+  font-size:12px;
+  line-height:1.5;
+  color:var(--text-dim);
+  text-align:center;
+}
+.site-footer a{color:var(--gold);}

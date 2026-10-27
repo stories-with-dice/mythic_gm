@@ -115,6 +115,15 @@ function dbxWithCampaign(name) {
   return dropboxSyncText(campaigns);
 }
 
+// A copy of this tab's campaigns with `fn` applied, as another device would
+// have saved them. Call it before the local edit it races with.
+function dbxRemoteWith(fn) {
+  const campaigns = JSON.parse(JSON.stringify(STORE.campaigns));
+  fn(campaigns);
+  return dropboxSyncText(campaigns);
+}
+const dbxRemoteLog = (campaigns, name, md) => campaigns[name].log.push({ ts: '2026-01-01 10:00', section: 'Remote', md });
+
 // A local change: one log entry in the current campaign (persist() runs).
 function dbxLocalEdit(text) { addLog('Test', text || 'a local change'); }
 
@@ -290,37 +299,81 @@ describe('Dropbox sync', () => {
     expect(fake.writes()).toEqual(['files/upload add']);
   });
 
-  it('an edit made while a pull downloads is not lost: the pull becomes a question', async () => {
+  it('an edit made while a pull downloads is not lost: the pull becomes a merge', async () => {
     await connect();
     fake.edit(fake.only().id, dbxWithCampaign('Remote'));
     fake.onDownload = () => { fake.onDownload = null; dbxLocalEdit('typed during the download'); };
     await dropboxSyncNow();
-    expect(dbx.status).toBe('conflict');
-    expect($('#dropboxModal').classList.contains('open')).toBe(true);
+    expect(dbx.status).toBe('synced');
+    expect(!!STORE.campaigns['Remote']).toBe(true);
     expect(logEntries().map(e => e.md)).toContain('typed during the download');
+    expect(fake.only().content).toContain('typed during the download');
+    expect(fake.only().content).toContain('"Remote"');
   });
 
-  it('another device writing between the check and the upload is caught by the rev, not overwritten', async () => {
+  it('another device writing between the check and the upload is caught by the rev, then merged', async () => {
     await connect();
     const f = fake.only();
+    const sneaky = dbxWithCampaign('Sneaky');
     dbxLocalEdit('local');
-    fake.beforeUpload = () => fake.edit(f.id, dbxWithCampaign('Sneaky'));
+    fake.beforeUpload = () => fake.edit(f.id, sneaky);
     await dropboxFlush();
-    // The refused upload schedules another pass, which sees both sides changed.
-    expect(f.content).toContain('Sneaky');
+    // The refused upload schedules another pass, which merges both changes.
+    expect(f.content).toBe(sneaky);
     await dropboxFlush();
-    expect(dbx.status).toBe('conflict');
+    expect(dbx.status).toBe('synced');
     expect(fake.only().content).toContain('Sneaky');
+    expect(fake.only().content).toContain('"md":"local"');
   });
 
-  it('both sides changed → the dialog asks; "Keep this tab\'s copy" overwrites Dropbox', async () => {
+  it('each side changed a different campaign → merged without asking, nothing lost', async () => {
+    STORE.campaigns['Second'] = freshCampaign();
+    persist();
     await connect();
-    fake.edit(fake.only().id, dbxWithCampaign('Remote only'));
+    fake.edit(fake.only().id, dbxRemoteWith(c => dbxRemoteLog(c, 'Second', 'remote edit')));
+    dbxLocalEdit('local edit');
+    await dropboxFlush();
+    expect(dbx.status).toBe('synced');
+    expect($('#dropboxModal').classList.contains('open')).toBe(false);
+    expect(STORE.campaigns['Second'].log.map(e => e.md)).toContain('remote edit');
+    expect(logEntries().map(e => e.md)).toContain('local edit');
+    expect(fake.only().content).toContain('remote edit');
+    expect(fake.only().content).toContain('local edit');
+    // The next pass has nothing to do.
+    const writes = fake.writes().length;
+    await dropboxSyncNow();
+    expect(fake.writes()).toHaveLength(writes);
+  });
+
+  it('a campaign deleted here and not changed in Dropbox stays deleted; one changed in Dropbox comes back', async () => {
+    STORE.campaigns['Old'] = freshCampaign();
+    STORE.campaigns['Edited there'] = freshCampaign();
+    persist();
+    await connect();
+    fake.edit(fake.only().id, dbxRemoteWith(c => { dbxRemoteLog(c, 'Edited there', 'keep me'); dbxRemoteLog(c, 'Campaign 1', 'remote line'); }));
+    delete STORE.campaigns['Old'];
+    delete STORE.campaigns['Edited there'];
+    persist();
+    await dropboxFlush();
+    expect(dbx.status).toBe('synced');
+    expect(Object.keys(STORE.campaigns).sort()).toEqual(['Campaign 1', 'Edited there']);
+    expect(STORE.campaigns['Edited there'].log.map(e => e.md)).toContain('keep me');
+    expect(fake.only().content.indexOf('"Old"')).toBe(-1);
+  });
+
+  it('both sides changed the same campaign → the dialog names it; "Keep this tab\'s copy" overwrites only that campaign', async () => {
+    await connect();
+    fake.edit(fake.only().id, dbxRemoteWith(c => { dbxRemoteLog(c, 'Campaign 1', 'remote edit'); c['Remote only'] = freshCampaign(); }));
     dbxLocalEdit('local only');
     await dropboxFlush();
     expect(dbx.status).toBe('conflict');
     expect($('#dbxModalTitle')).toContain('changed');
-    expect($('#dbxModalCompare')).toContain('Only here: Remote only.');
+    expect($('#dbxModalText')).toContain('“Campaign 1”');
+    expect($('#dbxModalText')).toContain('other campaigns (1) are merged');
+    expect($('#dbxKeepBoth').classList.contains('primary')).toBe(true);
+    expect($$('#dbxModalCompare li')).toHaveLength(1);
+    // Nothing is replaced before the answer.
+    expect(!!STORE.campaigns['Remote only']).toBe(false);
     // While the dialog is open, saves do not sync.
     dbxLocalEdit('more');
     expect(dbx.timer).toBeNull();
@@ -328,21 +381,86 @@ describe('Dropbox sync', () => {
     await dbxSettle();
     expect(dbx.status).toBe('synced');
     expect(fake.only().content).toContain('local only');
-    expect(fake.only().content.indexOf('Remote only')).toBe(-1);
+    expect(fake.only().content).toContain('"md":"more"');
+    expect(fake.only().content.indexOf('remote edit')).toBe(-1);
+    expect(fake.only().content).toContain('Remote only');
+    expect(!!STORE.campaigns['Remote only']).toBe(true);
     expect($('#dropboxModal').classList.contains('open')).toBe(false);
   });
 
-  it('"Use the Dropbox copy" replaces this tab\'s campaigns', async () => {
+  it('"Use the Dropbox copy" replaces only the campaigns in the question', async () => {
     await connect();
-    fake.edit(fake.only().id, dbxWithCampaign('Remote only'));
+    fake.edit(fake.only().id, dbxRemoteWith(c => dbxRemoteLog(c, 'Campaign 1', 'remote edit')));
+    dbxLocalEdit('local only');
+    STORE.campaigns['Tab only'] = freshCampaign();
+    persist();
+    await dropboxFlush();
+    expect(dbx.status).toBe('conflict');
+    click('#dbxUseRemote');
+    await dbxSettle();
+    expect(dbx.status).toBe('synced');
+    expect(logEntries().map(e => e.md)).toContain('remote edit');
+    expect(logEntries().map(e => e.md).indexOf('local only')).toBe(-1);
+    expect(!!STORE.campaigns['Tab only']).toBe(true);
+    expect(fake.only().content).toContain('Tab only');
+    const writes = fake.writes().length;
+    await dropboxSyncNow();
+    expect(fake.writes()).toHaveLength(writes);
+  });
+
+  it('"Keep both" keeps this tab\'s copy and adds the Dropbox copy as "<name> (Dropbox)"', async () => {
+    await connect();
+    fake.edit(fake.only().id, dbxRemoteWith(c => dbxRemoteLog(c, 'Campaign 1', 'remote edit')));
     dbxLocalEdit('local only');
     await dropboxFlush();
-    click('#dbxUseRemote');
+    click('#dbxKeepBoth');
+    await dbxSettle();
     expect(dbx.status).toBe('synced');
-    expect(!!STORE.campaigns['Remote only']).toBe(true);
-    expect(logEntries().map(e => e.md).indexOf('local only')).toBe(-1);
-    await dropboxSyncNow();
-    expect(fake.writes()).toEqual(['files/upload add']);
+    expect(STORE.current).toBe('Campaign 1');
+    expect(logEntries().map(e => e.md)).toContain('local only');
+    expect(STORE.campaigns['Campaign 1 (Dropbox)'].log.map(e => e.md)).toContain('remote edit');
+    const remote = JSON.parse(fake.only().content).campaigns;
+    expect(Object.keys(remote).sort()).toEqual(['Campaign 1', 'Campaign 1 (Dropbox)']);
+  });
+
+  it('"Decide later" keeps both copies as they are and Resolve asks again', async () => {
+    await connect();
+    const before = dbxRemoteWith(c => dbxRemoteLog(c, 'Campaign 1', 'remote edit'));
+    fake.edit(fake.only().id, before);
+    dbxLocalEdit('local only');
+    await dropboxFlush();
+    click('#dbxLater');
+    expect($('#dropboxModal').classList.contains('open')).toBe(false);
+    expect(fake.only().content).toBe(before);
+    expect(logEntries().map(e => e.md)).toContain('local only');
+    click('#dbxResolve');
+    expect($('#dropboxModal').classList.contains('open')).toBe(true);
+  });
+
+  it('dropboxMergePlan: one-side changes win, an edit beats a delete, both-changed is a conflict', () => {
+    const a = freshCampaign(), b = freshCampaign(), c = freshCampaign();
+    a.gme.sceneNumber = 2; b.gme.sceneNumber = 3; c.gme.sceneNumber = 4;
+    const base = dropboxBaseOf({ A: a, B: b, C: c, D: freshCampaign() });
+    const a2 = JSON.parse(JSON.stringify(a)); a2.gme.sceneNumber = 9;   // changed here
+    const b2 = JSON.parse(JSON.stringify(b)); b2.gme.sceneNumber = 8;   // changed in Dropbox
+    const cL = JSON.parse(JSON.stringify(c)); cL.gme.sceneNumber = 7;   // changed on both sides
+    const cR = JSON.parse(JSON.stringify(c)); cR.gme.sceneNumber = 6;
+    const local = { A: a2, B: b, C: cL, New: freshCampaign() };         // D deleted here
+    const raw = { A: a, B: b2, C: cR, D: freshCampaign() };
+    const plan = dropboxMergePlan(raw, local, base);
+    expect(plan.merged.A.gme.sceneNumber).toBe(9);
+    expect(plan.merged.B.gme.sceneNumber).toBe(8);
+    expect(plan.conflicts.map(x => x.name)).toEqual(['C']);
+    expect('D' in plan.merged).toBe(false);
+    expect(!!plan.merged.New).toBe(true);
+    // D changed in Dropbox after the delete here: the edit wins.
+    const d2 = freshCampaign(); d2.gme.sceneNumber = 5;
+    expect(dropboxMergePlan(Object.assign({}, raw, { D: d2 }), local, base).merged.D.gme.sceneNumber).toBe(5);
+    // Without a base, an untouched campaign on one side gives way to the other.
+    const link = dropboxMergePlan({ A: a }, { A: freshCampaign() }, null);
+    expect(link.merged.A.gme.sceneNumber).toBe(2);
+    expect(dropboxMergePlan({ A: a }, { A: b }, null).conflicts).toHaveLength(1);
+    expect(Object.keys(dropboxResolvePlan(dropboxMergePlan({ A: a }, { A: b }, null), 'both'))).toEqual(['A', 'A (Dropbox)']);
   });
 
   it('a new tab with an untouched campaign loads the Dropbox copy without asking', async () => {
@@ -356,14 +474,25 @@ describe('Dropbox sync', () => {
     expect(fake.writes()).toEqual(['files/upload add', 'files/upload update']);
   });
 
-  it('a tab with its own changes that links to an existing Dropbox file is asked first, and nothing is uploaded', async () => {
-    fake.put(dbxWithCampaign('Elsewhere'));
+  it('a tab with its own changes that links to an existing Dropbox file is asked about a campaign both have, and nothing is uploaded', async () => {
+    fake.put(dbxRemoteWith(c => dbxRemoteLog(c, 'Campaign 1', 'from another tab')));
     dbxLocalEdit('this tab');
     await connect();
     expect(dbx.status).toBe('conflict');
     expect($('#dbxModalTitle')).toContain('found in Dropbox');
     expect($('#dbxUseRemote').classList.contains('primary')).toBe(true);
     expect(fake.writes()).toHaveLength(0);
+  });
+
+  it('a tab that links to a Dropbox file with other campaigns adds them without asking', async () => {
+    fake.put(dbxWithCampaign('Elsewhere'));
+    dbxLocalEdit('this tab');
+    await connect();
+    expect(dbx.status).toBe('synced');
+    expect(!!STORE.campaigns['Elsewhere']).toBe(true);
+    expect(logEntries().map(e => e.md)).toContain('this tab');
+    expect(fake.only().content).toContain('this tab');
+    expect(fake.only().content).toContain('Elsewhere');
   });
 
   it('a renamed file is still found by its id', async () => {

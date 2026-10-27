@@ -22,11 +22,18 @@
    synced file never carry it):
      localStorage   DBX_CONFIG_KEY  { enabled, appKey }   — survives closing the tab
      localStorage   DBX_TOKEN_KEY   { token, expiresAt, refresh, appKey }
-     sessionStorage DBX_SYNC_KEY    { fileId, remoteHash, syncedHash, lastSync }
+     sessionStorage DBX_SYNC_KEY    { fileId, remoteHash, syncedHash, lastSync, base }
    The sync bookkeeping is session-only on purpose: it describes the STORE in
    this tab's sessionStorage, and a new tab starts with an empty STORE. With
    the bookkeeping in localStorage, a new tab would see "only local changed"
    and upload its empty campaign over the Dropbox copy.
+
+   When both sides changed, the pass merges campaign by campaign (like
+   osr_keeper, which syncs each document as its own file): `base` holds a
+   hash of every campaign as it was at the last sync, so the pass knows which
+   side changed which campaign. A campaign that only one side changed takes
+   that side's copy, and only a campaign that both sides changed is a
+   question. Nothing is replaced before the user answers.
    ========================================================================= */
 
 // App key of a Dropbox "Scoped access / App folder" app. Not a secret.
@@ -64,7 +71,7 @@ function dropboxLoadConfig(){
   return Object.assign({ enabled:false, appKey:'' }, dropboxReadJson(localStorage, DBX_CONFIG_KEY) || {});
 }
 function dropboxLoadSync(){
-  return Object.assign({ fileId:'', remoteHash:'', syncedHash:'', lastSync:0 }, dropboxReadJson(sessionStorage, DBX_SYNC_KEY) || {});
+  return Object.assign({ fileId:'', remoteHash:'', syncedHash:'', lastSync:0, base:null }, dropboxReadJson(sessionStorage, DBX_SYNC_KEY) || {});
 }
 // Runtime state (not persisted).
 function dropboxFreshRuntime(){
@@ -77,7 +84,8 @@ function dropboxFreshRuntime(){
     firstPendingAt: 0,
     lastCheck: 0,
     auth: null,        // { verifier, appKey, url } while the user copies the code from Dropbox
-    conflict: null     // { mode: 'link'|'conflict', remote, text }
+    conflict: null,    // { mode: 'link'|'conflict', remote, text } — the plan is made again from it on each use
+    conflictBase: null // dbxSync.base for that plan (null for a link)
   };
 }
 
@@ -127,6 +135,101 @@ function dropboxDecideSync(remote, s, localHash){
   if(remoteChanged) return 'pull';
   if(localChanged) return 'upload';
   return 'noop';
+}
+
+/* ---- Per-campaign merge ---- */
+function dropboxCampaignHash(c){ return dropboxHash(JSON.stringify(c)); }
+function dropboxIsFreshCampaign(c){ return JSON.stringify(c) === JSON.stringify(freshCampaign()); }
+
+// The campaigns of a downloaded file, unchanged (raw), by name.
+function dropboxParseRemote(text){
+  let data;
+  try{ data = JSON.parse(text); }catch(e){ throw dropboxError(0, 'The Dropbox file is not valid JSON.'); }
+  const src = data && data.campaigns;
+  const names = (src && typeof src === 'object' && !Array.isArray(src)) ? Object.keys(src).filter(n => n && n !== '__proto__') : [];
+  if(!names.length) throw dropboxError(0, 'The Dropbox file has no campaigns.');
+  const raw = {};
+  names.forEach(n => { raw[n] = src[n]; });
+  return raw;
+}
+
+// The bookkeeping for "this tab holds the same campaigns as Dropbox": one
+// { local, remote } hash pair per campaign. `remote` is the hash of the
+// campaign as the file has it, `local` the hash of the copy in this tab
+// (after sanitizeCampaign() for a pull, so they can differ).
+function dropboxBaseOf(local, raw){
+  const base = {};
+  Object.keys(local).forEach(n => {
+    base[n] = { local: dropboxCampaignHash(local[n]), remote: dropboxCampaignHash(raw ? raw[n] : local[n]) };
+  });
+  return base;
+}
+
+// Merges the Dropbox campaigns (raw, from dropboxParseRemote) with this tab's
+// campaigns, one campaign at a time, against `base` (null = this tab never
+// synced with the file, so no side is known to be older):
+//   - only one side changed it since the base → that side's copy;
+//   - one side deleted it and the other did not change it → deleted;
+//   - one side deleted it and the other changed it → the changed copy (an
+//     edit is never lost to a delete);
+//   - only one side has it (and no base entry) → added;
+//   - both sides changed it to different content → a conflict. Without a
+//     base, an untouched fresh campaign on one side counts as unchanged.
+// Returns { names, merged: {name: campaign}, conflicts: [{name, local, remote}] }.
+// `names` keeps this tab's order, then the Dropbox-only names. Conflict
+// copies are not in `merged`; the remote copy is already sanitized.
+function dropboxMergePlan(raw, local, base){
+  const names = Object.keys(local).concat(Object.keys(raw).filter(n => !(n in local)));
+  const merged = {}, conflicts = [];
+  names.forEach(n => {
+    const L = local[n];
+    const R = (n in raw) ? sanitizeCampaign(raw[n]) : undefined;
+    const b = base && base[n];
+    const same = L && R && JSON.stringify(L) === JSON.stringify(R);
+    let pick; // 'local' | 'remote' | 'drop' | 'conflict'
+    if(b){
+      const localChanged = !L || dropboxCampaignHash(L) !== b.local;
+      const remoteChanged = !R || dropboxCampaignHash(raw[n]) !== b.remote;
+      if(!localChanged) pick = remoteChanged ? (R ? 'remote' : 'drop') : 'local';
+      else if(!remoteChanged) pick = L ? 'local' : 'drop';
+      else if(!L && !R) pick = 'drop';
+      else if(!L) pick = 'remote';
+      else if(!R) pick = 'local';
+      else pick = same ? 'local' : 'conflict';
+    }else if(!R) pick = 'local';
+    else if(!L) pick = 'remote';
+    else if(same) pick = 'local';
+    else if(!base && dropboxIsFreshCampaign(L)) pick = 'remote';
+    else if(!base && dropboxIsFreshCampaign(R)) pick = 'local';
+    else pick = 'conflict';
+    if(pick === 'local') merged[n] = L;
+    else if(pick === 'remote') merged[n] = R;
+    else if(pick === 'conflict') conflicts.push({ name: n, local: L, remote: R });
+  });
+  return { names, merged, conflicts };
+}
+
+// The final campaigns of a plan. `choice` answers every conflict:
+// 'local' (this tab's copy), 'remote' (the Dropbox copy), or 'both' (this
+// tab's copy keeps the name; the Dropbox copy is added as "<name> (Dropbox)").
+function dropboxResolvePlan(plan, choice){
+  const out = {};
+  const byName = {};
+  plan.conflicts.forEach(c => { byName[c.name] = c; });
+  plan.names.forEach(n => {
+    if(n in plan.merged){ out[n] = plan.merged[n]; return; }
+    const c = byName[n];
+    if(!c) return;
+    if(choice === 'remote'){ out[n] = c.remote; return; }
+    out[n] = c.local;
+    if(choice === 'both'){
+      let copy = n + ' (Dropbox)', i = 2;
+      while(plan.names.indexOf(copy) !== -1 || out[copy]) copy = n + ' (Dropbox ' + i++ + ')';
+      out[copy] = c.remote;
+    }
+  });
+  if(!Object.keys(out).length) out['Campaign 1'] = freshCampaign();
+  return out;
 }
 
 /* ---- PKCE sign-in ---- */
@@ -287,12 +390,30 @@ function dropboxSetStatus(status, message){
   renderDropbox();
 }
 
-function dropboxRecordSynced(remote, hash){
+// `base` = dropboxBaseOf() of the campaigns now in sync (see dropboxMergePlan).
+function dropboxRecordSynced(remote, hash, base){
   dbxSync.fileId = remote.id;
   dbxSync.remoteHash = remote.hash;
   dbxSync.syncedHash = hash;
   dbxSync.lastSync = Date.now();
+  dbxSync.base = base;
   dropboxSaveSync();
+}
+
+// Puts `campaigns` in this tab (keeps the selected campaign when it still
+// exists) and re-renders. saveStore() directly, not persist(): a pull is not
+// a local change to upload. Returns false when the browser refused the write.
+function dropboxSetCampaigns(campaigns){
+  const names = Object.keys(campaigns);
+  const prevCurrent = STORE.current;
+  STORE.campaigns = campaigns;
+  if(!campaigns[STORE.current]) STORE.current = names[0];
+  const saved = saveStore(STORE);
+  renderCampaignBar();
+  renderActive();
+  renderLogSection();
+  if(STORE.current !== prevCurrent) clearNoteDraft();
+  return saved;
 }
 
 // Replaces every campaign in this tab with the Dropbox copy (each one through
@@ -300,26 +421,41 @@ function dropboxRecordSynced(remote, hash){
 // exists, re-renders, and records the result as synced. Writes no log line:
 // two devices would otherwise pull each other's log line forever.
 function dropboxApplyRemote(text, remote){
-  let data;
-  try{ data = JSON.parse(text); }catch(e){ throw dropboxError(0, 'The Dropbox file is not valid JSON.'); }
-  const src = data && data.campaigns;
-  const names = (src && typeof src === 'object' && !Array.isArray(src)) ? Object.keys(src).filter(n => n && n !== '__proto__') : [];
-  if(!names.length) throw dropboxError(0, 'The Dropbox file has no campaigns.');
+  const raw = dropboxParseRemote(text);
   const campaigns = {};
-  names.forEach(n => { campaigns[n] = sanitizeCampaign(src[n]); });
-  const prevCurrent = STORE.current;
-  STORE.campaigns = campaigns;
-  if(!campaigns[STORE.current]) STORE.current = names[0];
-  // saveStore() directly, not persist(): a pull is not a local change to upload.
-  const saved = saveStore(STORE);
-  renderCampaignBar();
-  renderActive();
-  renderLogSection();
-  if(STORE.current !== prevCurrent) clearNoteDraft();
+  Object.keys(raw).forEach(n => { campaigns[n] = sanitizeCampaign(raw[n]); });
   // Not saved = a reload brings back the old campaigns: don't record a sync
   // that would then upload them over the Dropbox copy.
-  if(!saved) throw dropboxError(0, 'The browser storage is full, so the Dropbox copy could not be saved here.');
-  dropboxRecordSynced(remote, dropboxHash(dropboxSyncText()));
+  if(!dropboxSetCampaigns(campaigns)) throw dropboxError(0, 'The browser storage is full, so the Dropbox copy could not be saved here.');
+  dropboxRecordSynced(remote, dropboxHash(dropboxSyncText()), dropboxBaseOf(campaigns, raw));
+}
+
+// Finishes a merge: puts the merged campaigns in this tab, records the
+// Dropbox file as the new base, and uploads the merge when it differs from
+// the file. The upload is by rev: if another device wrote in the meantime,
+// Dropbox refuses (409), and the next pass merges again from this base.
+async function dropboxApplyMerge(text, remote, choice){
+  const raw = dropboxParseRemote(text);
+  const campaigns = dropboxResolvePlan(dropboxMergePlan(raw, STORE.campaigns, dbx.conflictBase), choice);
+  if(dropboxSyncText(campaigns) !== dropboxSyncText() && !dropboxSetCampaigns(campaigns)){
+    throw dropboxError(0, 'The browser storage is full, so the merged campaigns could not be saved here.');
+  }
+  // In sync with the Dropbox file as it is now: a campaign this tab took from
+  // the file is unchanged against this base, and the others are local changes.
+  const pulled = {};
+  Object.keys(raw).forEach(n => { pulled[n] = sanitizeCampaign(raw[n]); });
+  dropboxRecordSynced(remote, dropboxHash(dropboxSyncText(pulled)), dropboxBaseOf(pulled, raw));
+  const localText = dropboxSyncText();
+  const hash = dropboxHash(localText);
+  if(hash !== dbxSync.syncedHash) dropboxRecordSynced(await dropboxUpload(localText, remote), hash, dropboxBaseOf(STORE.campaigns));
+}
+
+// What a sync pass (or a dialog answer) does with an error.
+function dropboxHandleError(e){
+  if(e.status === 401) dropboxSetStatus('signed-out');
+  // Another device wrote between our check and our upload: the next pass sees it.
+  else if(/conflict/.test(e.summary)){ dropboxSetStatus('pending'); dbx.again = true; }
+  else dropboxSetStatus('error', e.message);
 }
 
 async function dropboxSyncNow(){
@@ -339,24 +475,34 @@ async function dropboxSyncNow(){
     const remote = await dropboxFindRemote();
     const action = dropboxDecideSync(remote, dbxSync, hash);
     if(action === 'create' || action === 'upload'){
-      dropboxRecordSynced(await dropboxUpload(text, action === 'upload' ? remote : null), hash);
+      dropboxRecordSynced(await dropboxUpload(text, action === 'upload' ? remote : null), hash, dropboxBaseOf(STORE.campaigns));
     }else if(action !== 'noop'){ // pull, link, conflict
       const remoteText = await dropboxDownload(remote);
       const editedMeanwhile = dropboxHash(dropboxSyncText()) !== hash;
       // A fresh tab linking to Dropbox loads the Dropbox copy; an edit made
-      // during the download turns a pull into a question.
+      // during the download turns a pull into a merge.
       let mode = (action === 'link' && pristine) ? 'pull' : action;
       if(mode === 'pull' && editedMeanwhile) mode = 'conflict';
       if(mode === 'pull') dropboxApplyRemote(remoteText, remote);
-      else if(dropboxHash(remoteText) === hash) dropboxRecordSynced(remote, hash); // already the same campaigns
-      else{ dbx.conflict = { mode, remote, text: remoteText }; dropboxSetStatus('conflict'); openDropboxModal(); return; }
+      else if(dropboxHash(remoteText) === hash) dropboxRecordSynced(remote, hash, dropboxBaseOf(STORE.campaigns)); // already the same campaigns
+      else{
+        // A link has no base; a tab from before per-campaign bookkeeping neither.
+        const base = (mode === 'link') ? null : dbxSync.base;
+        const plan = dropboxMergePlan(dropboxParseRemote(remoteText), STORE.campaigns, base);
+        dbx.conflictBase = base;
+        if(plan.conflicts.length){
+          dbx.conflict = { mode, remote, text: remoteText };
+          dropboxSetStatus('conflict');
+          openDropboxModal();
+          return;
+        }
+        // Each campaign changed on one side only: merge without asking.
+        await dropboxApplyMerge(remoteText, remote, 'both');
+      }
     }
     dropboxSetStatus('synced');
   }catch(e){
-    if(e.status === 401) dropboxSetStatus('signed-out');
-    // Another device wrote between our check and our upload: the next pass sees it.
-    else if(/conflict/.test(e.summary)){ dropboxSetStatus('pending'); dbx.again = true; }
-    else dropboxSetStatus('error', e.message);
+    dropboxHandleError(e);
   }finally{
     dbx.busy = false;
     if(dbx.again){ dbx.again = false; dropboxSchedule(0); }
@@ -437,7 +583,7 @@ function dropboxDisconnect(){
   if(t && t.token) window.fetch(DBX_API + '/auth/token/revoke', { method: 'POST', headers: { Authorization: 'Bearer ' + t.token } }).catch(() => {});
   dbxConfig = { enabled: false, appKey: dbxConfig.appKey };
   dropboxSaveConfig();
-  dbxSync = { fileId: '', remoteHash: '', syncedHash: '', lastSync: 0 };
+  dbxSync = { fileId: '', remoteHash: '', syncedHash: '', lastSync: 0, base: null };
   dropboxSaveSync();
   dbx.conflict = null;
   dbx.auth = null;
@@ -446,36 +592,41 @@ function dropboxDisconnect(){
 }
 
 /* ---- Conflict / first-link dialog ---- */
-function dropboxSummarize(campaigns){
-  const names = Object.keys(campaigns || {});
-  const logs = names.reduce((n, k) => n + ((campaigns[k] && Array.isArray(campaigns[k].log)) ? campaigns[k].log.length : 0), 0);
-  return names.length + (names.length === 1 ? ' campaign' : ' campaigns') + ', ' + logs + (logs === 1 ? ' log entry' : ' log entries');
+function dropboxSummarize(c){
+  const logs = (c && Array.isArray(c.log)) ? c.log.length : 0;
+  return logs + (logs === 1 ? ' log entry' : ' log entries');
 }
 function dropboxFmtTime(t){
   const d = new Date(t);
   return isNaN(d) ? '' : d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+// The merge plan of the open question, made again from the current
+// campaigns, so an edit made while the dialog waits is part of it.
+function dropboxConflictPlan(){
+  const c = dbx.conflict;
+  try{ return dropboxMergePlan(dropboxParseRemote(c.text), STORE.campaigns, dbx.conflictBase); }
+  catch(e){ return { names: [], merged: {}, conflicts: [] }; }
+}
+
 function openDropboxModal(){
   const c = dbx.conflict;
   if(!c) return;
-  let remoteCampaigns = {};
-  try{ remoteCampaigns = (JSON.parse(c.text) || {}).campaigns || {}; }catch(e){ /* summarized as empty */ }
+  const plan = dropboxConflictPlan();
+  const names = plan.conflicts.map(x => x.name);
+  const list = names.map(n => '“' + n + '”').join(', ');
+  const merged = plan.names.length - names.length;
   document.getElementById('dbxModalTitle').textContent = c.mode === 'link' ? 'Campaigns found in Dropbox' : 'Dropbox copy changed';
-  document.getElementById('dbxModalText').textContent = c.mode === 'link'
-    ? 'Your Dropbox already has Mythic Toolkit campaigns, and they are different from the ones in this tab. Choose which copy to keep. The other one is replaced.'
-    : 'The Dropbox copy changed on another device, and this tab has changes too. Choose which copy to keep. The other one is replaced.';
-  // Counts alone often match, so also name the campaigns that only one copy has.
-  const remoteNames = Object.keys(remoteCampaigns), localNames = Object.keys(STORE.campaigns);
-  const onlyIn = (a, b) => {
-    const only = a.filter(x => b.indexOf(x) === -1);
-    return only.length ? ' Only here: ' + only.join(', ') + '.' : '';
-  };
-  document.getElementById('dbxModalCompare').innerHTML =
-    '<li><b>Dropbox</b> (saved ' + escapeAttr(dropboxFmtTime(c.remote.modified)) + '): ' +
-      escapeAttr(dropboxSummarize(remoteCampaigns) + '.' + onlyIn(remoteNames, localNames)) + '</li>' +
-    '<li><b>This tab</b>: ' + escapeAttr(dropboxSummarize(STORE.campaigns) + '.' + onlyIn(localNames, remoteNames)) + '</li>';
+  document.getElementById('dbxModalText').textContent = (c.mode === 'link'
+    ? 'Your Dropbox already has Mythic Toolkit campaigns. ' + (names.length === 1 ? 'This campaign has' : 'These campaigns have') + ' different content in Dropbox and in this tab: ' + list + '.'
+    : (names.length === 1 ? 'This campaign changed' : 'These campaigns changed') + ' on another device and in this tab: ' + list + '.') +
+    ' Choose what to keep for ' + (names.length === 1 ? 'it' : 'them') + '.' +
+    (merged ? ' The other campaigns (' + merged + ') are merged without a question.' : '');
+  document.getElementById('dbxModalCompare').innerHTML = plan.conflicts.map(x =>
+    '<li><b>' + escapeAttr(x.name) + '</b>: Dropbox (saved ' + escapeAttr(dropboxFmtTime(c.remote.modified)) + ') ' +
+      escapeAttr(dropboxSummarize(x.remote)) + '; this tab ' + escapeAttr(dropboxSummarize(x.local)) + '.</li>').join('');
   document.getElementById('dbxUseRemote').classList.toggle('primary', c.mode === 'link');
+  document.getElementById('dbxKeepBoth').classList.toggle('primary', c.mode !== 'link');
   document.getElementById('dropboxModal').classList.add('open');
 }
 function closeDropboxModal(){
@@ -483,29 +634,27 @@ function closeDropboxModal(){
   if(m) m.classList.remove('open');
 }
 
-function dropboxUseRemoteCopy(){
+// One answer for every campaign in the question: 'remote', 'local', or 'both'.
+async function dropboxResolveConflict(choice){
   const c = dbx.conflict;
-  if(!c) return;
-  try{ dropboxApplyRemote(c.text, c.remote); }
-  catch(e){ alert(e.message); return; }
+  if(!c || dbx.busy) return;
   dbx.conflict = null;
   closeDropboxModal();
-  dropboxSetStatus('synced');
+  dbx.busy = true;
+  dropboxSetStatus('syncing');
+  try{
+    await dropboxApplyMerge(c.text, c.remote, choice);
+    dropboxSetStatus('synced');
+  }catch(e){
+    dropboxHandleError(e);
+  }finally{
+    dbx.busy = false;
+    if(dbx.again){ dbx.again = false; dropboxSchedule(0); }
+  }
 }
-
-async function dropboxUseLocalCopy(){
-  const c = dbx.conflict;
-  if(!c) return;
-  dbx.conflict = null;
-  closeDropboxModal();
-  // Make the next pass see "only this tab changed": it uploads over the file.
-  dbxSync.fileId = c.remote.id;
-  dbxSync.remoteHash = c.remote.hash;
-  dbxSync.syncedHash = '';
-  dropboxSaveSync();
-  dropboxSetStatus('pending');
-  await dropboxSyncNow();
-}
+function dropboxUseRemoteCopy(){ return dropboxResolveConflict('remote'); }
+function dropboxUseLocalCopy(){ return dropboxResolveConflict('local'); }
+function dropboxKeepBothCopies(){ return dropboxResolveConflict('both'); }
 
 /* ---- Render ---- */
 const DBX_STATUS_VIEW = {
@@ -602,8 +751,9 @@ function renderDropboxModalHtml(){
     <h3 class="block-title" id="dbxModalTitle">Dropbox</h3>
     <p id="dbxModalText"></p>
     <ul class="dbx-compare" id="dbxModalCompare"></ul>
-    <p class="hint">Dropbox keeps earlier versions of the file for at least 30 days (on dropbox.com, open the file's <b>&hellip;</b> menu &rarr; <b>Activity</b> &rarr; <b>Version history</b>). To keep a copy of a campaign in this tab first, click <b>Export</b>.</p>
+    <p class="hint"><b>Keep both</b> keeps this tab's copy under its name and adds the Dropbox copy as &ldquo;&lt;name&gt; (Dropbox)&rdquo;. Dropbox keeps earlier versions of the file for at least 30 days (on dropbox.com, open the file's <b>&hellip;</b> menu &rarr; <b>Activity</b> &rarr; <b>Version history</b>). To keep a copy of a campaign in this tab first, click <b>Export</b>.</p>
     <div class="dbx-actions">
+      <button class="btn small" id="dbxKeepBoth">Keep both</button>
       <button class="btn small" id="dbxUseRemote">Use the Dropbox copy</button>
       <button class="btn small" id="dbxUseLocal">Keep this tab's copy</button>
       <button class="btn small" id="dbxExport">Export</button>
@@ -655,7 +805,8 @@ function wireDropbox(){
     dropboxSaveConfig();
     renderDropbox();
   });
-  on('dbxUseRemote', 'click', dropboxUseRemoteCopy);
+  on('dbxKeepBoth', 'click', () => dropboxKeepBothCopies());
+  on('dbxUseRemote', 'click', () => dropboxUseRemoteCopy());
   on('dbxUseLocal', 'click', () => dropboxUseLocalCopy());
   on('dbxExport', 'click', () => document.getElementById('btnExportCampaign').click());
   on('dbxLater', 'click', closeDropboxModal);
@@ -670,6 +821,11 @@ function wireDropbox(){
     if(!dbxConfig.enabled || !dropboxHasToken()) return;
     if(document.visibilityState === 'hidden') dropboxFlush();
     else if(Date.now() - dbx.lastCheck > DBX_FOCUS_CHECK_MS) dropboxSyncNow();
+  });
+  // A window that stays visible (beside another app) gets no visibilitychange:
+  // check on focus too, so this tab sees another device's edits before new ones.
+  window.addEventListener('focus', () => {
+    if(dbxConfig.enabled && dropboxHasToken() && Date.now() - dbx.lastCheck > DBX_FOCUS_CHECK_MS) dropboxSyncNow();
   });
   window.addEventListener('online', () => { if(dbxConfig.enabled && dropboxHasToken()) dropboxSyncNow(); });
 }

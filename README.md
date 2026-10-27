@@ -75,7 +75,8 @@ sends nothing to the network until you click **Connect**.
 
 After that, the app uploads a few seconds after each change. It checks
 Dropbox when the tab opens or comes back to the foreground. If this tab and
-Dropbox both changed, the app asks which copy to keep.
+Dropbox both changed, the app merges them campaign by campaign. It asks only
+about a campaign that changed on both sides, and it can keep both copies.
 
 The app key is not a secret. Do not put the app secret anywhere in the app.
 
@@ -114,17 +115,27 @@ on every push to `main`. It publishes the file as a GitHub Release, tagged
 | `js/vendor/` | marked.js, DOMPurify, and EasyMDE, saved locally for offline use. |
 | `tests/` | The browser test suite. |
 | `scripts/` | The single-file build script. |
+| `LICENSE`, `NOTICE.md` | The CC BY-NC 4.0 license and the attribution. |
 
 To change the code, read [AGENTS.md](AGENTS.md) first. It explains the
 render/wire pattern for each tab, the state model, the import sanitizer, and
 the mistakes to avoid.
 
-## Credits
+## License and credits
 
-Mythic Game Master Emulator, the Mythic One-Page tools, and Mythic Magazine
-are by Word Mill Games. *Cloud Empress: Solo Protocol* is by its own authors.
-This app is an unofficial helper. It does not include the rule books.
+This is an **unofficial fan tool**. It is not made or endorsed by Word Mill
+Games. It is free and non-commercial. It does not include the rule books.
 
-Vendor libraries: [marked](https://github.com/markedjs/marked) (MIT),
-[DOMPurify](https://github.com/cure53/DOMPurify) (Apache-2.0 / MPL-2.0),
-[EasyMDE](https://github.com/Ionaru/easy-markdown-editor) (MIT).
+The project is licensed under
+[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) (see
+[LICENSE](LICENSE)). The vendor libraries keep their own licenses.
+
+This work is based on *Mythic Game Master Emulator Second Edition*,
+*One-Page Mythic Game Master Emulator*, *The Adventure Crafter*,
+*The Location Crafter*, *The Creature Crafter*, and *Mythic Magazine*, by
+Tana Pigeon, published by [Word Mill Games](https://www.wordmillgames.com/)
+under [CC BY-NC 4.0](https://wordmillgames.com/license.html). The Player
+Emulator adapts tables from *Cloud Empress: Solo Protocol*.
+
+[NOTICE.md](NOTICE.md) has the full attribution, the list of changes, and the
+vendor library licenses.

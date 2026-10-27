@@ -6,6 +6,15 @@ this project. `index.html` is the entry point; the code lives in `css/` and
 the mental model, the conventions every tab follows, and the specific mistakes
 that have already been made and fixed once — don't reintroduce them.
 
+## License (read before adding content)
+
+The repo is public and licensed CC BY-NC 4.0 (`LICENSE`; attribution in
+`NOTICE.md`). Word Mill Games licenses the *text* of the Mythic books under
+CC BY-NC 4.0, so transcribed tables and adapted rules are allowed with
+credit. Never commit source PDFs, scans, art, or logos (`*.pdf` is
+git-ignored for this reason). A new tool from another source needs a
+license check and a credit in `NOTICE.md`, the Help overlay, and the footer.
+
 ## What this is
 
 A no-build, fully-offline browser app — a digital dice-tray for the
@@ -71,7 +80,8 @@ index.html                  shell only: <head> links + the body skeleton
                             button#btnDropbox and the "?" Help button,
                             nav#tabNav, div#panelSplit > main#panelHost +
                             aside#panelHostRight, section#noteSection,
-                            section#logSection, div#helpOverlay,
+                            section#logSection, footer.site-footer
+                            (license + attribution line), div#helpOverlay,
                             div#dropboxOverlay, div#dropboxModal) + the
                             ordered <script> list.
 css/
@@ -104,7 +114,7 @@ js/app/                     the app, one file per former `===== SECTION =====`
 | `15-tab-published-adventures.js` | **Published Adventures** tab (2nd in `TABS`) — "Deconstruct The Known" (Mythic Magazine #50). **Shares `gme.chaosFactor` / `sceneNumber` / `expectedScene` / lists / `eventFocusTable`** with the Mythic GME tab; its own state is `gme.deconstructed`. `ADVENTURE_DIE_BANDS` / `adventureDieOptions()` / `rollAdventureDie()`, `PAGE_SECTIONS`, `crisisElement()` (Crisis Scene Element Table), `specialElement()` (Special Elements Table), `rollAdventureElement()` (page counter + wrap), `renderPublished()` / `wirePublished()`, plus a collapsible `PUB_FLOW_HTML` "How it works" flowchart. Its scene test is the Deconstructed variant: `>CF & odd → Expected`, `>CF & even → Crisis Scene`, `≤CF → Altered (odd, +Adventure Element) / Interrupt (even, +Event Focus +Adventure Element)`. |
 | `16-tab-player-emulator.js`      | **Player Emulator** tab (last in `TABS`) — a solo "player emulator" from *Cloud Empress: Solo Protocol*. `PE_RESPONSE_TYPES` (Character Response Types re-sorted **most-minus → most-plus**, 50 rows / 1d100) + `peResponseType()`; `PE_NPC_MOODS` (1d10) + `peNpcMood()`; `PE_OUTLOOKS` (1d10, roll-and-display only — `PE_WILDCARD_OUTLOOK` is the one that changes a roll); `peRatingLabel()` / `peRatingClass()`; `peBiasedRoll(sides, mode)` (Adv = keep lowest, Dis = keep highest) with `peRollType(mode)` = 1d100 for a Character Type and `peRollMood(mode)` = 1d10 for an NPC mood (the add-NPC dropdown, persisted as `npcMoodMode`); `peBuildChart(mode)` (weighted 10-segment Response Chart); `peChartResponseAt()`; `pePcResponse()`; `renderPlayerEmu()` / `wirePlayerEmu()`. Generates a whole encounter's mood at once: every tracked PC responds (1d10 on their chart, or a fresh 1d100 on the full table if their Outlook is Wild card), every NPC has one mood, and all conflict ratings plus a manual adjustment are summed — total ≥ +4 ⇒ a violent encounter begins. The per-PC "Roll response" button caches its result in module-level `peLastResponse` / `peResponseHtml` (both cleared on PC removal or chart rebuild); the encounter generator's `useHeldResponses` checkbox (default on) reuses that held response instead of re-rolling, and writes any fresh rolls back so the PC cards stay in sync. |
 | `17-tab-three-act-story.js`      | **3-Act Story** tab (3rd in `TABS`, right after Published Adventures) — the "Mythic 3-Act Story Structure" worksheet (Mythic Magazine #42), a screenwriting Setup/Conflict/Resolution overlay on normal Mythic play. **Shares `gme.chaosFactor` / `sceneNumber` / `threads` / `characters` / `eventFocusTable`** with the Mythic GME tab; its own state is `gme.threeAct`. Each Act has an **outer** circle track (`THREE_ACT_BEATS`, 4 slots, the 4th ends the Act — mark one per distinct Story Beat achieved in a Scene) and an **inner** circle track (`THREE_ACT_INNER_EVENTS`, uncapped — mark one whenever a Scene has no Story Beat; `threeActInnerEvent()` looks up which Act Event fires, cycling the last entry once the list is exhausted). `fireThreeActEvent()` resolves one triggered Act Event: rolls dice per the rules (Story Thread Activity / Conflict / Twist? / New Conflict? — the last recurses into Conflict), skips the one-time Incident Scene / Introduce NPC events once their condition is already met, and rolls a Meaning word pair (`randomEventWords()`, from the Game Master tab) for flavor. A Conflict roll of 8-10 surfaces a suggested new blocking Thread with an inline "Add to Threads List" button. `renderThreeAct()` / `wireThreeAct()`; an optional "Start In Media Res" button (Act 1, before anything happens) fires all three opening Act Events at once; phases progress `acts → resolution → closing → done` as Act 3's outer track completes, mirroring the worksheet's Resolution/Closing Scenes; a collapsible `THREE_ACT_FLOW_HTML` "How it works" flowchart matches the Published Adventures tab's pattern. The circle counts/order were read off the worksheet graphic itself (the PDF's extracted text scrambles the spiral layout). |
-| `18-help.js`                    | Help overlay ("?" button in the campaign bar) — `HELP_OVERVIEW_SVG` (inline SVG map of how the tools connect), `renderHelpContent()` / `openHelp()` / `closeHelp()` / `wireHelp()`. Pure informational content, no persisted state. Its Published Adventures section embeds that tab's own `PUB_FLOW_HTML` verbatim (see file 15) rather than restating it, so the two can't drift apart. |
+| `18-help.js`                    | Help overlay ("?" button in the campaign bar) — `HELP_OVERVIEW_SVG` (inline SVG map of how the tools connect), `renderHelpContent()` / `openHelp()` / `closeHelp()` / `wireHelp()`. Pure informational content, no persisted state. Its last section (`#help-credits`) holds the license and attribution — keep it in step with `NOTICE.md` and the `footer.site-footer` in `index.html`. Its Published Adventures section embeds that tab's own `PUB_FLOW_HTML` verbatim (see file 15) rather than restating it, so the two can't drift apart. |
 | `19-dropbox-sync.js`            | Optional **Dropbox sync** of every campaign — ported from the osr_keeper project's `js/dropbox.js`. PKCE sign-in (`dropboxConnect()` / `dropboxFinishConnect()`), token refresh, `dropboxDecideSync()`, `dropboxSyncNow()`, `dropboxNoteSave()` (called by `persist()`), the conflict dialog (`openDropboxModal()`, `dropboxUseRemoteCopy()` / `dropboxUseLocalCopy()`), and the panel (`renderDropbox()`, `wireDropbox()`, `initDropbox()`). See "Dropbox sync" below. |
 | `20-init.js`                    | `DOMContentLoaded` handler that kicks everything off (incl. `wireHelp()`, then `wireDropbox()` + `initDropbox()` last) |
 
@@ -353,7 +363,11 @@ user's Dropbox and keeps it in sync. There is no backend, so:
   - `localStorage['mythicToolkit_dropbox_token']` (`token`, `expiresAt`,
     `refresh`, `appKey`).
   - `sessionStorage['mythicToolkit_dropbox_sync']` = `dbxSync`
-    (`fileId`, `remoteHash`, `syncedHash`, `lastSync`).
+    (`fileId`, `remoteHash`, `syncedHash`, `lastSync`, `base`). `base` is
+    the per-campaign merge base: `{ "<name>": { local, remote } }`, the hash
+    of each campaign in this tab and in the Dropbox file at the last sync
+    (`dropboxBaseOf()`). They differ when `sanitizeCampaign()` changed a
+    pulled campaign.
 
   **The sync bookkeeping is session-only on purpose — this is the one real
   difference from osr_keeper.** It describes the `STORE` in this tab's
@@ -374,7 +388,21 @@ user's Dropbox and keeps it in sync. There is no backend, so:
      the untouched "Campaign 1" (`dropboxIsPristine()`) is a `pull` too — so
      a new tab loads the Dropbox campaigns without asking. Any other `link`
      or `conflict` downloads the file: if it is the same text, it only
-     records it; otherwise it opens `#dropboxModal`.
+     records it; otherwise it merges **campaign by campaign** (step 5).
+  5. `dropboxMergePlan(raw, STORE.campaigns, base)` compares each campaign
+     with `dbxSync.base` (`null` for a `link`, so no side counts as older):
+     a campaign that only one side changed takes that side's copy; a delete
+     on one side wins only when the other side did not change the campaign
+     (an edit is never lost to a delete); a campaign that only one side has
+     is added. Without a base, an untouched `freshCampaign()` on one side
+     gives way to the other. Only a campaign that **both** sides changed to
+     different content is a conflict. No conflict: `dropboxApplyMerge()`
+     puts the merge in this tab, records the Dropbox file as the new base,
+     and uploads the merge by rev (a 409 means the next pass merges again).
+     A conflict opens `#dropboxModal` and changes nothing until the answer.
+     This is the osr_keeper rule (each document is its own file there, so
+     only a document both devices changed is a question), kept inside one
+     file here because campaigns are keyed by name.
 
   `dropboxApplyRemote()` runs every campaign through `sanitizeCampaign()`,
   keeps `STORE.current` when that campaign still exists, writes with
@@ -389,10 +417,18 @@ user's Dropbox and keeps it in sync. There is no backend, so:
   `20-init.js`) syncs at boot. The tab returning to the foreground re-checks
   Dropbox (at most once a minute), and going to the background flushes a
   pending upload. The `online` event also syncs. While `#dropboxModal` is
-  open (status `conflict`), saves don't sync. The user chooses **Use the
-  Dropbox copy**, **Keep this tab's copy** (it records the remote hash so the
-  next pass is a plain `upload`), **Export**, or **Decide later** (Escape
-  too). The campaign-bar button and the panel's **Resolve** reopen it.
+  open (status `conflict`), saves don't sync. The dialog names only the
+  conflicting campaigns. The user chooses **Keep both** (primary for a
+  `conflict`: this tab's copy keeps the name, the Dropbox copy is added as
+  "<name> (Dropbox)"), **Use the Dropbox copy** (primary for a `link`),
+  **Keep this tab's copy**, **Export**, or **Decide later** (Escape too).
+  Each answer is `dropboxResolveConflict(choice)` → `dropboxApplyMerge()`,
+  and applies only to the conflicting campaigns; the others are merged as in
+  step 5. The plan is made again from `dbx.conflict.text` and the current
+  `STORE.campaigns` at each use, so an edit made while the dialog waits is
+  kept. The campaign-bar button and the panel's **Resolve** reopen it. A
+  window `focus` also re-checks Dropbox (at most once a minute), because a
+  window that stays visible next to another app gets no `visibilitychange`.
   **Disconnect** revokes the token (best effort) and forgets it, and keeps
   the app key.
 - **UI**: `#btnDropbox` in the campaign bar shows the status (`Dropbox`,
@@ -584,9 +620,14 @@ sync against two fakes: a `window.open` that records the consent URL, and a
 with real revs and real `content_hash` values via `crypto.subtle`). It
 covers `dropboxDecideSync()`, `dropboxPkcePair()`, connect + create +
 debounced upload, a wrong code, token refresh and a revoked refresh token,
-pull, an edit during a pull, a rev conflict on upload, both conflict-dialog
-choices, a new tab loading the Dropbox copy, a non-pristine link asking
-first, a renamed file, Disconnect, the `sanitizeCampaign()` pass on pull,
+pull, an edit during a pull (merged), a rev conflict on upload (merged on
+the next pass), different campaigns changed on each side (merged without a
+question), deletes against edits, `dropboxMergePlan()` /
+`dropboxResolvePlan()` rules, the same campaign changed on both sides (the
+dialog names it) with each of Keep both / Use the Dropbox copy / Keep this
+tab's copy / Decide later, a new tab loading the Dropbox copy, a
+non-pristine link asking only about a campaign both sides have (and adding
+the others), a renamed file, Disconnect, the `sanitizeCampaign()` pass on pull,
 and Import of the sync file. `tests/tests.html` sets
 `window.MYTHIC_DROPBOX_KEY_PREFIX` before the app scripts, so the test run
 uses its own `localStorage` keys: all `file://` pages share one

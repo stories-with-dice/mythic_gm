@@ -95,6 +95,7 @@ function renderHelpContent(){
       <li><a href="#help-pub">Published Adventures</a></li>
       <li><a href="#help-pe">Player Emulator</a></li>
       <li><a href="#help-utility">Quick Note, Log &amp; Campaigns</a></li>
+      <li><a href="#help-credits">License &amp; credits</a></li>
     </ul>
 
     <div class="help-diagram">${HELP_OVERVIEW_SVG}</div>
@@ -231,7 +232,15 @@ function renderHelpContent(){
       <h3 class="block-title">Quick Note, Campaign Log &amp; Campaigns</h3>
       <p><b>Quick Note</b> and the <b>Campaign Log</b> sit below every tab, no matter which one is active. Quick Note is a Markdown scratchpad &mdash; press Enter (or the toolbar) to commit it to the Log. The Log is the running record of everything you roll across every tab; it stores raw Markdown as the source of truth, and only renders it to sanitized HTML for on-screen display. Copy or Download export that Markdown verbatim.</p>
       <p>The <b>Campaign</b> dropdown at the top of the page switches between separate save slots (New / Rename / Delete), each with its own state for every tab above. Export/Import round-trip a campaign through a JSON file &mdash; worth doing before closing the tab, since campaigns live in <code>sessionStorage</code> and do not survive closing the browser tab.</p>
-      <p><b>Dropbox sync</b> (the <b>&#9729; Dropbox</b> button in the campaign bar) is optional and off by default. When you connect it, every campaign is saved as one file in your Dropbox app folder a few seconds after each change. A new tab, or another browser where you connect, then loads the same campaigns. If the Dropbox copy and this tab both changed, the app asks which copy to keep. Setup needs a free Dropbox app key once; the panel lists the steps.</p>
+      <p><b>Dropbox sync</b> (the <b>&#9729; Dropbox</b> button in the campaign bar) is optional and off by default. When you connect it, every campaign is saved as one file in your Dropbox app folder a few seconds after each change. A new tab, or another browser where you connect, then loads the same campaigns. If the Dropbox copy and this tab both changed, the app merges them campaign by campaign. It asks only about a campaign that changed on both sides: keep this tab's copy, the Dropbox copy, or both. Setup needs a free Dropbox app key once; the panel lists the steps.</p>
+    </div>
+
+    <div class="help-section" id="help-credits">
+      <h3 class="block-title">License &amp; credits</h3>
+      <p>Mythic Toolkit is an <b>unofficial fan tool</b>. It is not made or endorsed by Word Mill Games. It is free and non-commercial, and it does not replace the books.</p>
+      <p>This work is based on <i>Mythic Game Master Emulator Second Edition</i>, <i>One-Page Mythic Game Master Emulator</i>, <i>The Adventure Crafter</i>, <i>The Location Crafter</i>, <i>The Creature Crafter</i>, and <i>Mythic Magazine</i> (incl. Volumes 42 and 50), by Tana Pigeon, published by <a href="https://www.wordmillgames.com/" target="_blank" rel="noopener">Word Mill Games</a> under <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a>. The tables are transcribed, and the rules are adapted and automated as dice rolls.</p>
+      <p>The Player Emulator adapts tables from <i>Cloud Empress: Solo Protocol</i> (<a href="https://cloudempress.com/" target="_blank" rel="noopener">cloudempress.com</a>).</p>
+      <p>This app is licensed under <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a>. It bundles marked (MIT), DOMPurify (Apache-2.0 / MPL-2.0), and EasyMDE (MIT) under their own licenses.</p>
     </div>
   </div>`;
 }
