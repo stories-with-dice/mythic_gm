@@ -2,3 +2,4 @@
 /dist/
 /out/
 *.pdf
+.DS_Store

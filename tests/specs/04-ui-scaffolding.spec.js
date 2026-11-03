@@ -146,7 +146,7 @@ describe('UI scaffolding', () => {
         expect(btn.left > title.right).toBe(true);    // to the right of the title
         expect(btn.top < title.bottom).toBe(true);     // on the same line
       }
-      setTheme('classic');
+      setTheme(DEFAULT_THEME);
     });
 
     it('the toggle in the split-right pane opens only that pane', () => {
@@ -315,11 +315,21 @@ describe('UI scaffolding', () => {
   });
 
   describe('themes (20-themes.js)', () => {
-    it('lists every UI_THEMES entry in #themeSelect, Case file by default', () => {
+    it('lists every UI_THEMES entry in #themeSelect, Mythic GME by default', () => {
       const opts = $$('#themeSelect option').map(o => o.value);
       expect(opts).toEqual(UI_THEMES.map(t => t.id));
-      expect($('#themeSelect').value).toBe('classic');
-      expect(document.documentElement.dataset.theme).toBe(undefined);
+      expect(opts[0]).toBe('mythic');
+      expect($('#themeSelect').value).toBe('mythic');
+      expect(document.documentElement.dataset.theme).toBe('mythic');
+      expect(loadTheme()).toBe('mythic');
+    });
+
+    it('Mythic GME is a light theme with indigo banners', () => {
+      const css = getComputedStyle(document.documentElement);
+      expect(css.getPropertyValue('--ink').trim()).toBe('#e9e9f0');
+      expect(css.getPropertyValue('--gold-bright').trim()).toBe('#2f3066');
+      const title = $('#panelHost h3.block-title');
+      expect(getComputedStyle(title).backgroundColor).toBe('rgb(47, 48, 102)');
     });
 
     it('choosing a theme sets <html data-theme> and remembers it in localStorage', () => {
@@ -332,14 +342,16 @@ describe('UI scaffolding', () => {
       expect(getComputedStyle(document.documentElement).getPropertyValue('--ink').trim()).toBe('#100e0e');
     });
 
-    it('Case file removes the attribute; an unknown id falls back to it', () => {
+    it('Case file removes the attribute; an unknown id falls back to Mythic GME', () => {
+      setTheme('classic');
+      expect(document.documentElement.dataset.theme).toBe(undefined);
       setTheme('sf');
       expect(document.documentElement.dataset.theme).toBe('sf');
       setTheme('neon');
-      expect(document.documentElement.dataset.theme).toBe(undefined);
-      expect($('#themeSelect').value).toBe('classic');
+      expect(document.documentElement.dataset.theme).toBe('mythic');
+      expect($('#themeSelect').value).toBe('mythic');
       localStorage.setItem(THEME_KEY, 'junk');
-      expect(loadTheme()).toBe('classic');
+      expect(loadTheme()).toBe('mythic');
     });
 
     it('a theme change keeps the current tab and its content', () => {

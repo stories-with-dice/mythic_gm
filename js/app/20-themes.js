@@ -2,27 +2,31 @@
    THEMES
    Color + font themes, picked in the Settings modal (#themeSelect). A theme is
    only <html data-theme="...">: css/app.css redefines the :root tokens per
-   theme. The choice is a per-device preference, so it lives in localStorage
+   theme. "Case file" is the plain :root (no attribute); the default is
+   "Mythic GME" (index.html also sets it on <html>, so the first paint is
+   already light). The choice is a per-device preference, so it lives in localStorage
    (THEME_KEY), not in STORE, and is not synced to Dropbox.
    ========================================================================= */
 const UI_THEMES = [
+  { id:'mythic',  label:'Mythic GME' },   // the default: the look of the Mythic GME 2e book
   { id:'classic', label:'Case file' },
   { id:'fantasy', label:'Fantasy' },
   { id:'sf',      label:'Sci-fi' },
   { id:'horror',  label:'Horror' },
 ];
+const DEFAULT_THEME = 'mythic';
 // Same prefix as the Dropbox keys, so a test run never changes the real app's theme.
 const THEME_KEY = DBX_KEY_PREFIX + 'mythicToolkit_theme';
 
 function loadTheme(){
   try{
     const id = localStorage.getItem(THEME_KEY);
-    return UI_THEMES.some(t => t.id === id) ? id : 'classic';
-  }catch(_){ return 'classic'; }
+    return UI_THEMES.some(t => t.id === id) ? id : DEFAULT_THEME;
+  }catch(_){ return DEFAULT_THEME; }
 }
 
 function applyTheme(id){
-  if(!UI_THEMES.some(t => t.id === id)) id = 'classic';
+  if(!UI_THEMES.some(t => t.id === id)) id = DEFAULT_THEME;
   if(id === 'classic') delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = id;
   const sel = document.getElementById('themeSelect');

@@ -42,6 +42,13 @@ window.resetApp = function resetApp() {
   peRefOpen = false;
   threeActResultHtml = '';
   threeActThreadSuggestion = null;
+  nodeSceneTestHtml = '';
+  nodeResultHtml = '';
+  nodeMsgHtml = '';
+  nodeSelectedId = null;
+  nodePendingSlot = null;
+  nodeLastWalk = null;
+  nodeOptionsOpen = false;
   helpOpen = false;
   const helpOverlay = document.getElementById('helpOverlay');
   if(helpOverlay){ helpOverlay.classList.remove('open'); helpOverlay.innerHTML = ''; }
@@ -52,7 +59,7 @@ window.resetApp = function resetApp() {
 
   // Theme (20-themes.js): back to the default, with the test-prefixed key cleared.
   try { localStorage.removeItem(THEME_KEY); } catch (_) {}
-  applyTheme('classic');
+  applyTheme(DEFAULT_THEME);
 
   // Dropbox sync (19-dropbox-sync.js): off, no tokens, no bookkeeping. The
   // keys carry the test prefix set in tests.html, never the real app's.

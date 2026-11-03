@@ -23,6 +23,7 @@ describe('Help overlay', () => {
     expect(overlay).toContain('Mythic GME');
     expect(overlay).toContain('Published Adventures');
     expect(overlay).toContain('Player Emulator');
+    expect(overlay).toContain('Node Narratives');
     expect(overlay).toContain('Quick Note');
     expect(overlay).toContain('Campaign Log');
   });
@@ -36,7 +37,7 @@ describe('Help overlay', () => {
   it('the table of contents links resolve to real sections in the page', () => {
     click('#btnHelp');
     const links = $$('.help-toc a');
-    expect(links).toHaveLength(7);
+    expect(links).toHaveLength(8);
     links.forEach(a => {
       const id = a.getAttribute('href').slice(1);
       expect(document.getElementById(id)).toBeTruthy();

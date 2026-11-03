@@ -16,6 +16,7 @@ const TABS = [
   {id:'gme', label:'Mythic GME'},
   {id:'pub', label:'Published Adventures'},
   {id:'threeAct', label:'3-Act Story'},
+  {id:'nodes', label:'Node Narratives'},
   {id:'gm', label:'Game Master'},
   {id:'adventure', label:'Adventure Crafter'},
   {id:'location', label:'Location Crafter'},
@@ -99,10 +100,10 @@ function renderTab(id){
 // defined in files that load *after* this one; only safe to call once
 // everything has loaded, i.e. from inside renderActive()/wireActive().
 function tabRenderers(){
-  return { gm:renderGM, adventure:renderAdventure, location:renderLocation, creature:renderCreature, character:renderCharacter, mystery:renderMystery, gme:renderMythicGME, pub:renderPublished, playerEmu:renderPlayerEmu, threeAct:renderThreeAct };
+  return { gm:renderGM, adventure:renderAdventure, location:renderLocation, creature:renderCreature, character:renderCharacter, mystery:renderMystery, gme:renderMythicGME, pub:renderPublished, playerEmu:renderPlayerEmu, threeAct:renderThreeAct, nodes:renderNodeNarratives };
 }
 function tabWirers(){
-  return { gm:wireGM, adventure:wireAdventure, location:wireLocation, creature:wireCreature, character:wireCharacter, mystery:wireMystery, gme:wireMythicGME, pub:wirePublished, playerEmu:wirePlayerEmu, threeAct:wireThreeAct };
+  return { gm:wireGM, adventure:wireAdventure, location:wireLocation, creature:wireCreature, character:wireCharacter, mystery:wireMystery, gme:wireMythicGME, pub:wirePublished, playerEmu:wirePlayerEmu, threeAct:wireThreeAct, nodes:wireNodeNarratives };
 }
 
 function renderTabNav(){

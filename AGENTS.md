@@ -20,7 +20,9 @@ license check and a credit in `NOTICE.md`, the Help overlay, and the footer.
 A no-build, fully-offline browser app — a digital dice-tray for the
 *Mythic One-Page GM Emulator* suite of tabletop-RPG tools: Game Master
 (Ask the GM / Discover Meaning / Random Events), Adventure Crafter, Location
-Crafter, Creature Crafter, Character Crafter, and Mystery Matrix — plus a
+Crafter, Creature Crafter, Character Crafter, and Mystery Matrix — plus tabs
+for full Mythic GME 2e and several Mythic Magazine variants (Published
+Adventures, 3-Act Story, Node Narratives) and a Player Emulator — plus a
 Quick Note editor and a combined Campaign Log, both always visible below the
 active tab. State is organized into "campaigns," switchable from a dropdown
 in the header, with export/import to JSON.
@@ -115,6 +117,7 @@ js/app/                     the app, one file per former `===== SECTION =====`
 | `15-tab-published-adventures.js` | **Published Adventures** tab (2nd in `TABS`) — "Deconstruct The Known" (Mythic Magazine #50). **Shares `gme.chaosFactor` / `sceneNumber` / `expectedScene` / lists / `eventFocusTable`** with the Mythic GME tab; its own state is `gme.deconstructed`. `ADVENTURE_DIE_BANDS` / `adventureDieOptions()` / `rollAdventureDie()`, `PAGE_SECTIONS`, `crisisElement()` (Crisis Scene Element Table), `specialElement()` (Special Elements Table), `rollAdventureElement()` (page counter + wrap), `renderPublished()` / `wirePublished()`, plus a `PUB_FLOW_HTML` "How it works" flowchart, shown with the tab intro by the **?** button (`tabHeader()`, see "Collapsible cards"). Its scene test is the Deconstructed variant: `>CF & odd → Expected`, `>CF & even → Crisis Scene`, `≤CF → Altered (odd, +Adventure Element) / Interrupt (even, +Event Focus +Adventure Element)`. |
 | `16-tab-player-emulator.js`      | **Player Emulator** tab (last in `TABS`) — a solo "player emulator" from *Cloud Empress: Solo Protocol*. `PE_RESPONSE_TYPES` (Character Response Types re-sorted **most-minus → most-plus**, 50 rows / 1d100) + `peResponseType()`; `PE_NPC_MOODS` (1d10) + `peNpcMood()`; `PE_OUTLOOKS` (1d10, roll-and-display only — `PE_WILDCARD_OUTLOOK` is the one that changes a roll); `peRatingLabel()` / `peRatingClass()`; `peBiasedRoll(sides, mode)` (Adv = keep lowest, Dis = keep highest) with `peRollType(mode)` = 1d100 for a Character Type and `peRollMood(mode)` = 1d10 for an NPC mood (the add-NPC dropdown, persisted as `npcMoodMode`); `peBuildChart(mode)` (weighted 10-segment Response Chart); `peChartResponseAt()`; `pePcResponse()`; `renderPlayerEmu()` / `wirePlayerEmu()`. Generates a whole encounter's mood at once: every tracked PC responds (1d10 on their chart, or a fresh 1d100 on the full table if their Outlook is Wild card), every NPC has one mood, and all conflict ratings plus a manual adjustment are summed — total ≥ +4 ⇒ a violent encounter begins. The per-PC "Roll response" button caches its result in module-level `peLastResponse` / `peResponseHtml` (both cleared on PC removal or chart rebuild); the encounter generator's `useHeldResponses` checkbox (default on) reuses that held response instead of re-rolling, and writes any fresh rolls back so the PC cards stay in sync. |
 | `17-tab-three-act-story.js`      | **3-Act Story** tab (3rd in `TABS`, right after Published Adventures) — the "Mythic 3-Act Story Structure" worksheet (Mythic Magazine #42), a screenwriting Setup/Conflict/Resolution overlay on normal Mythic play. **Shares `gme.chaosFactor` / `sceneNumber` / `threads` / `characters` / `eventFocusTable`** with the Mythic GME tab; its own state is `gme.threeAct`. Each Act has an **outer** circle track (`THREE_ACT_BEATS`, 4 slots, the 4th ends the Act — mark one per distinct Story Beat achieved in a Scene) and an **inner** circle track (`THREE_ACT_INNER_EVENTS`, uncapped — mark one whenever a Scene has no Story Beat; `threeActInnerEvent()` looks up which Act Event fires, cycling the last entry once the list is exhausted). `fireThreeActEvent()` resolves one triggered Act Event: rolls dice per the rules (Story Thread Activity / Conflict / Twist? / New Conflict? — the last recurses into Conflict), skips the one-time Incident Scene / Introduce NPC events once their condition is already met, and rolls a Meaning word pair (`randomEventWords()`, from the Game Master tab) for flavor. A Conflict roll of 8-10 surfaces a suggested new blocking Thread with an inline "Add to Threads List" button. `renderThreeAct()` / `wireThreeAct()`; an optional "Start In Media Res" button (Act 1, before anything happens) fires all three opening Act Events at once; phases progress `acts → resolution → closing → done` as Act 3's outer track completes, mirroring the worksheet's Resolution/Closing Scenes; a `THREE_ACT_FLOW_HTML` "How it works" flowchart is shown with the tab intro by the **?** button, the same as the Published Adventures tab. The circle counts/order were read off the worksheet graphic itself (the PDF's extracted text scrambles the spiral layout). |
+| `17b-tab-node-narratives.js`    | **Node Narratives** tab (4th in `TABS`, right after 3-Act Story) — "Node Based Narratives" (Mythic Magazine #71). A **Node Sheet** (`gme.nodeSheet`) replaces the Threads/Characters Lists for this tab: Scene / Event / Thread / Character Nodes, each with 8 numbered Connection points (1 = top right, then clockwise), joined by Connections `{a, as, b, bs}`. **Shares `gme.chaosFactor` / `sceneNumber` / `expectedScene` / `eventFocusTable`** with the Mythic GME tab. Pure sheet helpers take the sheet `s`: `nodeLinksOf()`, `nodeFreeSlots()`, `nodeSceneNode()` / `nodePrevScene()`, `nodeFreeCellNear()`, `nodePickSlot()` (nearest free point, or the d8 "Node Choice Or Not" rule), `nodeConnectError()` / `nodeConnect()`, `nodeAdd()` (adds the **Origin Connection**: a Scene to the previous Scene Node, any other Node to the current Scene Node, made first if missing), `nodeEnsureScene()`, `nodeDuplicate()`, `nodeEliminate()` (Thread/Character only; removes its Connections), `nodeDelete()`, `nodeMove()`. `nodeWalk(s, startId, steps, roll)` finds the **Influence Node**: one usable Connection → follow it; more → d8 and count clockwise to the first Connected point; a Connection back to the start Node is never usable; doubling back is allowed; a Node with no usable Connection ends the walk there (a judgment call, written to the log). `NODE_FOCUS_TABLE` / `nodeFocusResult()` (the Node Random Event Focus Table, or the campaign table with its NPC/Thread rows read as Influence Node), `nodeMovementDie()` (d4, or the Dynamic Node Die Range). `renderNodeBoard()` draws the sheet: absolutely placed boxes on a 4-column grid (32 boxes = one "Sheet"), Connections as an SVG layer under them; the last Influence Node path is highlighted (`nodeLastWalk`). Click a Node to select it (`nodeSelectedId`, the "Selected Node" panel); click a point, then a point on another Node, to Connect those exact points (`nodePendingSlot`); drag a Node, or click an empty box while one is selected, to move it. `NODE_FLOW_HTML` is the "How it works" flowchart behind the **?**, embedded in Help too. |
 | `18-help.js`                    | Help overlay ("?" button in the campaign bar) — `HELP_OVERVIEW_SVG` (inline SVG map of how the tools connect), `renderHelpContent()` / `openHelp()` / `closeHelp()` / `wireHelp()`. Pure informational content, no persisted state. Its last section (`#help-credits`) holds the license and attribution — keep it in step with `NOTICE.md` and the `footer.site-footer` in `index.html`. Its Published Adventures section embeds that tab's own `PUB_FLOW_HTML` verbatim (see file 15) rather than restating it, so the two can't drift apart. |
 | `19-dropbox-sync.js`            | Optional **Dropbox sync** of every campaign — ported from the osr_keeper project's `js/dropbox.js`. PKCE sign-in (`dropboxConnect()` / `dropboxFinishConnect()`), token refresh, `dropboxDecideSync()`, `dropboxSyncNow()`, `dropboxNoteSave()` (called by `persist()`), the conflict dialog (`openDropboxModal()`, `dropboxUseRemoteCopy()` / `dropboxUseLocalCopy()`), and the panel (`renderDropbox()`, `wireDropbox()`, `initDropbox()`). See "Dropbox sync" below. |
 | `20-themes.js`                  | Color + font themes — `UI_THEMES` (`classic` = "Case file", `fantasy`, `sf`, `horror`), `THEME_KEY`, `loadTheme()` / `applyTheme()` / `setTheme()` / `wireTheme()`. A theme is only `<html data-theme="…">`; `css/app.css` redefines the `:root` tokens per theme. The file applies the saved theme at load, before the first render. See "Design system quick reference". |
@@ -215,6 +218,7 @@ values. These states are not saved: a reload collapses them again.
 | The Story Thread | 3-Act Story (17) | `threeActThreadOpen` (`null` = open until a Story Thread is set) | Story Thread, PC protected |
 | Region Setup | Location Crafter (08) | `locSetupOpen` | region size |
 | Reference tables | Player Emulator (16) | `peRefOpen` | short description |
+| Options | Node Narratives (17b) | `nodeOptionsOpen` | movement die, point rule, focus table |
 
 **Tab intros.** Every tab starts with `tabHeader(title, descHtml, moreHtml)`
 (04): the `h2.tool-title` plus a round **?** button right after it
@@ -280,7 +284,13 @@ STORE = {
                  crisisPP, diminisher },
                threeAct: {                           // 3-Act Story tab (Mythic Mag #42)
                  storyThread, act:1|2|3, phase:'acts'|'resolution'|'closing'|'done',
-                 outer:[0-4,0-4,0-4], inner:[int,int,int], npcIntroduced, pcProtected } },
+                 outer:[0-4,0-4,0-4], inner:[int,int,int], npcIntroduced, pcProtected },
+               nodeSheet: {                          // Node Narratives tab (Mythic Mag #71)
+                 title,
+                 nodes:[{id, type:'scene'|'event'|'thread'|'character', text, scene:int|null,
+                         cell:int (box on the sheet grid), eliminated}],
+                 links:[{a, as:1-8, b, bs:1-8}],      // Connections: Node ids + their points
+                 nextId, dynamicDie, randomSlots, alteredInfluence, focusMode:'node'|'campaign' } },
   log:       [{ts, section, md}]
 }
 ```
@@ -320,6 +330,17 @@ triggered blocking Threads get added there) but keeps its own Act/outer/inner
 progress separate from the Mythic GME tab's Scene clock — the worksheet's
 Acts don't map onto Scene numbers 1:1. `THREE_ACT_BEATS` / `THREE_ACT_INNER_EVENTS`
 / `threeActInnerEvent()` / `fireThreeActEvent()` are in `17-tab-three-act-story.js`.
+
+`gme.nodeSheet` is the Node Narratives tab's own state; `freshNodeSheet()` /
+`sanitizeNodeSheet()` / `nodeCanConnect()` / `NODE_TYPES` are in
+`03-state-persistence.js`. The sanitizer drops a Node with an unknown type,
+dedupes ids (`reindexById()`) and boxes, and drops every Connection the
+rules do not allow: a missing or eliminated Node, a point outside 1-8, a
+point already used, a second Connection between the same two Nodes, or a
+Thread/Character-to-Thread/Character Connection. A campaign in
+`sessionStorage` from before the tab existed has no `nodeSheet`;
+`nodeSheet()` (17b) adds a fresh one on first use. The tab keeps its own
+Scene Nodes and does not touch `gme.threads` / `gme.characters`.
 
 `playerEmu` is the Player Emulator tab's state. `freshPlayerEmu()` /
 `sanitizePlayerEmu()` (with `sanitizePlayerEmuPc()` / `sanitizePlayerEmuNpc()` /
@@ -675,7 +696,7 @@ state per tab, so each pane toggles only its own, saved in `localStorage`), the 
 modal (sections, close by button / backdrop / Escape, an expanded editor
 staying expanded after an edit and a re-open, the editors following a
 campaign switch), the themes (`#themeSelect` options, `<html data-theme>`
-and the `localStorage` key on change, the fallback to Case file for an unknown
+and the `localStorage` key on change, the fallback to Mythic GME for an unknown
 id, a theme change keeping the current tab) and the split view (right-click a tab): unsplit by default,
 right-click pins a tab right without disturbing the main tab, right-clicking
 a different tab moves the split, right-clicking the pinned tab again (or its
@@ -701,7 +722,14 @@ Conflict?'s recursion into Conflict, `sanitizeThreeAct()`, and the tab UI —
 recording a Scene with/without a Story Beat (outer vs inner marks), an Act
 auto-advancing at its 4th outer circle, Act 3 completing into the
 Resolution/Closing/Done phases and back via reset, In Media Res, and the
-Conflict 8-10 "Add to Threads List" suggestion. Spec `16` covers Dropbox
+Conflict 8-10 "Add to Threads List" suggestion. Spec `17` covers the
+Node Narratives tab — the Node Random Event Focus Table, `nodeMovementDie()`,
+`nodeWalk()` against the magazine's Shallow Rock example (d8 counting, the
+start Node skipped, doubling back, dead ends), the 8-point limit, the
+random-point rule, `sanitizeNodeSheet()`, and the UI (Origin Connections,
+point-to-point Connections, the Selected Node panel, moving a Node, the
+Influence Node highlight, the scene test, Random Events, Options, HTML
+escaping). Spec `16` covers Dropbox
 sync against two fakes: a `window.open` that records the consent URL, and a
 `window.fetch` fake Dropbox (token endpoint + `files/*` calls, in memory,
 with real revs and real `content_hash` values via `crypto.subtle`). It
@@ -730,7 +758,20 @@ native focus, say so rather than asserting from code inspection.
 
 ## Design system quick reference
 
-Dark, restrained "case-file" theme; CSS custom properties in `:root`
+The default theme is **Mythic GME** (`:root[data-theme="mythic"]`, also set
+on `<html>` in `index.html` so the first paint is light): the look of the
+Mythic GME 2e book — a light lavender-grey page, white panels, indigo
+`#2f3066` section banners (`h3.block-title`) and active tab with light
+condensed headings, Garamond body text, lavender result boxes, and tables
+with an indigo header row and lavender stripes. It is the only light theme,
+so its "bright" tokens (`--gold-bright`, `--moss-bright`, `--rust-bright`)
+are the *darker* shades: they are text colors. `--on-accent` (mythic only)
+is the text color on an indigo or plum fill. Its block-title banner needs
+`!important` on `padding`/`border`, because collapsible card heads set them
+inline. `DEFAULT_THEME` in `20-themes.js` is the fallback for an unknown or
+missing saved theme.
+
+The other themes are dark. "Case file" is a restrained dark theme; CSS custom properties in `:root`
 (`--ink`, `--panel`, `--moss` = clue/confirm green, `--rust` = suspect/danger
 red, `--gold` = highlight/solved accent, `--font-display` = serif for
 labels/headings, `--font-mono` for numbers/dice/log and every `.result-box`).
@@ -738,7 +779,7 @@ Reuse these tokens for any new UI rather than hardcoding colors. For a tint,
 use `color-mix(in srgb, var(--gold) 14%, transparent)`, not an `rgba()` of
 the default color — a hardcoded color does not follow the theme.
 
-**Themes.** `:root[data-theme="fantasy"|"sf"|"horror"]` blocks in `app.css`
+**Themes.** `:root[data-theme="mythic"|"fantasy"|"sf"|"horror"]` blocks in `app.css`
 redefine the same tokens (and the font stacks); "Case file" is plain `:root`
 with no attribute. A few heading rules are theme-specific (Sci-fi uppercases
 titles, Horror colors block titles `--rust-bright`). Rules every theme

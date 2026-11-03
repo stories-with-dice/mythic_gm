@@ -179,6 +179,83 @@ function sanitizeThreeAct(raw){
   };
 }
 
+// Node Based Narratives tab (Mythic Magazine #71). A Node Sheet replaces the
+// Threads/Characters Lists: Scene, Event, Thread and Character Nodes, each
+// with 8 numbered Connection points (1 = top right, then clockwise), joined
+// by Connections. Shares chaosFactor/scene/expectedScene with the Mythic GME
+// tab. `cell` is the Node's box on the sheet grid (4 columns, 32 per sheet).
+const NODE_TYPES = ["scene", "event", "thread", "character"];
+const NODE_SLOTS = 8;
+const NODE_FOCUS_MODES = ["node", "campaign"];
+function freshNodeSheet(){
+  return {
+    title: "",               // Adventure Name
+    nodes: [],               // [{id, type, text, scene:int|null, cell, eliminated}]
+    links: [],               // Connections: [{a, as, b, bs}] — Node ids and their points (1-8)
+    nextId: 1,
+    dynamicDie: false,       // optional rule: Node movement die by Scene number
+    randomSlots: false,      // optional rule: roll d8 for the point a new Connection uses
+    alteredInfluence: true,  // an Altered Scene rolls an Influence Node (else Scene Adjustment)
+    focusMode: "node"        // "node" = Node Random Event Focus Table, "campaign" = the editable table
+  };
+}
+// Thread and Character Nodes only Connect to Scene and Event Nodes.
+function nodeCanConnect(typeA, typeB){
+  const container = t => t === "scene" || t === "event";
+  return container(typeA) || container(typeB);
+}
+function sanitizeNodeSheet(raw){
+  const base = freshNodeSheet();
+  if(!raw || typeof raw !== "object") return base;
+  const nodes = (Array.isArray(raw.nodes) ? raw.nodes : [])
+    .filter(n => n && typeof n === "object" && NODE_TYPES.includes(n.type))
+    .map(n => {
+      const id = Number(n.id);
+      const scene = Number(n.scene);
+      const cell = Number(n.cell);
+      return {
+        id: Number.isFinite(id) ? id : null,
+        type: n.type,
+        text: typeof n.text === "string" ? n.text.slice(0, 200) : "",
+        scene: n.type === "scene" ? (Number.isFinite(scene) && scene >= 1 ? Math.round(scene) : 1) : null,
+        cell: Number.isFinite(cell) && cell >= 0 ? Math.round(cell) : null,
+        eliminated: (n.type === "thread" || n.type === "character") && !!n.eliminated
+      };
+    });
+  const maxId = reindexById(nodes);
+  // one Node per box: a missing or taken cell moves to the first free one
+  const used = new Set();
+  nodes.forEach(n => { if(n.cell != null && !used.has(n.cell)) used.add(n.cell); else n.cell = null; });
+  let free = 0;
+  nodes.forEach(n => { if(n.cell == null){ while(used.has(free)) free++; n.cell = free; used.add(free); } });
+
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const slotOk = s => Number.isInteger(s) && s >= 1 && s <= NODE_SLOTS;
+  const taken = new Set();   // "id:slot" — a point holds one Connection
+  const pairs = new Set();   // "lo-hi" — one Connection per pair of Nodes
+  const links = (Array.isArray(raw.links) ? raw.links : []).filter(l => {
+    if(!l || typeof l !== "object") return false;
+    const a = byId.get(Number(l.a)), b = byId.get(Number(l.b));
+    if(!a || !b || a === b || !slotOk(l.as) || !slotOk(l.bs)) return false;
+    if(a.eliminated || b.eliminated || !nodeCanConnect(a.type, b.type)) return false;
+    const ka = a.id + ":" + l.as, kb = b.id + ":" + l.bs;
+    const pair = Math.min(a.id, b.id) + "-" + Math.max(a.id, b.id);
+    if(taken.has(ka) || taken.has(kb) || pairs.has(pair)) return false;
+    taken.add(ka); taken.add(kb); pairs.add(pair);
+    return true;
+  }).map(l => ({ a: Number(l.a), as: l.as, b: Number(l.b), bs: l.bs }));
+
+  const nextId = (Number.isFinite(raw.nextId) && raw.nextId >= maxId) ? Math.round(raw.nextId) : maxId;
+  return {
+    title: typeof raw.title === "string" ? raw.title.slice(0, 120) : "",
+    nodes, links, nextId,
+    dynamicDie: !!raw.dynamicDie,
+    randomSlots: !!raw.randomSlots,
+    alteredInfluence: typeof raw.alteredInfluence === "boolean" ? raw.alteredInfluence : true,
+    focusMode: NODE_FOCUS_MODES.includes(raw.focusMode) ? raw.focusMode : "node"
+  };
+}
+
 function freshCampaign(){
   return {
     location: { pp:0, regionSize:"Average", areaCount:0, complete:false, ppSetupDone:false },
@@ -196,7 +273,8 @@ function freshCampaign(){
       nextTrackId: 1,
       eventFocusTable: defaultEventFocus(),  // editable Random Event Focus Table
       deconstructed: freshDeconstructed(),   // "Published Adventures" tab (shares chaosFactor/scene/lists/focus above)
-      threeAct: freshThreeAct()              // "3-Act Story" tab (shares threads/characters above)
+      threeAct: freshThreeAct(),             // "3-Act Story" tab (shares threads/characters above)
+      nodeSheet: freshNodeSheet()            // "Node Narratives" tab (shares chaosFactor/scene above)
     },
     log: []
   };
@@ -339,8 +417,9 @@ function sanitizeCampaign(raw){
 
   const deconstructed = sanitizeDeconstructed(rawGme.deconstructed);
   const threeAct = sanitizeThreeAct(rawGme.threeAct);
+  const nodeSheet = sanitizeNodeSheet(rawGme.nodeSheet);
 
-  const gme = { chaosFactor, sceneNumber, expectedScene, threads, characters, tracks, nextTrackId, eventFocusTable, deconstructed, threeAct };
+  const gme = { chaosFactor, sceneNumber, expectedScene, threads, characters, tracks, nextTrackId, eventFocusTable, deconstructed, threeAct, nodeSheet };
 
   const log = Array.isArray(raw.log) ? raw.log
     .filter(e=>e && typeof e==="object")

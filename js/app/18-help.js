@@ -93,6 +93,7 @@ function renderHelpContent(){
       <li><a href="#help-crafters">Crafters &amp; Mystery Matrix</a></li>
       <li><a href="#help-gme">Mythic GME (full 2e)</a></li>
       <li><a href="#help-pub">Published Adventures</a></li>
+      <li><a href="#help-nodes">Node Narratives</a></li>
       <li><a href="#help-pe">Player Emulator</a></li>
       <li><a href="#help-utility">Quick Note, Log &amp; Campaigns</a></li>
       <li><a href="#help-credits">License &amp; credits</a></li>
@@ -206,6 +207,12 @@ function renderHelpContent(){
       ${PUB_FLOW_HTML}
     </div>
 
+    <div class="help-section" id="help-nodes">
+      <h3 class="block-title">Node Narratives &mdash; Node Based Narratives</h3>
+      <p>Records the adventure as a sheet of Nodes and Connections instead of the Threads and Characters Lists (Mythic Magazine #71). An Altered Scene, an Interrupt Scene or a Random Event moves along the Connections from the current Scene Node to find an Influence Node. It shares the Chaos Factor, Scene count and Expected Scene with the Mythic GME tab. Click a numbered point on one Node, then a point on another, to draw a Connection; drag a Node (or select it and click an empty box) to move it.</p>
+      ${NODE_FLOW_HTML}
+    </div>
+
     <div class="help-section" id="help-pe">
       <h3 class="block-title">Player Emulator</h3>
       <p>A solo "player emulator" adapted from <i>Cloud Empress: Solo Protocol</i>, for simulating how a party of PCs (and any NPCs present) reacts emotionally to a scene &mdash; independent of every tool above, and usable alongside any of them.</p>
@@ -238,7 +245,7 @@ function renderHelpContent(){
     <div class="help-section" id="help-credits">
       <h3 class="block-title">License &amp; credits</h3>
       <p>Mythic Toolkit is an <b>unofficial fan tool</b>. It is not made or endorsed by Word Mill Games. It is free and non-commercial, and it does not replace the books.</p>
-      <p>This work is based on <i>Mythic Game Master Emulator Second Edition</i>, <i>One-Page Mythic Game Master Emulator</i>, <i>The Adventure Crafter</i>, <i>The Location Crafter</i>, <i>The Creature Crafter</i>, and <i>Mythic Magazine</i> (incl. Volumes 42 and 50), by Tana Pigeon, published by <a href="https://www.wordmillgames.com/" target="_blank" rel="noopener">Word Mill Games</a> under <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a>. The tables are transcribed, and the rules are adapted and automated as dice rolls.</p>
+      <p>This work is based on <i>Mythic Game Master Emulator Second Edition</i>, <i>One-Page Mythic Game Master Emulator</i>, <i>The Adventure Crafter</i>, <i>The Location Crafter</i>, <i>The Creature Crafter</i>, and <i>Mythic Magazine</i> (incl. Volumes 42, 50 and 71), by Tana Pigeon, published by <a href="https://www.wordmillgames.com/" target="_blank" rel="noopener">Word Mill Games</a> under <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a>. The tables are transcribed, and the rules are adapted and automated as dice rolls.</p>
       <p>The Player Emulator adapts tables from <i>Cloud Empress: Solo Protocol</i> (<a href="https://cloudempress.com/" target="_blank" rel="noopener">cloudempress.com</a>).</p>
       <p>This app is licensed under <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a>. It bundles marked (MIT), DOMPurify (Apache-2.0 / MPL-2.0), and EasyMDE (MIT) under their own licenses.</p>
     </div>

@@ -75,6 +75,17 @@ Exit `0` = all passed, `1` = failures, `2` = could not run.
   (add ≤20 / remove / roll 1d10), the Diminisher divide helper, and
   `sanitizeDeconstructed()`.
 
+- **Node Narratives tab** (`17`): the Node Random Event Focus Table and the
+  campaign-table mapping to "Influence Node", the Dynamic Node Die Range,
+  the Connection rules (`nodeCanConnect()`, 8 points per Node, eliminated
+  Nodes), `nodeWalk()` against the magazine's Shallow Rock example (d8
+  counting, the start Node skipped, doubling back, no Connection, dead end),
+  the random-point rule, `sanitizeNodeSheet()`, and the UI: Origin
+  Connections, one Scene Node per Scene, point-to-point Connections, the
+  Selected Node panel (edit, Connect to, Duplicate, Eliminate, Delete),
+  moving a Node, the Influence Node path highlight, the scene test, Random
+  Events, the Options card, HTML escaping, and the shared Chaos Factor.
+
 - **Dropbox sync** (`16`): `dropboxDecideSync()` and `dropboxPkcePair()`;
   the panel; Connect → paste code → file created → debounced upload; a wrong
   code; token refresh and a revoked refresh token; pull; an edit during a

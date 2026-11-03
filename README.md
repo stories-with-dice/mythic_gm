@@ -26,6 +26,7 @@ Each tool is a tab. The Mythic GME tab opens first.
 | Mythic GME | Full Mythic GME 2e: Fate Questions, Chaos Factor, the Expected Scene test, Threads and Characters Lists, Thread Progress Tracks, and an editable Random Event Focus Table. |
 | Published Adventures | "Deconstruct The Known" (Mythic Magazine #50): play a published adventure with an Adventure Die, Crisis Scenes, and an Adventure Meaning List. It shares the Chaos Factor, Scene, and Lists with the Mythic GME tab. |
 | 3-Act Story | The Mythic 3-Act Story Structure worksheet (Mythic Magazine #42): Story Beats and Act Events across three Acts, then Resolution and Closing Scenes. |
+| Node Narratives | "Node Based Narratives" (Mythic Magazine #71): a Node Sheet of Scene, Event, Thread and Character Nodes and their Connections replaces the Lists. Altered Scenes, Interrupt Scenes and Random Events move along the Connections to an Influence Node. It shares the Chaos Factor, Scene, and Expected Scene with the Mythic GME tab. |
 | Game Master | One-Page Mythic: Ask the GM, Discover Meaning, Random Events, and an optional weighted Random Inspiration Source list. |
 | Adventure Crafter | Themes and Plot Points. |
 | Location Crafter | Regions, Areas, and Progress Points. |
@@ -42,6 +43,9 @@ Two panels are always below the active tab:
   **Download .md** give the log as Markdown.
 
 Right-click a tab to show it in a second pane on the right (split view).
+**⚙ Settings** has the theme. The default theme, **Mythic GME**, follows the
+look of the Mythic GME 2e book. Case file, Fantasy, Sci-fi and Horror are
+dark themes.
 Click **?** in the header for the help overview.
 
 ## Campaigns and saving

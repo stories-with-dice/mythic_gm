@@ -24,8 +24,8 @@ This work is based on these products by Tana Pigeon, published by
 - *The Adventure Crafter*
 - *The Location Crafter*
 - *The Creature Crafter*
-- *Mythic Magazine* (the one-page tools, Volume 42 "3-Act Structure", and
-  Volume 50 "Deconstruct The Known")
+- *Mythic Magazine* (the one-page tools, Volume 42 "3-Act Structure",
+  Volume 50 "Deconstruct The Known", and Volume 71 "Node Based Narratives")
 
 Word Mill Games licenses the text of these products under
 [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/). See
