@@ -45,13 +45,13 @@ function wireCreature(){
   }
   document.getElementById('btnCreatureDescriptors').addEventListener('click', ()=>{
     const r1=rollDie(100), r2=rollDie(100);
-    creatureDescList = [CREATURE_DESCRIPTORS[r1-1], CREATURE_DESCRIPTORS[r2-1]];
+    creatureDescList = [tableEntry('creatureDescriptors', r1), tableEntry('creatureDescriptors', r2)];
     renderDescList();
     addLog('Creature Crafter', `**Creature Features** — Rolls ${r1}, ${r2} → **${creatureDescList[0]}**, **${creatureDescList[1]}**`);
   });
   document.getElementById('btnCreatureMoreWord').addEventListener('click', ()=>{
     const r = rollDie(100);
-    const w = CREATURE_DESCRIPTORS[r-1];
+    const w = tableEntry('creatureDescriptors', r);
     creatureDescList.push(w);
     renderDescList();
     addLog('Creature Crafter', `**Creature Features** — extra word, roll ${r} → **${w}**`);
@@ -60,14 +60,14 @@ function wireCreature(){
 
   document.getElementById('btnCreatureStat').addEventListener('click', ()=>{
     const r = rollDie(10);
-    const mod = STAT_MOD[r];
+    const mod = tableEntry('creatureStatMod', r);
     document.getElementById('creatureStatResult').innerHTML = `<div class="result-box"><span class="roll-num">${r}</span> → ${mod}</div>`;
     addLog('Creature Crafter', `**Statistic** — Roll 1d10: ${r} → ${mod}`);
   });
 
   document.getElementById('btnInitialBehavior').addEventListener('click', ()=>{
     const r = rollDie(10);
-    const text = INITIAL_BEHAVIOR[r];
+    const text = tableEntry('creatureBehavior', r);
     let html = `<div class="result-box"><span class="roll-num">${r}</span> → ${text}</div>`;
     let md = `**Initial Behavior** — Roll 1d10: ${r} → ${text}`;
     if(r===10){

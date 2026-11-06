@@ -50,7 +50,7 @@ function wireCharacter(){
       btn.addEventListener('click', ()=>{
         const key = btn.dataset.cat;
         const r = rollDie(100);
-        const w = CHARACTER_DESCRIPTORS[r-1];
+        const w = tableEntry('characterDescriptors', r);
         charWords[key].push(w);
         renderCat(key);
         addLog('Character Crafter', `**${CHAR_CATEGORIES.find(c=>c.key===key).label}** — extra word, roll ${r} → **${w}**`);
@@ -61,7 +61,7 @@ function wireCharacter(){
       btn.addEventListener('click', ()=>{
         const key = btn.dataset.cat;
         const r = rollDie(100);
-        const w = CHARACTER_DESCRIPTORS[r-1];
+        const w = tableEntry('characterDescriptors', r);
         charWords[key] = [w];
         renderCat(key);
         addLog('Character Crafter', `**${CHAR_CATEGORIES.find(c=>c.key===key).label}** — roll ${r} → **${w}**`);
@@ -72,7 +72,7 @@ function wireCharacter(){
 
   document.getElementById('btnNpcStat').addEventListener('click', ()=>{
     const r = rollDie(10);
-    const mod = NPC_STAT_MOD[r];
+    const mod = tableEntry('npcStatMod', r);
     document.getElementById('npcStatResult').innerHTML = `<div class="result-box"><span class="roll-num">${r}</span> → ${mod}</div>`;
     addLog('Character Crafter', `**NPC Statistic** — Roll 1d10: ${r} → ${mod}`);
   });

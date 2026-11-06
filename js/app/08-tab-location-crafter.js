@@ -96,7 +96,7 @@ function wireLocation(){
         let descriptors = null;
         if(result.d){
           const r1 = rollDie(100), r2 = rollDie(100);
-          descriptors = [ {r:r1, w:LOCATION_DESCRIPTORS[r1-1]}, {r:r2, w:LOCATION_DESCRIPTORS[r2-1]} ];
+          descriptors = [ {r:r1, w:tableEntry('locationDescriptors', r1)}, {r:r2, w:tableEntry('locationDescriptors', r2)} ];
         }
         rolls.push({ d10, raw, el: result.el, descType: result.d, descriptors });
       }

@@ -91,7 +91,7 @@ function addBox(type, label){
 }
 function rollMysteryWords(count){
   const words = [];
-  for(let i=0;i<count;i++){ const r = rollDie(100); words.push(MYSTERY_DESCRIPTORS[r-1]); }
+  for(let i=0;i<count;i++){ const r = rollDie(100); words.push(tableEntry('mysteryDescriptors', r)); }
   return words;
 }
 function toggleConnection(uidA, uidB){

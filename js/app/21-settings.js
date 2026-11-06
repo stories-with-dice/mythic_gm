@@ -6,6 +6,9 @@
    - Random Event Focus Table (gme.eventFocusTable; Mythic GME + Published
      Adventures tabs)
    - Random Inspiration Source (gm.inspiration.entries; Game Master tab)
+   - every text table in RANDOM_TABLES (01-data-tables.js): Meaning Tables,
+     Scene Adjustments, Plot Points, the Crafters' descriptors, … The campaign
+     keeps its own copy of an edited table in campaign().tables.
 
    wireSettings() builds the shell once. The Theme and Dropbox sections are
    filled once by wireTheme() / wireDropbox() and never rebuilt, so a
@@ -104,8 +107,41 @@ function renderSettingsTables(){
     <details class="settings-table" data-settings-table="inspiration" ${settingsTablesOpen.inspiration ? 'open' : ''}>
       <summary>Random Inspiration Source${tag(inspCustomised)}</summary>
       ${renderInspirationEditorHtml()}
-    </details>`;
+    </details>
+    ${renderRandomTableEditorsHtml()}`;
   wireSettingsTables();
+}
+
+// One <details> per RANDOM_TABLES entry, under a heading per tool. A
+// textarea holds one row per line.
+function randomTableIsCustom(key){
+  const own = campaign().tables;
+  return !!(own && cleanTableRows(own[key]) && !sameTableRows(cleanTableRows(own[key]), RANDOM_TABLE_BY_KEY[key].rows));
+}
+function randomTableCountNote(def, n){
+  const span = (def.sides - (def.offset || 0)) / n;
+  const per = Number.isInteger(span) ? `${span} number${span === 1 ? '' : 's'} per row` : `about ${span.toFixed(1)} numbers per row`;
+  return `${n} row${n === 1 ? '' : 's'} on 1d${def.sides}${def.offset ? ` (rolls ${def.offset + 1}-${def.sides})` : ''}: ${per}.`;
+}
+function renderRandomTableEditorsHtml(){
+  let group = '';
+  return RANDOM_TABLES.map(def => {
+    const rows = tableList(def.key);
+    const head = def.group !== group ? `<h4 class="settings-group">${escapeAttr(def.group)}</h4>` : '';
+    group = def.group;
+    const key = 'rt_' + def.key;
+    return `${head}
+    <details class="settings-table" data-settings-table="${key}" ${settingsTablesOpen[key] ? 'open' : ''}>
+      <summary>${escapeAttr(def.label)}<span data-rt-tag="${def.key}">${randomTableIsCustom(def.key) ? ' <span class="settings-tag">customised</span>' : ''}</span></summary>
+      <div class="small-note">Used by: ${escapeAttr(def.usedBy)}.</div>
+      <textarea class="field-input settings-rt-text" data-rt-text="${def.key}" rows="10" spellcheck="false" aria-label="${escapeAttr(def.group + ': ' + def.label)}, one row per line">${escapeAttr(rows.join('\n'))}</textarea>
+      <div class="small-note" data-rt-count="${def.key}">${randomTableCountNote(def, rows.length)}</div>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn small" data-rt-reset="${def.key}">Reset to default</button>
+      </div>
+      <div class="small-note" style="margin-top:6px;">One row per line. The rows share the die evenly; repeat a line to make it more likely. An empty list goes back to the default.</div>
+    </details>`;
+  }).join('');
 }
 
 // A structural edit re-renders the tabs (their "Customised" notes) and, via
@@ -178,6 +214,35 @@ function wireSettingsTables(){
     insp().push({ label: 'New Source', weight: 1 });
     settingsTableChanged();
   });
+  /* ----- Text tables (RANDOM_TABLES) ----- */
+  // Saved when the textarea loses focus. No re-render, so the next click
+  // lands where the user aimed; only the count and the tag change.
+  all('[data-rt-text]').forEach(el => el.addEventListener('change', () => {
+    const key = el.dataset.rtText;
+    const def = RANDOM_TABLE_BY_KEY[key];
+    const c = campaign();
+    if(!c.tables || typeof c.tables !== 'object') c.tables = {};
+    const rows = cleanTableRows(el.value.split('\n'));
+    if(rows && !sameTableRows(rows, def.rows)) c.tables[key] = rows;
+    else delete c.tables[key];
+    persist();
+    const shown = tableList(key);
+    el.value = shown.join('\n');
+    const count = host.querySelector(`[data-rt-count="${key}"]`);
+    if(count) count.textContent = randomTableCountNote(def, shown.length);
+    const tag = host.querySelector(`[data-rt-tag="${key}"]`);
+    if(tag) tag.innerHTML = randomTableIsCustom(key) ? ' <span class="settings-tag">customised</span>' : '';
+  }));
+  all('[data-rt-reset]').forEach(b => b.addEventListener('click', () => {
+    const key = b.dataset.rtReset;
+    const def = RANDOM_TABLE_BY_KEY[key];
+    if(!randomTableIsCustom(key)) return;
+    if(!confirm(`Reset ${def.group}: ${def.label} to the default ${def.rows.length} rows?`)) return;
+    delete campaign().tables[key];
+    addLog('Settings', `**${def.group}: ${def.label}** reset to default.`);
+    settingsTableChanged();
+  }));
+
   on('btnGmInspReset', () => {
     if(!confirm('Reset the Random Inspiration Source list to the default 5 entries?')) return;
     campaign().gm.inspiration.entries = freshInspirationEntries();

@@ -1077,6 +1077,14 @@ table.matrix-table{
   font-family:var(--font-display); font-weight:600; color:var(--text);
 }
 .settings-table[open] summary{margin-bottom:8px;}
+.settings-group{
+  margin:18px 0 0; font-family:var(--font-display); font-size:14px; font-weight:600;
+  color:var(--text-dim);
+}
+.settings-rt-text{
+  display:block; width:100%; min-width:0; box-sizing:border-box; margin-top:8px;
+  font-family:var(--font-mono); font-size:13px; line-height:1.45;
+}
 .settings-tag{
   margin-left:6px; font-family:var(--font-mono); font-size:11px; font-weight:400;
   color:var(--gold-bright);

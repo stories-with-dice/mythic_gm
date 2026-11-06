@@ -29,17 +29,15 @@ function discoveryCheckResult(total){
 const DISCOVERY_ODDS = ['50/50 or Unknown', 'Likely', 'Very Likely', 'Nearly Certain', 'Certain'];
 
 // Scene Adjustment Table (1d10) — rolled when a Scene test comes up Altered.
-const SCENE_ADJUSTMENTS = [
-  'Remove A Character', 'Add A Character', 'Reduce/Remove An Activity',
-  'Increase An Activity', 'Remove An Object', 'Add An Object'
-];
+// Rows 1-6 are the campaign's (editable) 'sceneAdjustments' list
+// (SCENE_ADJUSTMENTS in 01-data-tables.js is the default), read on 1d6.
 function sceneAdjustment(roll){
-  if(roll <= 6) return SCENE_ADJUSTMENTS[roll - 1];
+  if(roll <= 6) return tableEntry('sceneAdjustments', roll);
   // 7-10: make two adjustments (reroll a duplicate so they differ)
   const a = rollDie(6);
   let b = rollDie(6);
   if(b === a) b = (b % 6) + 1;
-  return `Make 2 Adjustments — ${SCENE_ADJUSTMENTS[a - 1]} + ${SCENE_ADJUSTMENTS[b - 1]}`;
+  return `Make 2 Adjustments — ${tableEntry('sceneAdjustments', a)} + ${tableEntry('sceneAdjustments', b)}`;
 }
 
 // Match a 1d100 roll against the campaign's (editable) Random Event Focus Table.
@@ -146,7 +144,7 @@ function renderMythicGME(){
 
     <div class="field" style="margin-top:14px;">
       <label for="gmeExpectedScene">Expected Scene — how you think Scene ${g.sceneNumber} will start</label>
-      <textarea id="gmeExpectedScene" class="field-input" rows="5" style="width:100%; resize:vertical;" placeholder="e.g. The PC drops in on the suspect at his workplace to question him.">${escapeAttr(g.expectedScene)}</textarea>
+      <textarea id="gmeExpectedScene" class="field-input" rows="8" style="width:100%; resize:vertical;" placeholder="e.g. The PC drops in on the suspect at his workplace to question him.">${escapeAttr(g.expectedScene)}</textarea>
     </div>
     <div class="row"><button class="btn primary" id="btnGmeTestScene">Test vs Chaos Factor</button></div>
     <div id="gmeSceneTestResult" style="margin-top:12px;">${gmeSceneTestHtml}</div>

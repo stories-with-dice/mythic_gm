@@ -416,7 +416,7 @@ function renderNodeNarratives(){
     </div>
     <div class="field" style="margin-top:14px;">
       <label for="nodeExpectedScene">Expected Scene — how you think Scene ${g.sceneNumber} will start</label>
-      <textarea id="nodeExpectedScene" class="field-input" rows="4" style="width:100%; resize:vertical;" placeholder="e.g. The PC goes to interview Celeste again.">${escapeAttr(g.expectedScene)}</textarea>
+      <textarea id="nodeExpectedScene" class="field-input" rows="8" style="width:100%; resize:vertical;" placeholder="e.g. The PC goes to interview Celeste again.">${escapeAttr(g.expectedScene)}</textarea>
     </div>
     <div class="row"><button class="btn primary" id="btnNodeTestScene">Test vs Chaos Factor</button></div>
     <div class="small-note">Altered Scene → ${s.alteredInfluence ? 'Influence Node' : 'Scene Adjustment + Meaning word'} &nbsp;·&nbsp; Interrupt Scene → Random Event (${s.focusMode === 'node' ? 'Node Random Event Focus Table' : 'campaign Event Focus Table'}) + Meaning words.</div>

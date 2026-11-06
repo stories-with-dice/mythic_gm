@@ -298,6 +298,7 @@ function freshCampaign(){
       threeAct: freshThreeAct(),             // "3-Act Story" tab (shares threads/characters above)
       nodeSheet: freshNodeSheet()            // "Node Narratives" tab (shares chaosFactor/scene above)
     },
+    tables: {},              // the campaign's own copy of each edited random table (RANDOM_TABLES in 01)
     log: [],
     createdAt: null,
     ui: freshUi()
@@ -358,6 +359,17 @@ function sanitizeDeconstructed(raw){
   return out;
 }
 
+// campaign().tables: only known keys, each a clean non-empty list that differs
+// from the default (a copy equal to the default is dropped).
+function sanitizeTables(raw){
+  const out = {};
+  if(!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  RANDOM_TABLES.forEach(def => {
+    const rows = cleanTableRows(raw[def.key]);
+    if(rows && !sameTableRows(rows, def.rows)) out[def.key] = rows;
+  });
+  return out;
+}
 function sanitizeCampaign(raw){
   const base = freshCampaign();
   if(!raw || typeof raw !== "object") return base;
@@ -449,10 +461,12 @@ function sanitizeCampaign(raw){
     .filter(e=>e && typeof e==="object")
     .map(e=>({ ts: String(e.ts||""), section: String(e.section||""), md: String(e.md||"") })) : [];
 
+  const tables = sanitizeTables(raw.tables);
+
   const createdAt = Number.isFinite(raw.createdAt) && raw.createdAt > 0 ? Math.round(raw.createdAt) : null;
   const ui = sanitizeUi(raw.ui);
 
-  return { location, adventure, mystery, playerEmu, gm, gme, log, createdAt, ui };
+  return { location, adventure, mystery, playerEmu, gm, gme, tables, log, createdAt, ui };
 }
 
 function loadStore(){

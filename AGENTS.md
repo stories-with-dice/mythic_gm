@@ -100,7 +100,7 @@ js/app/                     the app, one file per former `===== SECTION =====`
 
 | File (`js/app/`)                 | Contents |
 |---|---|
-| `01-data-tables.js`              | Every table transcribed from the cheat sheet: `DISCOVER_ACTION/DESC`, `ASK_ODDS`, `PLOT_ROWS`/`THEMES`, `LOCATION_DESCRIPTORS`/`areaElement()`, `CREATURE_DESCRIPTORS`/`ABILITY_WORDS`/behavior tables, `CHARACTER_DESCRIPTORS`/`NPC_STAT_MOD`/`behaviorContext()`, `MYSTERY_DESCRIPTORS`/`mysteryElement()`/`pickDie()` |
+| `01-data-tables.js`              | Every table transcribed from the cheat sheet: `DISCOVER_ACTION/DESC`, `ASK_ODDS`, `PLOT_ROWS`/`THEMES`, `LOCATION_DESCRIPTORS`/`areaElement()`, `CREATURE_DESCRIPTORS`/`ABILITY_WORDS`/behavior tables, `CHARACTER_DESCRIPTORS`/`NPC_STAT_MOD`/`behaviorContext()`, `MYSTERY_DESCRIPTORS`/`mysteryElement()`/`pickDie()`, `SCENE_ADJUSTMENTS`, `BEHAVIOR_CONTEXT`. Ends with the **editable random tables** registry: `RANDOM_TABLES` / `RANDOM_TABLE_BY_KEY`, `cleanTableRow()` / `cleanTableRows()`, `tableList(key)` / `tableEntry(key, roll)` (see "Editable random tables") |
 | `02-dice-markdown-utils.js`      | `rollDie`, `timestamp`, `escapeMd` (Markdown-table-safe only), `escapeAttr` (HTML-attribute-safe) |
 | `03-state-persistence.js`        | `STORAGE_KEY`, `freshCampaign()`, `newCampaign()` (a fresh campaign with `createdAt` = now), `freshUi()` / `sanitizeUi()`, `sanitizeBox()`/`sanitizeCampaign()` (import validation), `loadStore()`/`saveStore()`, `STORE`, `campaign()`, `persist()`, `addLog()` |
 | `04-tab-render-scaffolding.js`   | `TABS`, `currentTab`, `rightTab` (split-right pane, see "Split view" below), `renderTabNav()`, `renderActive()`, `wireActive()`, `tabRenderers()`/`tabWirers()` (lazy lookups, safe to call only after every file has loaded); `applyCampaignView()` / `liveView()` / `saveView()` / `restoreViewTabs()` / `switchCampaignView()` (the UI state saved in the campaign, see "Split view"); `tabHeader(title, descHtml)` + `isIntroOpen()` / `setIntroOpen()` (the shared tab-intro toggle, see "Collapsible cards"); `editListEntry()` (the inline Edit of a `.gme-list` row, see "List rows") |
@@ -113,7 +113,7 @@ js/app/                     the app, one file per former `===== SECTION =====`
 | `11-tab-mystery-matrix.js`       | `boxByUid`, `renderMatrixTable()`, `renderMystery()`, `addBox`, `rollMysteryWords`, `toggleConnection`, `connectionExists`, `checkClincherByConnections`, `rollMatrixTarget`, `wireMystery()` |
 | `12-quick-note.js`              | `noteMDE`, `renderNoteSection()` / `wireNoteSection()` |
 | `13-campaign-log.js`            | `buildLogMarkdown()` (raw MD, source of truth), `renderLogHtml()` (MD→sanitized HTML for display only), `renderLogSection()` / `wireLogSection()` |
-| `14-tab-mythic-gme.js`         | **Full Mythic GME 2e** tab — **first in `TABS`, the default landing tab** (the others are One-Page Mythic): `discoveryCheckResult()`, `DISCOVERY_ODDS`, `sceneAdjustment()` / `SCENE_ADJUSTMENTS`, `rollEventFocus()`, `oneMeaningWord()`, `renderMythicGME()` / `wireMythicGME()`. Threads/Characters Lists, Chaos Factor, Expected-Scene test (Altered → Scene Adjustment + word; Interrupt → editable Event Focus table + word), collapsible Thread Progress Tracks. The Random Event Focus Table is edited only in the Settings modal (file 21); the tab has no card for it. Fate Questions here call `askTheGM()` from the GM tab. |
+| `14-tab-mythic-gme.js`         | **Full Mythic GME 2e** tab — **first in `TABS`, the default landing tab** (the others are One-Page Mythic): `discoveryCheckResult()`, `DISCOVERY_ODDS`, `sceneAdjustment()` (rows 1-6 from the editable `sceneAdjustments` table), `rollEventFocus()`, `oneMeaningWord()`, `renderMythicGME()` / `wireMythicGME()`. Threads/Characters Lists, Chaos Factor, Expected-Scene test (Altered → Scene Adjustment + word; Interrupt → editable Event Focus table + word), collapsible Thread Progress Tracks. The Random Event Focus Table is edited only in the Settings modal (file 21); the tab has no card for it. Fate Questions here call `askTheGM()` from the GM tab. |
 | `15-tab-published-adventures.js` | **Published Adventures** tab (2nd in `TABS`) — "Deconstruct The Known" (Mythic Magazine #50). **Shares `gme.chaosFactor` / `sceneNumber` / `expectedScene` / lists / `eventFocusTable`** with the Mythic GME tab; its own state is `gme.deconstructed`. `ADVENTURE_DIE_BANDS` / `adventureDieOptions()` / `rollAdventureDie()`, `PAGE_SECTIONS`, `crisisElement()` (Crisis Scene Element Table), `specialElement()` (Special Elements Table), `rollAdventureElement()` (page counter + wrap), `renderPublished()` / `wirePublished()`, plus a `PUB_FLOW_HTML` "How it works" flowchart, shown with the tab intro by the **?** button (`tabHeader()`, see "Collapsible cards"). Its scene test is the Deconstructed variant: `>CF & odd → Expected`, `>CF & even → Crisis Scene`, `≤CF → Altered (odd, +Adventure Element) / Interrupt (even, +Event Focus +Adventure Element)`. |
 | `16-tab-player-emulator.js`      | **Player Emulator** tab (last in `TABS`) — a solo "player emulator" from *Cloud Empress: Solo Protocol*. `PE_RESPONSE_TYPES` (Character Response Types re-sorted **most-minus → most-plus**, 50 rows / 1d100) + `peResponseType()`; `PE_NPC_MOODS` (1d10) + `peNpcMood()`; `PE_OUTLOOKS` (1d10, roll-and-display only — `PE_WILDCARD_OUTLOOK` is the one that changes a roll); `peRatingLabel()` / `peRatingClass()`; `peBiasedRoll(sides, mode)` (Adv = keep lowest, Dis = keep highest) with `peRollType(mode)` = 1d100 for a Character Type and `peRollMood(mode)` = 1d10 for an NPC mood (the add-NPC dropdown, persisted as `npcMoodMode`); `peBuildChart(mode)` (weighted 10-segment Response Chart); `peChartResponseAt()`; `pePcResponse()`; `renderPlayerEmu()` / `wirePlayerEmu()`. Generates a whole encounter's mood at once: every tracked PC responds (1d10 on their chart, or a fresh 1d100 on the full table if their Outlook is Wild card), every NPC has one mood, and all conflict ratings plus a manual adjustment are summed — total ≥ +4 ⇒ a violent encounter begins. The per-PC "Roll response" button caches its result in module-level `peLastResponse` / `peResponseHtml` (both cleared on PC removal or chart rebuild); the encounter generator's `useHeldResponses` checkbox (default on) reuses that held response instead of re-rolling, and writes any fresh rolls back so the PC cards stay in sync. |
 | `17-tab-three-act-story.js`      | **3-Act Story** tab (3rd in `TABS`, right after Published Adventures) — the "Mythic 3-Act Story Structure" worksheet (Mythic Magazine #42), a screenwriting Setup/Conflict/Resolution overlay on normal Mythic play. **Shares `gme.chaosFactor` / `sceneNumber` / `threads` / `characters` / `eventFocusTable`** with the Mythic GME tab; its own state is `gme.threeAct`. Each Act has an **outer** circle track (`THREE_ACT_BEATS`, 4 slots, the 4th ends the Act — mark one per distinct Story Beat achieved in a Scene) and an **inner** circle track (`THREE_ACT_INNER_EVENTS`, uncapped — mark one whenever a Scene has no Story Beat; `threeActInnerEvent()` looks up which Act Event fires, cycling the last entry once the list is exhausted). `fireThreeActEvent()` resolves one triggered Act Event: rolls dice per the rules (Story Thread Activity / Conflict / Twist? / New Conflict? — the last recurses into Conflict), skips the one-time Incident Scene / Introduce NPC events once their condition is already met, and rolls a Meaning word pair (`randomEventWords()`, from the Game Master tab) for flavor. A Conflict roll of 8-10 surfaces a suggested new blocking Thread with an inline "Add to Threads List" button. `renderThreeAct()` / `wireThreeAct()`; an optional "Start In Media Res" button (Act 1, before anything happens) fires all three opening Act Events at once; phases progress `acts → resolution → closing → done` as Act 3's outer track completes, mirroring the worksheet's Resolution/Closing Scenes; a `THREE_ACT_FLOW_HTML` "How it works" flowchart is shown with the tab intro by the **?** button, the same as the Published Adventures tab. The circle counts/order were read off the worksheet graphic itself (the PDF's extracted text scrambles the spiral layout). |
@@ -319,6 +319,7 @@ STORE = {
                          cell:int (box on the sheet grid), eliminated}],
                  links:[{a, as:1-8, b, bs:1-8}],      // Connections: Node ids + their points
                  nextId, dynamicDie, randomSlots, alteredInfluence, focusMode:'node'|'campaign' } },
+  tables:    { <RANDOM_TABLES key>: [str] },  // only the random tables this campaign edited
   log:       [{ts, section, md}],          // oldest first; the screen shows it newest first
   createdAt: ms|null,                      // null = from before the field (counts as old)
   ui:        { currentTab, rightTab, intros:[tabId], at }   // UI state, see "Split view"
@@ -565,6 +566,12 @@ order:
    (`gme.eventFocusTable`) and Random Inspiration Source
    (`gm.inspiration.entries`). The ids are the ones the tab editors had
    (`data-focus-*`, `#btnGmeFocusAdd`, `data-insp-*`, `#btnGmInspAdd`, …).
+   After them, one `<details data-settings-table="rt_<key>">` per
+   `RANDOM_TABLES` entry, under an `h4.settings-group` per tool: a textarea
+   (`data-rt-text`, one row per line), a count note (`data-rt-count`), the
+   "customised" tag (`data-rt-tag`) and **Reset to default** (`data-rt-reset`).
+   A textarea saves on `change` without a re-render and updates only its
+   count and tag in place.
 
 Only `#settingsTables` re-renders. `renderActive()` calls
 `renderSettingsTables()` while `settingsOpen`, so the editors follow every
@@ -577,6 +584,36 @@ in Settings. `openSettings(table)` still takes an optional key
 (`'eventFocus'` / `'inspiration'`) that expands that editor; the specs use it. To add another editable table, add a
 `<details data-settings-table="<key>">` block, a key in
 `settingsTablesOpen`, and its handlers in `wireSettingsTables()`.
+
+### Editable random tables
+
+Every table whose rows are plain text for the player is in `RANDOM_TABLES`
+(01): the Meaning Tables (Actions, Descriptions), Scene Adjustments (rows
+1-6), the five Plot Points columns, and the Location, Creature, Character
+and Mystery descriptors, abilities, statistics and behavior tables. Each
+entry has `key`, `group`, `label`, `sides` (the die the rules give),
+optional `offset` (Plot Points: rolls 1-16 stay Conclusion / None) and the
+default `rows`.
+
+- The campaign stores only the tables the user changed, in
+  `campaign().tables` (`sanitizeTables()` in 03: known keys only, rows
+  trimmed, `<` `>` removed, at most `RANDOM_TABLE_MAX_ROWS` rows of
+  `RANDOM_TABLE_MAX_LEN` characters, a copy equal to the default dropped).
+  So the tables are exported and synced with the campaign.
+- `tableEntry(key, roll)` keeps the rules' die and shares the numbers
+  `offset+1..sides` evenly over the rows. 50 rows on 1d100 is 2 numbers per
+  row, as on the cheat sheet. A repeated row is more likely. Every tab
+  lookup (`discoverWord()`, `plotPointWord()`, `abilityWord()`,
+  `behaviorContext()`, `sceneAdjustment()`, the descriptor rolls) goes
+  through it. The original constants stay as the defaults.
+- `tableList()` cleans the stored copy again on read, because a
+  `sessionStorage` campaign is not sanitized on load. The `<` `>` strip
+  matters: the tabs put these rows in `innerHTML` without escaping.
+- Not in the list, on purpose: tables whose rows drive the app's logic
+  (`ASK_ODDS`, `areaElement()`, `mysteryElement()`, `crisisElement()` /
+  `specialElement()`, Player Emulator ratings and Outlooks, `NODE_FOCUS_TABLE`,
+  Creature New Behavior, 3-Act events). To add a text table, add an entry to
+  `RANDOM_TABLES` and read it with `tableEntry()`.
 
 ## The log: Markdown is the source of truth, HTML is a view
 
@@ -776,7 +813,10 @@ start Node skipped, doubling back, dead ends), the 8-point limit, the
 random-point rule, `sanitizeNodeSheet()`, and the UI (Origin Connections,
 point-to-point Connections, the Selected Node panel, moving a Node, the
 Influence Node highlight, the scene test, Random Events, Options, HTML
-escaping). Spec `16` covers Dropbox
+escaping). Spec `18` covers the editable random tables (`tableEntry()`
+mapping with default and custom rows, the Behavior Context and Plot Points
+bands, `sanitizeTables()`, the Settings textareas, Reset, one copy per
+campaign) and the 8-line Expected Scene fields. Spec `16` covers Dropbox
 sync against two fakes: a `window.open` that records the consent URL, and a
 `window.fetch` fake Dropbox (token endpoint + `files/*` calls, in memory,
 with real revs and real `content_hash` values via `crypto.subtle`). It

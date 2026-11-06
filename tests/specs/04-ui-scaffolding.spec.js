@@ -277,7 +277,7 @@ describe('UI scaffolding', () => {
       expect(o.classList.contains('open')).toBe(true);
       expect(o.querySelector('#themeSelect')).toBeTruthy();
       expect(o.querySelector('#dbxConnect')).toBeTruthy();
-      expect($$('#settingsTables details[data-settings-table]').map(d => d.dataset.settingsTable)).toEqual(['eventFocus', 'inspiration']);
+      expect($$('#settingsTables details[data-settings-table]').map(d => d.dataset.settingsTable)).toEqual(['eventFocus', 'inspiration', ...RANDOM_TABLES.map(t => 'rt_' + t.key)]);
       expect($$('#settingsTables details').every(d => !d.open)).toBe(true);
       expect($('#settingsTables')).toContain(STORE.current);
     });
