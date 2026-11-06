@@ -166,6 +166,18 @@ describe('Player Emulator — tab UI', () => {
     expect($$('.gme-list li')).toHaveLength(1);
   });
 
+  it('Edit renames an NPC and keeps its mood', async () => {
+    await withRolls([10], () => click('#btnPeAddNpc'));
+    const id = campaign().playerEmu.npcs[0].id;
+    click(`[data-npc-edit="${id}"]`);
+    const input = $('#panelHost .gme-list li.editing input.list-edit');
+    input.value = 'The Courier';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(campaign().playerEmu.npcs[0].name).toBe('The Courier');
+    expect(campaign().playerEmu.npcs[0].mood).toBe(10);
+    expect($('#panelHost .gme-list')).toContain('The Courier');
+  });
+
   it('NPC mood dropdown biases the roll with Advantage / Disadvantage', async () => {
     setValue('#peNpcMoodMode', 'dis');
     await withRolls([3, 9], () => click('#btnPeAddNpc'));   // 2d10 keep highest → 9 (Aggressive +3)

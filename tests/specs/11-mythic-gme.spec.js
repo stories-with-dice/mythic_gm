@@ -157,6 +157,37 @@ describe('Mythic GME tab', () => {
       click('[data-rm="threads"][data-i="1"]');
       expect(campaign().gme.threads).toEqual(['A', 'C']);
     });
+    it('Edit renames an entry in place (Enter saves, Escape cancels) and logs it', () => {
+      ['A', 'B'].forEach(v => { setValue('#gmeThreadInput', v); click('#btnGmeAddThread'); });
+      click('[data-edit="threads"][data-i="1"]');
+      let input = $('#panelHost .gme-list li.editing input.list-edit');
+      expect(input.value).toBe('B');
+      input.value = '  Bee  ';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(campaign().gme.threads).toEqual(['A', 'Bee']);
+      expect(lastLog().md).toContain('renamed "B" to "Bee"');
+      expect($('#panelHost .gme-list li.editing')).toBeNull();
+      click('[data-edit="threads"][data-i="0"]');
+      input = $('#panelHost .gme-list li.editing input.list-edit');
+      input.value = 'Other';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(campaign().gme.threads).toEqual(['A', 'Bee']);
+      click('[data-edit="threads"][data-i="0"]');
+      input = $('#panelHost .gme-list li.editing input.list-edit');
+      input.value = '   ';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(campaign().gme.threads).toEqual(['A', 'Bee']);   // empty text is not saved
+    });
+    it('a row\'s buttons are hidden until the row is hovered or focused', () => {
+      setValue('#gmeThreadInput', 'A'); click('#btnGmeAddThread');
+      const btn = $('[data-edit="threads"][data-i="0"]');
+      expect(btn.textContent).toBe('Edit');
+      if (matchMedia('(hover:hover)').matches) expect(getComputedStyle(btn).opacity).toBe('0');
+      btn.style.transition = 'none';   // read the end value, not the fade
+      btn.focus();
+      expect(btn.closest('li').matches(':focus-within')).toBe(true);
+      expect(getComputedStyle(btn).opacity).toBe('1');
+    });
     it('Roll on List is disabled while empty and picks an entry once populated', async () => {
       expect($('#btnGmeRollThread').disabled).toBe(true);
       ['A', 'B', 'C'].forEach(v => { setValue('#gmeThreadInput', v); click('#btnGmeAddThread'); });

@@ -264,6 +264,16 @@ describe('Published Adventures tab', () => {
       click('[data-mn-rm="1"]');
       expect(dec().meaningList).toEqual(['A', 'C']);
     });
+    it('Edit changes a word in place and logs it', () => {
+      ['A', 'B'].forEach(w => { setValue('#pubMeaningInput', w); click('#btnPubAddMeaning'); });
+      click('[data-mn-edit="0"]');
+      const input = $('#panelHost .gme-list li.editing input.list-edit');
+      expect(input.value).toBe('A');
+      input.value = 'Mine';
+      input.dispatchEvent(new Event('blur'));   // leaving the field saves too
+      expect(dec().meaningList).toEqual(['Mine', 'B']);
+      expect(lastLog().md).toContain('changed "A" to "Mine"');
+    });
     it('Roll 1d10 picks a slot; a blank slot is called out', async () => {
       ['Mine', 'Workshop', 'Hidden'].forEach(w => { setValue('#pubMeaningInput', w); click('#btnPubAddMeaning'); });
       await withRolls([2], () => click('#btnPubRollMeaning'));

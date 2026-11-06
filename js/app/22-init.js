@@ -6,7 +6,8 @@
 if('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
 document.addEventListener('DOMContentLoaded', ()=>{
-  const view = restoreViewTabs(); // the tabs and scroll position from before a reload
+  const view = restoreViewTabs(); // the campaign's saved tabs + intros, and the scroll position from before a reload
+  updateHints();                  // no hint text in a campaign older than a day (05-campaign-bar.js)
   renderCampaignBar();
   wireCampaignBar();
   renderTabNav();
@@ -17,7 +18,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   wireSettings(); // builds the Settings modal that wireTheme() and wireDropbox() fill
   wireTheme();
   wireDropbox();
-  if(view && view.scrollY) requestAnimationFrame(() => window.scrollTo(0, view.scrollY));
+  if(view.scrollY) requestAnimationFrame(() => window.scrollTo(0, view.scrollY));
   window.addEventListener('pagehide', saveView);
   initDropbox(); // last: syncs this tab's campaigns, if Dropbox sync is on
 });

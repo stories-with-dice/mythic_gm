@@ -801,6 +801,16 @@ table.matrix-table{
   padding:3px 7px;
 }
 .gme-list li button:hover{color:var(--text); border-color:var(--gold);}
+/* A row's buttons show only on hover or keyboard focus (always on touch screens). */
+.gme-list li button{opacity:0; transition:opacity .12s;}
+.gme-list li:hover button, .gme-list li:focus-within button{opacity:1;}
+@media (hover:none){ .gme-list li button{opacity:1;} }
+.gme-list li.editing button{display:none;}
+.gme-list li input.list-edit{flex:1; min-width:0; padding:3px 6px; font-size:14px;}
+
+/* Hint text only in a campaign less than a day old (updateHints(), 05). */
+.no-hints ::placeholder{color:transparent !important; opacity:0 !important;}
+.no-hints .CodeMirror-placeholder{display:none !important;}
 
 .gme-track{
   border:1px solid var(--line); border-radius:6px;

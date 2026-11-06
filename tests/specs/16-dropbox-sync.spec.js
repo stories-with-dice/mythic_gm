@@ -459,6 +459,29 @@ describe('Dropbox sync', () => {
     expect(Object.keys(dropboxResolvePlan(dropboxMergePlan({ A: a }, { A: b }, null), 'both'))).toEqual(['A', 'A (Dropbox)']);
   });
 
+  it('dropboxMergePlan: a UI-only difference is no change and no conflict; the newer `ui` wins', () => {
+    const a = freshCampaign(); a.gme.sceneNumber = 2;
+    const base = dropboxBaseOf({ A: a, B: a });
+    const aL = JSON.parse(JSON.stringify(a)); aL.ui = { currentTab: 'pub', rightTab: null, intros: [], at: 200 };
+    const aR = JSON.parse(JSON.stringify(a)); aR.ui = { currentTab: 'gm', rightTab: 'gme', intros: ['gm'], at: 100 };
+    // B: content changed in Dropbox, UI changed later here -> Dropbox content, local UI
+    const bL = JSON.parse(JSON.stringify(a)); bL.ui = { currentTab: 'nodes', rightTab: null, intros: [], at: 300 };
+    const bR = JSON.parse(JSON.stringify(a)); bR.gme.sceneNumber = 7; bR.ui = { currentTab: 'gm', rightTab: null, intros: [], at: 50 };
+    const plan = dropboxMergePlan({ A: aR, B: bR }, { A: aL, B: bL }, base);
+    expect(plan.conflicts).toHaveLength(0);
+    expect(plan.merged.A.ui.currentTab).toBe('pub');
+    expect(plan.merged.B.gme.sceneNumber).toBe(7);
+    expect(plan.merged.B.ui.currentTab).toBe('nodes');
+    // without a base too
+    const link = dropboxMergePlan({ A: aL }, { A: aR }, null);
+    expect(link.conflicts).toHaveLength(0);
+    expect(link.merged.A.ui.currentTab).toBe('pub');
+    // a fresh campaign with a createdAt and a UI state is still untouched
+    const fresh = Object.assign(newCampaign(), { ui: { currentTab: 'gm', rightTab: null, intros: [], at: 9 } });
+    expect(dropboxIsFreshCampaign(fresh)).toBe(true);
+    expect(dropboxIsFreshCampaign(a)).toBe(false);
+  });
+
   it('a new tab with an untouched campaign loads the Dropbox copy without asking', async () => {
     await connect();
     dbxLocalEdit('saved last session');

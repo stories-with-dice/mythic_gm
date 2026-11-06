@@ -102,9 +102,9 @@ js/app/                     the app, one file per former `===== SECTION =====`
 |---|---|
 | `01-data-tables.js`              | Every table transcribed from the cheat sheet: `DISCOVER_ACTION/DESC`, `ASK_ODDS`, `PLOT_ROWS`/`THEMES`, `LOCATION_DESCRIPTORS`/`areaElement()`, `CREATURE_DESCRIPTORS`/`ABILITY_WORDS`/behavior tables, `CHARACTER_DESCRIPTORS`/`NPC_STAT_MOD`/`behaviorContext()`, `MYSTERY_DESCRIPTORS`/`mysteryElement()`/`pickDie()` |
 | `02-dice-markdown-utils.js`      | `rollDie`, `timestamp`, `escapeMd` (Markdown-table-safe only), `escapeAttr` (HTML-attribute-safe) |
-| `03-state-persistence.js`        | `STORAGE_KEY`, `freshCampaign()`, `sanitizeBox()`/`sanitizeCampaign()` (import validation), `loadStore()`/`saveStore()`, `STORE`, `campaign()`, `persist()`, `addLog()` |
-| `04-tab-render-scaffolding.js`   | `TABS`, `currentTab`, `rightTab` (split-right pane, see "Split view" below), `renderTabNav()`, `renderActive()`, `wireActive()`, `tabRenderers()`/`tabWirers()` (lazy lookups, safe to call only after every file has loaded); `saveView()` / `loadView()` / `restoreViewTabs()` (see "Split view"); `tabHeader(title, descHtml)` + `isIntroOpen()` / `setIntroOpen()` (the shared tab-intro toggle, see "Collapsible cards") |
-| `05-campaign-bar.js`             | `renderCampaignBar()`, `clearNoteDraft()`, `wireCampaignBar()` (New/Rename/Delete/Export/Import) |
+| `03-state-persistence.js`        | `STORAGE_KEY`, `freshCampaign()`, `newCampaign()` (a fresh campaign with `createdAt` = now), `freshUi()` / `sanitizeUi()`, `sanitizeBox()`/`sanitizeCampaign()` (import validation), `loadStore()`/`saveStore()`, `STORE`, `campaign()`, `persist()`, `addLog()` |
+| `04-tab-render-scaffolding.js`   | `TABS`, `currentTab`, `rightTab` (split-right pane, see "Split view" below), `renderTabNav()`, `renderActive()`, `wireActive()`, `tabRenderers()`/`tabWirers()` (lazy lookups, safe to call only after every file has loaded); `applyCampaignView()` / `liveView()` / `saveView()` / `restoreViewTabs()` / `switchCampaignView()` (the UI state saved in the campaign, see "Split view"); `tabHeader(title, descHtml)` + `isIntroOpen()` / `setIntroOpen()` (the shared tab-intro toggle, see "Collapsible cards"); `editListEntry()` (the inline Edit of a `.gme-list` row, see "List rows") |
+| `05-campaign-bar.js`             | `renderCampaignBar()`, `clearNoteDraft()`, `wireCampaignBar()` (New/Rename/Delete/Export/Import); `HINT_MAX_AGE` / `campaignIsNew()` / `updateHints()` (hint text only in a campaign less than a day old, see "State model") |
 | `06-tab-game-master.js`          | `renderGM()` / `wireGM()`; `randomEventWords()` — a Discover Meaning Action+Description pair, shared with the Mythic GME tab's Interrupt Scene; `rollInspirationSource()` — weighted roll on Discover Meaning's editable Random Inspiration Source list |
 | `07-tab-adventure-crafter.js`    | `renderAdventure()` / `wireAdventure()` |
 | `08-tab-location-crafter.js`     | `REGION_START_PP`, `renderLocation()` / `wireLocation()`; `locSetupOpen` (collapsible Region Setup card) |
@@ -122,7 +122,7 @@ js/app/                     the app, one file per former `===== SECTION =====`
 | `19-dropbox-sync.js`            | Optional **Dropbox sync** of every campaign — ported from the osr_keeper project's `js/dropbox.js`. PKCE sign-in (`dropboxConnect()` / `dropboxFinishConnect()`), token refresh, `dropboxDecideSync()`, `dropboxSyncNow()`, `dropboxNoteSave()` (called by `persist()`), the conflict dialog (`openDropboxModal()`, `dropboxUseRemoteCopy()` / `dropboxUseLocalCopy()`), and the panel (`renderDropbox()`, `wireDropbox()`, `initDropbox()`). See "Dropbox sync" below. |
 | `20-themes.js`                  | Color + font themes — `UI_THEMES` (`classic` = "Case file", `fantasy`, `sf`, `horror`), `THEME_KEY`, `loadTheme()` / `applyTheme()` / `setTheme()` / `wireTheme()`. A theme is only `<html data-theme="…">`; `css/app.css` redefines the `:root` tokens per theme. The file applies the saved theme at load, before the first render. See "Design system quick reference". |
 | `21-settings.js`                | **Settings modal** ("⚙ Settings" in the campaign bar, `div#settingsOverlay`) — `settingsOpen`, `settingsTablesOpen`, `wireSettings()` (builds the shell once: Theme section with `#themeSelect`, Dropbox section `#settingsDropbox`, Random tables section `#settingsTables`; owns the Escape key for Settings and the Dropbox conflict dialog), `openSettings(table)` / `closeSettings()`, `renderSettingsTables()` / `wireSettingsTables()` — collapsible `<details>` editors for the Random Event Focus Table (`gme.eventFocusTable`) and the Random Inspiration Source (`gm.inspiration.entries`). See "Settings modal" below. |
-| `22-init.js`                    | `DOMContentLoaded` handler that kicks everything off: `restoreViewTabs()` first, then the renders, `wireHelp()`, `wireSettings()`, `wireTheme()`, `wireDropbox()`, the scroll restore, and `initDropbox()` last |
+| `22-init.js`                    | `DOMContentLoaded` handler that kicks everything off: `restoreViewTabs()` first, then `updateHints()`, then the renders, `wireHelp()`, `wireSettings()`, `wireTheme()`, `wireDropbox()`, the scroll restore, and `initDropbox()` last |
 
 ## The render/wire convention (every tab follows this — keep it consistent)
 
@@ -170,17 +170,31 @@ Left-clicking a tab behaves as before: it becomes the main pane's tab.
 
 State is two module-level `let`s in `04-tab-render-scaffolding.js`:
 `currentTab` (main pane) and `rightTab` (split-right pane, `null` when
-unsplit). **Both survive a reload of the browser tab**, with the window
-scroll position: `saveView()` writes `{ currentTab, rightTab, scrollY }` to
-`sessionStorage[VIEW_KEY]` (`mythicToolkit_view`) after every tab change
-and on `pagehide`. At boot, `restoreViewTabs()` (first in `22-init.js`)
-puts the tabs back before the first render, and the init handler scrolls
-to `scrollY` on the next frame (`history.scrollRestoration = 'manual'`,
-because the browser's own restore runs before the script renders the page).
-`loadView()` drops unknown tab ids and a `rightTab` equal to `currentTab`.
-Like `STORE`, the view clears when the browser tab closes; it is not in
-`STORE`, so it is not exported or synced. The Settings modal's open state
-is not saved.
+unsplit), plus `introOpen` (the open **?** intros, see "Collapsible cards").
+**They are the campaign's UI state**, saved in `campaign().ui`
+(`{ currentTab, rightTab, intros, at }`, `freshUi()` / `sanitizeUi()` in
+03). So they survive a reload, and they are exported and synced with the
+campaign:
+
+- `saveView()` writes the live view to `campaign().ui` (with `at` =
+  `Date.now()`) after every tab or intro change and on `pagehide`. It calls
+  `persist()` only when the UI state really changed.
+- `applyCampaignView()` puts `campaign().ui` in the live view. It drops
+  unknown tab ids and a `rightTab` equal to `currentTab`, and gives a
+  campaign without `ui` a fresh one. `restoreViewTabs()` (first in
+  `22-init.js`) calls it before the first render. `switchCampaignView()`
+  calls it and redraws the tab nav on a campaign switch (campaign bar,
+  Import, Delete, a Dropbox pull that changes the selected campaign).
+- **New** campaign starts with the view on screen (`liveView()`).
+- A Dropbox pull does not move what you look at: it stores the pulled
+  `ui`, but the live view changes only when the selected campaign changes,
+  or when a new tab loads the Dropbox copy (`dropboxApplyRemote(…, true)`).
+
+Only the window scroll position stays in
+`sessionStorage[VIEW_KEY]` (`mythicToolkit_view`, `{ scrollY }`): the init
+handler scrolls to it on the next frame (`history.scrollRestoration =
+'manual'`, because the browser's own restore runs before the script renders
+the page). The Settings modal's open state is not saved.
 
 **Invariant: `currentTab` and `rightTab` are never equal.** Every tab's
 `render<Tab>()`/`wire<Tab>()` pair uses hardcoded, page-unique DOM ids
@@ -227,8 +241,8 @@ while it is open. Each tab has its own open state, so the **?** in one pane
 does not open the other pane's intro. `renderActive()` renders each pane
 through `renderTab(id)`, which sets `introTab` so `tabHeader()` knows its
 tab. Every intro is collapsed by default; the open tab ids are kept in
-`localStorage` as a JSON array (`introKey()` = `mythicToolkit_intro`, with
-the same test prefix as the Dropbox and theme keys). `wireActive()` wires the button, so a tab's own `wire<Tab>()` does
+the campaign's UI state (`campaign().ui.intros`, see "Split view").
+`setIntroOpen()` calls `saveView()`. `wireActive()` wires the button, so a tab's own `wire<Tab>()` does
 nothing for it. The Published Adventures and 3-Act Story tabs pass their
 "How it works" flowchart (`PUB_FLOW_HTML` / `THREE_ACT_FLOW_HTML`) as
 `moreHtml`, so the **?** shows it below the intro (`.tool-intro-more`); they
@@ -236,6 +250,20 @@ have no separate "How it works" card. The tab header CSS (`.tool-head`,
 `.intro-toggle`) is in the base styles next to `h2.tool-title`, not in a
 theme block.
 `resetApp()` (tests) closes every one of these.
+
+## List rows (`.gme-list`)
+
+The Threads and Characters Lists (Mythic GME, 14), the Adventure Meaning
+List (Published Adventures, 15), the NPC list (Player Emulator, 16) and the
+Selected Node's Connections (Node Narratives, 17b) are `ul.gme-list` rows.
+A row's buttons show only on hover or keyboard focus (`:focus-within`), and
+always on a touch screen (`@media (hover:none)`). Every text list has an
+**Edit** button (`data-edit`, `data-mn-edit`, `data-npc-edit`). It calls
+`editListEntry(btn, value, save)` (04): the row's `.txt` becomes an
+`input.list-edit`; Enter or leaving the field saves a changed, non-empty
+value and calls `renderActive()`; Escape cancels. A Thread, Character or
+Meaning List edit writes a log line; an NPC rename does not (an NPC add or
+remove does not either).
 
 ## Gotcha: re-rendering wipes transient result displays
 
@@ -291,9 +319,20 @@ STORE = {
                          cell:int (box on the sheet grid), eliminated}],
                  links:[{a, as:1-8, b, bs:1-8}],      // Connections: Node ids + their points
                  nextId, dynamicDie, randomSlots, alteredInfluence, focusMode:'node'|'campaign' } },
-  log:       [{ts, section, md}]
+  log:       [{ts, section, md}],          // oldest first; the screen shows it newest first
+  createdAt: ms|null,                      // null = from before the field (counts as old)
+  ui:        { currentTab, rightTab, intros:[tabId], at }   // UI state, see "Split view"
 }
 ```
+
+`createdAt` is set by `newCampaign()` (03) for every campaign the app
+creates: the first "Campaign 1" of a tab, **New**, and the fallback of a
+Dropbox merge. `freshCampaign()` keeps it `null`, so `sanitizeCampaign(null)`
+still deep-equals `freshCampaign()`. `updateHints()` (05) sets
+`<html class="no-hints">` when the current campaign is a day old or more
+(`HINT_MAX_AGE`), or has no `createdAt`; `app.css` then hides every
+`::placeholder` and the Quick Note placeholder (`.CodeMirror-placeholder`).
+It runs at boot and on every campaign switch.
 
 `gm.inspiration` is the Game Master tab's own state — a user-editable weighted
 list under Discover Meaning, collapsed behind a checkbox (`enabled`). The
@@ -458,7 +497,11 @@ user's Dropbox and keeps it in sync. There is no backend, so:
      records it; otherwise it merges **campaign by campaign** (step 5).
   5. `dropboxMergePlan(raw, STORE.campaigns, base)` compares each campaign
      with `dbxSync.base` (`null` for a `link`, so no side counts as older):
-     a campaign that only one side changed takes that side's copy; a delete
+     a campaign that only one side changed takes that side's copy (the
+     comparison leaves out `ui`: `dropboxContentJson()` /
+     `dropboxCampaignHash()`, so a UI-only difference is no change and no
+     conflict, and `dropboxWithNewerUi()` keeps the newer `ui` by `ui.at`
+     on the copy it picks); a delete
      on one side wins only when the other side did not change the campaign
      (an edit is never lost to a delete); a campaign that only one side has
      is added. Without a base, an untouched `freshCampaign()` on one side
@@ -537,9 +580,12 @@ in Settings. `openSettings(table)` still takes an optional key
 
 ## The log: Markdown is the source of truth, HTML is a view
 
-`campaign().log` stores raw Markdown strings. `buildLogMarkdown()` just
+`campaign().log` stores raw Markdown strings, oldest first. `buildLogMarkdown()` just
 concatenates them under a header — that's what **Copy** and **Download**
-export verbatim. `renderLogHtml()` runs that same Markdown through
+export verbatim, oldest first. The screen shows the newest entry at the
+top: `renderLogHtml()` calls `buildLogMarkdown(true)`, and
+`renderLogSection()` keeps the view at the top (or on the entries you
+scrolled to) when an entry is added. `renderLogHtml()` runs that same Markdown through
 `marked.parse()` then `DOMPurify.sanitize()` purely for on-screen display
 in `#logSection`. **Never** let the sanitized-HTML path become the stored
 representation — always append to `campaign().log` as Markdown via
@@ -662,16 +708,16 @@ file + a `<script>` line in `tests/tests.html`). The pure-logic specs
 cheat sheet and every documented `sanitizeCampaign()` invariant; the
 UI specs (`04`–`12`) cover each tab's roll buttons, the "last result survives
 re-render" cache pattern, Mystery Matrix connection/Clincher logic, the
-Quick Note → Log → sanitised-HTML pipeline, (`11`) the Mythic GME tab —
+Quick Note → Log → sanitised-HTML pipeline (newest entry on top, export oldest first), (`11`) the Mythic GME tab —
 Chaos Factor clamp, Expected-Scene test (Altered → Scene Adjustment + word,
 Interrupt → Event Focus + word) with `sceneAdjustment()` / `rollEventFocus()`
-unit tests, the Event Focus Table editor (in Settings only, no card on the tab), list add/dupe/remove/roll,
+unit tests, the Event Focus Table editor (in Settings only, no card on the tab), list add/edit/dupe/remove/roll and the hover-only row buttons,
 Progress Track progress / auto-Flashpoint / Conclusion / Discovery Check /
 collapse toggle — and (`12`) the Published Adventures tab —
 `adventureDieOptions` / `rollAdventureDie` / `crisisElement` / `specialElement`
 tables, the running page counter + wrap, the Deconstructed scene test's four
 outcomes (incl. Crisis Scene generation and its Crisis PP maths), the shared
-Chaos Factor / End Scene, the Adventure Meaning List and its `pendingWords`
+Chaos Factor / End Scene, the Adventure Meaning List (incl. Edit) and its `pendingWords`
 counter, the "Unusable page" reroll, HTML escaping of user text in results,
 the Diminisher helper, and `sanitizeDeconstructed()` — and (`13`) the Player Emulator tab — the
 re-sorted `PE_RESPONSE_TYPES` / `peResponseType` mapping, `PE_NPC_MOODS` /
@@ -691,8 +737,9 @@ survives re-render" cache across a Settings edit, no editor or Edit button
 on the tab, `openSettings('inspiration')` expanding the list, editing a label/weight,
 add/remove entries (remove disabled at 1 remaining), and Reset to default.
 Spec `04` also covers the tab intros (collapsed by default, one open
-state per tab, so each pane toggles only its own, saved in `localStorage`), the saved view (`saveView()` after a tab change,
-`restoreViewTabs()`, `loadView()` dropping bad ids and junk), the Settings
+state per tab, so each pane toggles only its own, saved in `campaign().ui`), the saved view (`saveView()` after a tab change,
+`restoreViewTabs()`, `applyCampaignView()` dropping bad ids and junk, `sanitizeUi()`, each campaign keeping its own view across a switch, a
+new campaign starting with the view on screen), the hint text (`updateHints()` / `campaignIsNew()`, `createdAt` in `sanitizeCampaign()`), the Settings
 modal (sections, close by button / backdrop / Escape, an expanded editor
 staying expanded after an edit and a re-open, the editors following a
 campaign switch), the themes (`#themeSelect` options, `<html data-theme>`
@@ -738,7 +785,7 @@ debounced upload, a wrong code, token refresh and a revoked refresh token,
 pull, an edit during a pull (merged), a rev conflict on upload (merged on
 the next pass), different campaigns changed on each side (merged without a
 question), deletes against edits, `dropboxMergePlan()` /
-`dropboxResolvePlan()` rules, the same campaign changed on both sides (the
+`dropboxResolvePlan()` rules (incl. a UI-only difference: no conflict, the newer `ui` wins), the same campaign changed on both sides (the
 dialog names it) with each of Keep both / Use the Dropbox copy / Keep this
 tab's copy / Decide later, a new tab loading the Dropbox copy, a
 non-pristine link asking only about a campaign both sides have (and adding

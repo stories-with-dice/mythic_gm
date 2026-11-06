@@ -245,6 +245,7 @@ function renderPlayerEmu(){
     const m = peNpcMood(n.mood);
     return `<li>
       <span class="txt">${escapeAttr(n.name)} — <b>${escapeAttr(m.name)}</b> <span class="pe-rating ${peRatingClass(m.rating)}">${peRatingLabel(m.rating)}</span></span>
+      <button type="button" data-npc-edit="${n.id}" title="Edit name">Edit</button>
       <button type="button" data-npc-reroll="${n.id}" title="Reroll mood">&#8635;</button>
       <button type="button" data-npc-rm="${n.id}" title="Remove">&#10005;</button>
     </li>`;
@@ -457,6 +458,11 @@ function wirePlayerEmu(){
     const m = peNpcMood(n.mood);
     addLog('Player Emulator', `**NPC "${escapeMd(n.name)}" — mood reroll** [${PE_MOOD_MODE_LABEL[mode]}] (${moodRollText(roll)}) → **${m.name}** (${peRatingLabel(m.rating)}).`);
     renderActive();
+  }));
+  document.querySelectorAll('[data-npc-edit]').forEach(b => b.addEventListener('click', () => {
+    const n = npcById(b.dataset.npcEdit);
+    if(!n) return;
+    editListEntry(b, n.name, v => { n.name = v.slice(0, 60); persist(); });
   }));
   document.querySelectorAll('[data-npc-rm]').forEach(b => b.addEventListener('click', () => {
     const n = npcById(b.dataset.npcRm);

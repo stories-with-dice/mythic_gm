@@ -55,6 +55,16 @@ describe('Campaign Log', () => {
     expect(md).toContain('plain note');
   });
 
+  it('shows the newest entry at the top; Copy / Download stay oldest first', () => {
+    addLog('Note', 'first entry');
+    addLog('Note', 'second entry');
+    const html = $('#logRender').textContent;
+    expect(html.indexOf('second entry') < html.indexOf('first entry')).toBe(true);
+    const md = buildLogMarkdown();
+    expect(md.indexOf('first entry') < md.indexOf('second entry')).toBe(true);
+    expect(campaign().log.map(e => e.md)).toEqual(['first entry', 'second entry']);
+  });
+
   it('renders Markdown to sanitised HTML for display (script tags stripped)', () => {
     addLog('Note', 'hi <script>window.__pwned = 1<\/script> there');
     renderLogSection();

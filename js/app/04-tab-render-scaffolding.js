@@ -7,10 +7,12 @@
    DOM ids stay unique on the page — see the invariant enforced in
    renderTabNav()'s contextmenu handler below.
 
-   View state: `currentTab`, `rightTab` and the window scroll position are
-   kept in sessionStorage (VIEW_KEY) by saveView(), so a reload of this
-   browser tab comes back to the same tabs at the same place. Like STORE,
-   it clears when the browser tab closes, and it is not exported or synced.
+   View state: `currentTab`, `rightTab` and the open "?" intros are saved in
+   the current campaign (`campaign().ui`, see freshUi() in 03), so they are
+   exported and synced with the campaign. applyCampaignView() loads them at
+   boot and on a campaign switch; saveView() writes them back after every
+   change. Only the window scroll position stays in sessionStorage
+   (VIEW_KEY): it is per browser tab, not per campaign.
    ========================================================================= */
 const TABS = [
   {id:'gme', label:'Mythic GME'},
@@ -30,58 +32,99 @@ let rightTab = null;   // tab id pinned to the split-right pane, or null when un
 
 const VIEW_KEY = 'mythicToolkit_view';
 
-// Called after every tab change, and on pagehide (which also fires on reload)
-// for the scroll position.
-function saveView(){
-  try{
-    sessionStorage.setItem(VIEW_KEY, JSON.stringify({ currentTab, rightTab, scrollY: Math.round(window.scrollY) }));
-  }catch(_){}
-}
-// Reads the saved view, or null. Unknown tab ids are dropped, and the
-// currentTab/rightTab invariant is enforced again.
-function loadView(){
-  try{
-    const v = JSON.parse(sessionStorage.getItem(VIEW_KEY));
-    if(!v || typeof v !== 'object') return null;
-    const known = id => TABS.some(t => t.id === id);
-    const main = known(v.currentTab) ? v.currentTab : 'gme';
-    const right = known(v.rightTab) && v.rightTab !== main ? v.rightTab : null;
-    const scrollY = Number.isFinite(v.scrollY) && v.scrollY > 0 ? v.scrollY : 0;
-    return { currentTab: main, rightTab: right, scrollY };
-  }catch(_){ return null; }
-}
-// Called first in the DOMContentLoaded handler (22-init.js), before the first render.
-function restoreViewTabs(){
-  const v = loadView();
-  if(!v) return null;
-  currentTab = v.currentTab;
-  rightTab = v.rightTab;
-  return v;
-}
-
 // Tab intros: the `tool-desc` paragraph under each tab's title. A "?"
 // toggle beside every tab's title (tabHeader()). Each tab has its own
-// open state, collapsed by default and remembered in this browser
-// (localStorage, like the theme), so a "?" in one pane does not open the
-// other pane's intro. A tab can pass `moreHtml` (the Published Adventures
-// and 3-Act Story "How it works" flowcharts) to show below the intro.
-let introOpen = null;   // Set of tab ids; read lazily: the key prefix is set in 19-dropbox-sync.js
-let introTab = null;    // the tab renderActive() is rendering, for tabHeader()
-function introKey(){ return DBX_KEY_PREFIX + 'mythicToolkit_intro'; }
-function introOpenTabs(){
-  if(introOpen === null){
-    let ids = [];
-    try{ ids = JSON.parse(localStorage.getItem(introKey()) || '[]'); }catch(_){}
-    introOpen = new Set(Array.isArray(ids) ? ids.filter(id => TABS.some(t => t.id === id)) : []);
+// open state, collapsed by default and saved with the campaign's UI state,
+// so a "?" in one pane does not open the other pane's intro. A tab can pass
+// `moreHtml` (the Published Adventures and 3-Act Story "How it works"
+// flowcharts) to show below the intro.
+let introOpen = new Set();   // tab ids whose intro is open
+let introTab = null;         // the tab renderActive() is rendering, for tabHeader()
+
+function knownTab(id){ return TABS.some(t => t.id === id); }
+
+// Puts the current campaign's saved UI state in the live view. Unknown tab
+// ids are dropped, and the currentTab/rightTab invariant is enforced again.
+// A campaign from before `ui` existed gets a fresh one.
+function applyCampaignView(){
+  const c = campaign();
+  const ui = c.ui = sanitizeUi(c.ui);
+  currentTab = knownTab(ui.currentTab) ? ui.currentTab : 'gme';
+  rightTab = knownTab(ui.rightTab) && ui.rightTab !== currentTab ? ui.rightTab : null;
+  introOpen = new Set(ui.intros.filter(knownTab));
+}
+// The live view as a `ui` object (without `at`).
+function liveView(){ return { currentTab, rightTab, intros: TABS.map(t => t.id).filter(id => introOpen.has(id)) }; }
+// Called after every tab or intro change, and on pagehide (which also fires
+// on reload) for the scroll position. Writes the campaign (and so queues a
+// Dropbox upload) only when the UI state really changed.
+function saveView(){
+  const c = campaign();
+  const live = liveView();
+  const old = c.ui || {};
+  if(old.currentTab !== live.currentTab || old.rightTab !== live.rightTab || JSON.stringify(old.intros) !== JSON.stringify(live.intros)){
+    c.ui = Object.assign(live, { at: Date.now() });
+    persist();
   }
-  return introOpen;
+  try{ sessionStorage.setItem(VIEW_KEY, JSON.stringify({ scrollY: Math.round(window.scrollY) })); }catch(_){}
 }
-function isIntroOpen(tab){ return introOpenTabs().has(tab); }
+// The scroll position saved before a reload, or 0.
+function loadScroll(){
+  try{
+    const v = JSON.parse(sessionStorage.getItem(VIEW_KEY));
+    return v && Number.isFinite(v.scrollY) && v.scrollY > 0 ? v.scrollY : 0;
+  }catch(_){ return 0; }
+}
+// Called first in the DOMContentLoaded handler (22-init.js), before the
+// first render. Returns the scroll position to restore.
+function restoreViewTabs(){
+  applyCampaignView();
+  return { scrollY: loadScroll() };
+}
+// A campaign switch (campaign bar, Dropbox pull): show that campaign's UI state.
+function switchCampaignView(){
+  applyCampaignView();
+  renderTabNav();
+}
+
+function isIntroOpen(tab){ return introOpen.has(tab); }
 function setIntroOpen(tab, open){
-  const ids = introOpenTabs();
-  if(open) ids.add(tab); else ids.delete(tab);
-  try{ localStorage.setItem(introKey(), JSON.stringify([...ids])); }catch(_){}
+  if(open) introOpen.add(tab); else introOpen.delete(tab);
+  saveView();
 }
+// Inline Edit for one `.gme-list` row (Threads / Characters Lists, Adventure
+// Meaning List, NPCs). `btn` is the row's Edit button. It swaps the row's
+// `.txt` for an <input> holding `value`. Enter or leaving the field calls
+// `save(newValue)` when the trimmed text is not empty and changed, then
+// renderActive(); Escape cancels. The row's buttons hide while it edits.
+function editListEntry(btn, value, save){
+  const li = btn.closest('li');
+  const txt = li && li.querySelector('.txt');
+  if(!txt || li.classList.contains('editing')) return;
+  li.classList.add('editing');
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'field-input list-edit';
+  input.value = value;
+  input.setAttribute('aria-label', 'Edit entry');
+  txt.replaceWith(input);
+  input.focus();
+  input.select();
+  let done = false;
+  const finish = keep => {
+    if(done) return;
+    done = true;
+    const v = input.value.trim();
+    if(keep && v && v !== value) save(v);
+    renderActive();
+  };
+  input.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); finish(true); }
+    else if(e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); finish(false); }
+  });
+  input.addEventListener('blur', () => finish(true));
+}
+
 function tabHeader(title, descHtml, moreHtml){
   const tab = introTab;
   const open = isIntroOpen(tab);

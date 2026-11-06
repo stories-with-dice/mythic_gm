@@ -256,6 +256,28 @@ function sanitizeNodeSheet(raw){
   };
 }
 
+// The campaign's UI state (04-tab-render-scaffolding.js): the main tab, the
+// tab pinned to the split-right pane, and the tabs whose "?" intro is open.
+// `at` is when it last changed (ms), so Dropbox sync keeps the newer copy
+// without asking (19-dropbox-sync.js ignores `ui` when it compares campaigns).
+// Tab ids are checked against TABS in 04 (applyCampaignView()), not here.
+function freshUi(){ return { currentTab: 'gme', rightTab: null, intros: [], at: 0 }; }
+function sanitizeUi(raw){
+  const base = freshUi();
+  if(!raw || typeof raw !== "object") return base;
+  const id = v => (typeof v === "string" && v && v.length <= 40) ? v : null;
+  const currentTab = id(raw.currentTab) || base.currentTab;
+  const right = id(raw.rightTab);
+  const rightTab = right && right !== currentTab ? right : null;
+  const intros = Array.isArray(raw.intros) ? [...new Set(raw.intros.map(id).filter(Boolean))].slice(0, 50) : [];
+  const at = Number.isFinite(raw.at) && raw.at > 0 ? Math.round(raw.at) : 0;
+  return { currentTab, rightTab, intros, at };
+}
+
+// `createdAt` (ms) is null in freshCampaign() and for a campaign from before
+// the field existed (it counts as old: no hint text, see 22-init.js).
+// newCampaign() is a freshCampaign() made now, for every campaign the app creates.
+function newCampaign(){ return Object.assign(freshCampaign(), { createdAt: Date.now() }); }
 function freshCampaign(){
   return {
     location: { pp:0, regionSize:"Average", areaCount:0, complete:false, ppSetupDone:false },
@@ -276,7 +298,9 @@ function freshCampaign(){
       threeAct: freshThreeAct(),             // "3-Act Story" tab (shares threads/characters above)
       nodeSheet: freshNodeSheet()            // "Node Narratives" tab (shares chaosFactor/scene above)
     },
-    log: []
+    log: [],
+    createdAt: null,
+    ui: freshUi()
   };
 }
 
@@ -425,14 +449,17 @@ function sanitizeCampaign(raw){
     .filter(e=>e && typeof e==="object")
     .map(e=>({ ts: String(e.ts||""), section: String(e.section||""), md: String(e.md||"") })) : [];
 
-  return { location, adventure, mystery, playerEmu, gm, gme, log };
+  const createdAt = Number.isFinite(raw.createdAt) && raw.createdAt > 0 ? Math.round(raw.createdAt) : null;
+  const ui = sanitizeUi(raw.ui);
+
+  return { location, adventure, mystery, playerEmu, gm, gme, log, createdAt, ui };
 }
 
 function loadStore(){
   let raw;
   try{ raw = sessionStorage.getItem(STORAGE_KEY); }catch(e){ raw=null; }
   if(!raw){
-    const store = { campaigns:{ "Campaign 1": freshCampaign() }, current:"Campaign 1" };
+    const store = { campaigns:{ "Campaign 1": newCampaign() }, current:"Campaign 1" };
     saveStore(store);
     return store;
   }
@@ -443,7 +470,7 @@ function loadStore(){
     }
     return parsed;
   }catch(e){
-    const store = { campaigns:{ "Campaign 1": freshCampaign() }, current:"Campaign 1" };
+    const store = { campaigns:{ "Campaign 1": newCampaign() }, current:"Campaign 1" };
     saveStore(store);
     return store;
   }

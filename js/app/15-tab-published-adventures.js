@@ -169,6 +169,7 @@ function renderPublished(){
     <li>
       <span class="mnum">${i + 1}</span>
       <span class="txt">${escapeAttr(w)}</span>
+      <button type="button" data-mn-edit="${i}" title="Edit">Edit</button>
       <button type="button" data-mn-rm="${i}" title="Remove">&#10005;</button>
     </li>`).join('');
 
@@ -528,6 +529,16 @@ function wirePublished(){
     document.getElementById(btnId).addEventListener('click', () => addMeaning(inputId));
     document.getElementById(inputId).addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addMeaning(inputId); } });
   });
+  document.querySelectorAll('[data-mn-edit]').forEach(b => b.addEventListener('click', () => {
+    const i = Number(b.dataset.mnEdit);
+    const before = d().meaningList[i];
+    if(before == null) return;
+    editListEntry(b, before, v => {
+      d().meaningList[i] = v;
+      persist();
+      addLog('Published Adventures', `**Meaning List** — changed "${escapeMd(before)}" to "${escapeMd(v)}".`);
+    });
+  }));
   document.querySelectorAll('[data-mn-rm]').forEach(b => b.addEventListener('click', () => {
     const [removed] = d().meaningList.splice(Number(b.dataset.mnRm), 1);
     persist();

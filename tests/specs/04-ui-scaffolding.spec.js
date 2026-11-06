@@ -122,7 +122,7 @@ describe('UI scaffolding', () => {
       click('#panelHost [data-intro-toggle]');
       expect($('#panelHost .tool-desc')).toContain('full Mythic Scene loop');
       expect($('#panelHost [data-intro-toggle]').getAttribute('aria-expanded')).toBe('true');
-      expect(JSON.parse(localStorage.getItem(introKey()))).toEqual(['gme']);
+      expect(campaign().ui.intros).toEqual(['gme']);
       showTab('location');
       expect($('#panelHost .tool-desc')).toBeNull();   // each tab has its own state
       click('#panelHost [data-intro-toggle]');
@@ -130,8 +130,9 @@ describe('UI scaffolding', () => {
       showTab('gme');
       click('#panelHost [data-intro-toggle]');
       expect($('#panelHost .tool-desc')).toBeNull();
-      expect(JSON.parse(localStorage.getItem(introKey()))).toEqual(['location']);
-      introOpen = null;   // a reload reads the saved state again
+      expect(campaign().ui.intros).toEqual(['location']);
+      introOpen = new Set();
+      applyCampaignView();   // a reload reads the saved state again
       expect(isIntroOpen('location')).toBe(true);
       expect(isIntroOpen('gme')).toBe(false);
     });
@@ -162,37 +163,103 @@ describe('UI scaffolding', () => {
     });
   });
 
-  describe('saved view (tabs + scroll across a reload)', () => {
-    it('a tab change saves the main tab, the split tab and the scroll position', () => {
+  describe('saved view (UI state in the campaign, scroll in sessionStorage)', () => {
+    it('a tab change saves the main tab and the split tab in the campaign, and the scroll position', () => {
       click($$('#tabNav button').find(b => b.dataset.tab === 'mystery'));
       rightClickTab('gm');
-      const v = JSON.parse(sessionStorage.getItem(VIEW_KEY));
-      expect(v.currentTab).toBe('mystery');
-      expect(v.rightTab).toBe('gm');
-      expect(typeof v.scrollY).toBe('number');
+      expect(campaign().ui.currentTab).toBe('mystery');
+      expect(campaign().ui.rightTab).toBe('gm');
+      expect(campaign().ui.at > 0).toBe(true);
+      expect(typeof JSON.parse(sessionStorage.getItem(VIEW_KEY)).scrollY).toBe('number');
     });
 
     it('closing the split saves rightTab as null', () => {
       rightClickTab('gm');
       rightClickTab('gm');
-      expect(JSON.parse(sessionStorage.getItem(VIEW_KEY)).rightTab).toBe(null);
+      expect(campaign().ui.rightTab).toBe(null);
     });
 
-    it('restoreViewTabs() brings the saved tabs back, as a reload does', () => {
-      sessionStorage.setItem(VIEW_KEY, JSON.stringify({ currentTab: 'location', rightTab: 'creature', scrollY: 420 }));
+    it('restoreViewTabs() brings the campaign\'s tabs and intros back, as a reload does', () => {
+      campaign().ui = { currentTab: 'location', rightTab: 'creature', intros: ['location'], at: 5 };
+      sessionStorage.setItem(VIEW_KEY, JSON.stringify({ scrollY: 420 }));
       const v = restoreViewTabs();
       expect(currentTab).toBe('location');
       expect(rightTab).toBe('creature');
+      expect(isIntroOpen('location')).toBe(true);
       expect(v.scrollY).toBe(420);
     });
 
     it('drops unknown tab ids, a split equal to the main tab, and junk', () => {
-      sessionStorage.setItem(VIEW_KEY, JSON.stringify({ currentTab: 'nope', rightTab: 'gme', scrollY: -5 }));
-      expect(loadView()).toEqual({ currentTab: 'gme', rightTab: null, scrollY: 0 });
+      campaign().ui = { currentTab: 'nope', rightTab: 'gme', intros: ['zzz', 'gm', 'gm', 7], at: -1 };
       sessionStorage.setItem(VIEW_KEY, '{bad json');
-      expect(loadView()).toBe(null);
-      expect(restoreViewTabs()).toBe(null);
+      expect(restoreViewTabs()).toEqual({ scrollY: 0 });
       expect(currentTab).toBe('gme');
+      expect(rightTab).toBe(null);
+      expect([...introOpen]).toEqual(['gm']);
+      campaign().ui = 'junk';
+      applyCampaignView();
+      expect(campaign().ui).toEqual(freshUi());
+    });
+
+    it('sanitizeUi() keeps only strings, dedupes the intros, and clamps `at`', () => {
+      expect(sanitizeUi(null)).toEqual(freshUi());
+      expect(sanitizeUi({ currentTab: 'gm', rightTab: 'gm', intros: ['a', 'a', 3, ''], at: 12.4 }))
+        .toEqual({ currentTab: 'gm', rightTab: null, intros: ['a'], at: 12 });
+      expect(sanitizeCampaign({ ui: { currentTab: 'pub' } }).ui.currentTab).toBe('pub');
+    });
+
+    it('a campaign without `ui` (from before the field) gets a fresh one', () => {
+      campaign().ui = undefined;
+      applyCampaignView();
+      expect(currentTab).toBe('gme');
+      expect(campaign().ui).toEqual(freshUi());
+    });
+
+    it('each campaign keeps its own tabs, split and intros; a switch shows that campaign\'s view', async () => {
+      click($$('#tabNav button').find(b => b.dataset.tab === 'mystery'));
+      click('#panelHost [data-intro-toggle]');
+      const first = STORE.current;
+      await withDialogs({ prompt: 'View B' }, () => click('#btnNewCampaign'));
+      // a new campaign starts with the view on screen
+      expect(campaign().ui.currentTab).toBe('mystery');
+      expect(campaign().ui.intros).toEqual(['mystery']);
+      expect(campaign().createdAt > 0).toBe(true);
+      click($$('#tabNav button').find(b => b.dataset.tab === 'location'));
+      rightClickTab('gm');
+      const sel = $('#campaignSelect');
+      sel.value = first; sel.dispatchEvent(new Event('change'));
+      expect(currentTab).toBe('mystery');
+      expect(rightTab).toBe(null);
+      expect($('#panelHost .tool-desc')).toBeTruthy();
+      expect($('#tabNav button.active').dataset.tab).toBe('mystery');
+      sel.value = 'View B'; sel.dispatchEvent(new Event('change'));
+      expect(currentTab).toBe('location');
+      expect(rightTab).toBe('gm');
+      expect($('#panelHost .tool-desc')).toBeNull();
+    });
+  });
+
+  describe('hint text (placeholders) in a campaign older than a day', () => {
+    it('a new campaign shows hints; one older than a day, or with no createdAt, does not', () => {
+      campaign().createdAt = Date.now();
+      updateHints();
+      expect(document.documentElement.classList.contains('no-hints')).toBe(false);
+      const input = $('#gmeThreadInput');
+      expect(getComputedStyle(input, '::placeholder').color).not.toBe('rgba(0, 0, 0, 0)');
+      campaign().createdAt = Date.now() - 25 * 60 * 60 * 1000;
+      updateHints();
+      expect(document.documentElement.classList.contains('no-hints')).toBe(true);
+      expect(getComputedStyle(input, '::placeholder').color).toBe('rgba(0, 0, 0, 0)');
+      campaign().createdAt = null;
+      updateHints();
+      expect(document.documentElement.classList.contains('no-hints')).toBe(true);
+    });
+
+    it('the first campaign of a new tab is new; sanitizeCampaign() keeps a valid createdAt only', () => {
+      expect(campaignIsNew(campaign())).toBe(true);
+      expect(sanitizeCampaign({ createdAt: 1234 }).createdAt).toBe(1234);
+      expect(sanitizeCampaign({ createdAt: 'x' }).createdAt).toBe(null);
+      expect(sanitizeCampaign({}).createdAt).toBe(null);
     });
   });
 

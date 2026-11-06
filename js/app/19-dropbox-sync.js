@@ -114,7 +114,8 @@ function dropboxHash(s){
 // True while this tab holds only the untouched "Campaign 1" that loadStore()
 // creates for an empty sessionStorage: a link then pulls without asking.
 function dropboxIsPristine(){
-  return dropboxSyncText() === dropboxSyncText({ "Campaign 1": freshCampaign() });
+  const names = Object.keys(STORE.campaigns);
+  return names.length === 1 && names[0] === 'Campaign 1' && dropboxIsFreshCampaign(STORE.campaigns['Campaign 1']);
 }
 
 // What one sync pass does, from the Dropbox file's metadata (null = no file
@@ -137,8 +138,26 @@ function dropboxDecideSync(remote, s, localHash){
 }
 
 /* ---- Per-campaign merge ---- */
-function dropboxCampaignHash(c){ return dropboxHash(JSON.stringify(c)); }
-function dropboxIsFreshCampaign(c){ return JSON.stringify(c) === JSON.stringify(freshCampaign()); }
+// A campaign's content: everything but its UI state (`ui`: tabs, split,
+// intros). A UI-only difference is never a change or a conflict: the merge
+// keeps the newer `ui` (by `ui.at`) on whichever copy it picks.
+function dropboxContentJson(c){
+  if(!c || typeof c !== 'object') return JSON.stringify(c);
+  const { ui, ...rest } = c;
+  return JSON.stringify(rest);
+}
+function dropboxCampaignHash(c){ return dropboxHash(dropboxContentJson(c)); }
+// Untouched: freshCampaign() content, whatever its `createdAt` and `ui`.
+function dropboxIsFreshCampaign(c){
+  if(!c || typeof c !== 'object') return false;
+  const { createdAt, ...rest } = c;
+  return dropboxContentJson(rest) === dropboxContentJson(Object.assign(freshCampaign(), { createdAt: undefined }));
+}
+// The copy `c` with the newer of the two UI states.
+function dropboxWithNewerUi(c, other){
+  const a = (c && c.ui) || {}, b = (other && other.ui) || {};
+  return (b.at || 0) > (a.at || 0) ? Object.assign({}, c, { ui: other.ui }) : c;
+}
 
 // The campaigns of a downloaded file, unchanged (raw), by name.
 function dropboxParseRemote(text){
@@ -184,7 +203,7 @@ function dropboxMergePlan(raw, local, base){
     const L = local[n];
     const R = (n in raw) ? sanitizeCampaign(raw[n]) : undefined;
     const b = base && base[n];
-    const same = L && R && JSON.stringify(L) === JSON.stringify(R);
+    const same = L && R && dropboxContentJson(L) === dropboxContentJson(R);
     let pick; // 'local' | 'remote' | 'drop' | 'conflict'
     if(b){
       const localChanged = !L || dropboxCampaignHash(L) !== b.local;
@@ -201,8 +220,8 @@ function dropboxMergePlan(raw, local, base){
     else if(!base && dropboxIsFreshCampaign(L)) pick = 'remote';
     else if(!base && dropboxIsFreshCampaign(R)) pick = 'local';
     else pick = 'conflict';
-    if(pick === 'local') merged[n] = L;
-    else if(pick === 'remote') merged[n] = R;
+    if(pick === 'local') merged[n] = dropboxWithNewerUi(L, R);
+    else if(pick === 'remote') merged[n] = dropboxWithNewerUi(R, L);
     else if(pick === 'conflict') conflicts.push({ name: n, local: L, remote: R });
   });
   return { names, merged, conflicts };
@@ -227,7 +246,7 @@ function dropboxResolvePlan(plan, choice){
       out[copy] = c.remote;
     }
   });
-  if(!Object.keys(out).length) out['Campaign 1'] = freshCampaign();
+  if(!Object.keys(out).length) out['Campaign 1'] = newCampaign();
   return out;
 }
 
@@ -402,12 +421,16 @@ function dropboxRecordSynced(remote, hash, base){
 // Puts `campaigns` in this tab (keeps the selected campaign when it still
 // exists) and re-renders. saveStore() directly, not persist(): a pull is not
 // a local change to upload. Returns false when the browser refused the write.
-function dropboxSetCampaigns(campaigns){
+// The live view (tabs, split, intros) moves to the campaign's synced UI state
+// only when the selected campaign changes, or with `applyView` (a new tab
+// that loads the Dropbox copy). A later pull does not move what you look at.
+function dropboxSetCampaigns(campaigns, applyView){
   const names = Object.keys(campaigns);
   const prevCurrent = STORE.current;
   STORE.campaigns = campaigns;
   if(!campaigns[STORE.current]) STORE.current = names[0];
   const saved = saveStore(STORE);
+  if(applyView || STORE.current !== prevCurrent){ switchCampaignView(); updateHints(); }
   renderCampaignBar();
   renderActive();
   renderLogSection();
@@ -419,13 +442,13 @@ function dropboxSetCampaigns(campaigns){
 // sanitizeCampaign(), like Import), keeps the selected campaign when it still
 // exists, re-renders, and records the result as synced. Writes no log line:
 // two devices would otherwise pull each other's log line forever.
-function dropboxApplyRemote(text, remote){
+function dropboxApplyRemote(text, remote, applyView){
   const raw = dropboxParseRemote(text);
   const campaigns = {};
   Object.keys(raw).forEach(n => { campaigns[n] = sanitizeCampaign(raw[n]); });
   // Not saved = a reload brings back the old campaigns: don't record a sync
   // that would then upload them over the Dropbox copy.
-  if(!dropboxSetCampaigns(campaigns)) throw dropboxError(0, 'The browser storage is full, so the Dropbox copy could not be saved here.');
+  if(!dropboxSetCampaigns(campaigns, applyView)) throw dropboxError(0, 'The browser storage is full, so the Dropbox copy could not be saved here.');
   dropboxRecordSynced(remote, dropboxHash(dropboxSyncText()), dropboxBaseOf(campaigns, raw));
 }
 
@@ -482,7 +505,7 @@ async function dropboxSyncNow(){
       // during the download turns a pull into a merge.
       let mode = (action === 'link' && pristine) ? 'pull' : action;
       if(mode === 'pull' && editedMeanwhile) mode = 'conflict';
-      if(mode === 'pull') dropboxApplyRemote(remoteText, remote);
+      if(mode === 'pull') dropboxApplyRemote(remoteText, remote, action === 'link');
       else if(dropboxHash(remoteText) === hash) dropboxRecordSynced(remote, hash, dropboxBaseOf(STORE.campaigns)); // already the same campaigns
       else{
         // A link has no base; a tab from before per-campaign bookkeeping neither.

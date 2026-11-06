@@ -53,9 +53,9 @@ window.resetApp = function resetApp() {
   const helpOverlay = document.getElementById('helpOverlay');
   if(helpOverlay){ helpOverlay.classList.remove('open'); helpOverlay.innerHTML = ''; }
 
-  // Tab intros (04-tab-render-scaffolding.js): collapsed, test-prefixed key cleared.
-  try { localStorage.removeItem(introKey()); } catch (_) {}
-  introOpen = null;
+  // Tab intros (04-tab-render-scaffolding.js): all collapsed (the fresh campaign's `ui`).
+  introOpen = new Set();
+  document.documentElement.classList.remove('no-hints');
 
   // Theme (20-themes.js): back to the default, with the test-prefixed key cleared.
   try { localStorage.removeItem(THEME_KEY); } catch (_) {}
@@ -80,7 +80,7 @@ window.resetApp = function resetApp() {
   settingsTablesOpen = { eventFocus: false, inspiration: false };
   document.getElementById('settingsTables').innerHTML = '';
 
-  // Saved view (04-tab-render-scaffolding.js): no tabs or scroll from an earlier spec.
+  // Saved scroll position (04-tab-render-scaffolding.js): none from an earlier spec.
   try { sessionStorage.removeItem(VIEW_KEY); } catch (_) {}
 
   renderCampaignBar();

@@ -5,6 +5,13 @@ function renderCampaignBar(){
   const sel = document.getElementById('campaignSelect');
   sel.innerHTML = Object.keys(STORE.campaigns).map(name=>`<option value="${name}" ${name===STORE.current?'selected':''}>${name}</option>`).join('');
 }
+// Hint text (placeholders) shows only while the current campaign is new:
+// a campaign made more than HINT_MAX_AGE ago, or one with no `createdAt`
+// (from before the field existed), gets `html.no-hints`, which app.css
+// uses to hide every placeholder. Checked at boot and on a campaign switch.
+const HINT_MAX_AGE = 24 * 60 * 60 * 1000;
+function campaignIsNew(c){ return !!(c && Number.isFinite(c.createdAt) && Date.now() - c.createdAt < HINT_MAX_AGE); }
+function updateHints(){ document.documentElement.classList.toggle('no-hints', !campaignIsNew(campaign())); }
 function clearNoteDraft(){ if(noteMDE){ noteMDE.value(''); } }
 // Adds one imported campaign (always through sanitizeCampaign()) under a free
 // name and returns that name. Does not persist or re-render: see finishImport().
@@ -17,6 +24,8 @@ function importCampaign(name, data){
   return finalName;
 }
 function finishImport(){
+  switchCampaignView();
+  updateHints();
   persist();
   renderCampaignBar();
   clearNoteDraft();
@@ -26,6 +35,8 @@ function finishImport(){
 function wireCampaignBar(){
   document.getElementById('campaignSelect').addEventListener('change', e=>{
     STORE.current = e.target.value;
+    switchCampaignView();
+    updateHints();
     persist();
     renderActive();
     clearNoteDraft();
@@ -35,8 +46,10 @@ function wireCampaignBar(){
     const name = prompt("Name for the new campaign:");
     if(!name) return;
     if(STORE.campaigns[name]){ alert("A campaign with that name already exists."); return; }
-    STORE.campaigns[name] = freshCampaign();
+    // A new campaign starts with the view on screen now (tabs, split, intros).
+    STORE.campaigns[name] = Object.assign(newCampaign(), { ui: Object.assign(liveView(), { at: Date.now() }) });
     STORE.current = name;
+    updateHints();
     persist();
     renderCampaignBar();
     renderActive();
@@ -62,6 +75,8 @@ function wireCampaignBar(){
     if(!confirm(`Delete campaign "${STORE.current}"? This cannot be undone.`)) return;
     delete STORE.campaigns[STORE.current];
     STORE.current = Object.keys(STORE.campaigns)[0];
+    switchCampaignView();
+    updateHints();
     persist();
     renderCampaignBar();
     renderActive();

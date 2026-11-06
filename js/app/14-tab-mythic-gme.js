@@ -69,6 +69,7 @@ function renderMythicGME(){
     const rows = items.map((s, i) => `
       <li>
         <span class="txt">${escapeAttr(s)}</span>
+        <button type="button" data-edit="${key}" data-i="${i}" title="Edit">Edit</button>
         <button type="button" data-dupe="${key}" data-i="${i}" title="Add a copy (weighting)">&#10697;</button>
         <button type="button" data-rm="${key}" data-i="${i}" title="Remove">&#10005;</button>
       </li>`).join('');
@@ -298,6 +299,16 @@ function wireMythicGME(){
     persist();
     addLog('Mythic GME', `**${key === 'threads' ? 'Threads' : 'Characters'} List** — removed "${escapeMd(removed)}".`);
     renderActive();
+  }));
+  document.querySelectorAll('[data-edit]').forEach(b=> b.addEventListener('click', ()=>{
+    const key = b.dataset.edit, i = Number(b.dataset.i);
+    const before = g()[key][i];
+    if(before == null) return;
+    editListEntry(b, before, v => {
+      g()[key][i] = v;
+      persist();
+      addLog('Mythic GME', `**${key === 'threads' ? 'Threads' : 'Characters'} List** — renamed "${escapeMd(before)}" to "${escapeMd(v)}".`);
+    });
   }));
   document.querySelectorAll('[data-dupe]').forEach(b=> b.addEventListener('click', ()=>{
     const key = b.dataset.dupe, i = Number(b.dataset.i);
