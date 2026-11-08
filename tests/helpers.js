@@ -24,6 +24,14 @@ window.resetApp = function resetApp() {
   lastSinglePlotHtml = '';
   lastDiscoveryHtml = '';
   gmeSceneTestHtml = '';
+  gmeFateHtml = '';
+  gmeFateOdds = '50/50 or Unknown';
+  hideToast();                         // 04: the undo toast from an earlier spec
+  // 3D dice (21d): off in the tests, so no throw covers the page. Specs that
+  // test the dice turn them on.
+  diceConfig = { enabled: false, sound: false, skin: 'theme' };
+  diceCapture = null;
+  if (window.Dice3D) Dice3D.uncover();
   gmeListRollHtml = { threads: '', characters: '' };
   gmeTrackResultHtml = {};
   lastInspirationHtml = '';

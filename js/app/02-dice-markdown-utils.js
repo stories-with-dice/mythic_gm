@@ -1,7 +1,18 @@
 /* =========================================================================
    DICE / MARKDOWN UTILS
    ========================================================================= */
-function rollDie(sides){ return 1 + Math.floor(Math.random()*sides); }
+// Every die in the app goes through rollDie(). While a user action runs,
+// `diceCapture` (21d-dice-roll.js) is an array, and each roll is recorded in
+// it for the 3D dice. The first roll covers the page at once (diceCaptureStarted()).
+let diceCapture = null;
+function rollDie(sides){
+  const r = 1 + Math.floor(Math.random()*sides);
+  if(diceCapture){
+    diceCapture.push({ sides, value: r });
+    if(diceCapture.length === 1 && typeof diceCaptureStarted === 'function') diceCaptureStarted();
+  }
+  return r;
+}
 function pad2(n){ return n<10 ? "0"+n : ""+n; }
 function timestamp(){
   const d = new Date();

@@ -54,7 +54,7 @@ function renderMystery(){
   <div class="card">
     <h3 class="block-title">Add to the Matrix</h3>
     <div class="row">
-      <input type="text" id="newBoxLabel" class="field-input" style="flex:1; min-width:200px;" placeholder="Type a label, or leave blank and roll words">
+      <input type="text" id="newBoxLabel" class="field-input" style="flex:1; min-width:200px;" placeholder="Label, or blank to roll">
       <button class="btn small" id="btnRollWordsForBox">Roll words</button>
       <button class="btn primary" id="btnAddClue">Add as Clue</button>
       <button class="btn primary" id="btnAddSuspect">Add as Suspect</button>
@@ -224,7 +224,11 @@ function wireMystery(){
       return { box: addBox(type, label), words };
     }
 
-    if(result==='nothing'){
+    const makesBox = ['newClue','newSuspect','newConnectedClue','newConnectedSuspect','clincher'].includes(result);
+    if(makesBox && m.boxes.length >= 20){
+      // The sheet's limit: 20 boxes. Remove Clues or Suspects to make room.
+      lines.push(`→ ${result === 'clincher' ? 'Clincher Clue' : 'A new box'} — but the Matrix is full (20 boxes). Remove a Clue or Suspect to make room, then roll again.`);
+    } else if(result==='nothing'){
       lines.push('→ Nothing useful is found.');
     } else if(result==='newClue' || result==='newSuspect'){
       const type = result==='newClue' ? 'C':'S';
@@ -233,14 +237,17 @@ function wireMystery(){
     } else if(result==='newConnectedClue' || result==='newConnectedSuspect'){
       const type = result==='newConnectedClue' ? 'C':'S';
       const need = type==='C' ? 'S':'C';
-      const {box, words} = newBoxFromRoll(type);
-      const target = rollMatrixTarget(need, box.uid);
-      lines.push(`→ New Connected ${type==='C'?'Clue':'Suspect'} — rolled words: ${words.join(', ')} → **"${box.label}"**`);
-      if(target && target.box){
+      // "If the Connection isn't possible (for instance, New Connected Clue and
+      // there is no Suspect to Connect to) then treat the roll as Nothing useful
+      // is found." So no box is added without something to connect to.
+      if(!m.boxes.some(b => b.type === need)){
+        lines.push(`→ New Connected ${type==='C'?'Clue':'Suspect'} — but there is no ${need==='C'?'Clue':'Suspect'} to Connect to: **Nothing useful is found.**`);
+      } else {
+        const {box, words} = newBoxFromRoll(type);
+        const target = rollMatrixTarget(need, box.uid);
+        lines.push(`→ New Connected ${type==='C'?'Clue':'Suspect'} — rolled words: ${words.join(', ')} → **"${box.label}"**`);
         toggleConnection(box.uid, target.box.uid);
         lines.push(`  - Matrix Roll (d${target.die}): ${target.roll}${target.overflow?' (over — auto-picked)':''} → connected to **"${target.box.label}"**`);
-      } else {
-        lines.push(`  - No compatible ${need==='C'?'Clue':'Suspect'} exists yet — left unconnected.`);
       }
     } else if(result==='connectExisting'){
       const total2 = m.boxes.length;
@@ -254,27 +261,30 @@ function wireMystery(){
         const need = first.type==='C' ? 'S':'C';
         const target = rollMatrixTarget(need, first.uid);
         if(target && target.box){
+          // A Discovery Check only ever adds a Connection: an existing one stays.
           const already = connectionExists(first.uid, target.box.uid);
-          toggleConnection(first.uid, target.box.uid);
+          if(!already) toggleConnection(first.uid, target.box.uid);
           lines.push(`→ Connect existing Clue & Suspect — Matrix Roll (d${die}): ${r1} → **"${first.label}"**, then d${target.die}: ${target.roll} → **"${target.box.label}"**`);
-          lines.push(already ? '  - They were already connected — connection removed (toggled).' : '  - Connected.');
+          lines.push(already ? '  - They are already connected: no new Connection. **Nothing useful is found.**' : '  - Connected.');
         } else {
           lines.push('→ Connect existing Clue & Suspect — no compatible box found; nothing useful.');
         }
       }
     } else if(result==='clincher'){
-      const {box, words} = newBoxFromRoll('C');
-      const target = rollMatrixTarget('S', box.uid);
-      lines.push(`→ **CLINCHER CLUE** — rolled words: ${words.join(', ')} → **"${box.label}"**`);
-      if(target && target.box){
+      // "Treat as New Connected Clue": with no Suspect to connect to, the
+      // Connection isn't possible, so Nothing useful is found (no box added).
+      if(!m.boxes.some(b => b.type === 'S')){
+        lines.push('→ **CLINCHER CLUE** — but there is no Suspect to Connect to: **Nothing useful is found.**');
+      } else {
+        const {box, words} = newBoxFromRoll('C');
+        const target = rollMatrixTarget('S', box.uid);
+        lines.push(`→ **CLINCHER CLUE** — rolled words: ${words.join(', ')} → **"${box.label}"**`);
         toggleConnection(box.uid, target.box.uid);
         m.solvedBoxUid = target.box.uid;
         persist();
         lines.push(`  - Matrix Roll (d${target.die}): ${target.roll}${target.overflow?' (over — auto-picked)':''} → connects to **"${target.box.label}"**`);
         lines.push(`  - 🔎 **"${target.box.label}" is the answer to the mystery.**`);
         htmlExtra = `<div class="banner-solved">🔎 Clincher! "${target.box.label}" is the answer to the mystery.</div>`;
-      } else {
-        lines.push('  - No Suspect exists yet to connect to — nothing useful is found instead.');
       }
     }
     lastDiscoveryHtml = `<div class="result-box">${lines.map(l=>l.replace(/\*\*(.*?)\*\*/g,'<b>$1</b>')).join('<br>')}</div>${htmlExtra}`;

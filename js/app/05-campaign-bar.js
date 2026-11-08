@@ -32,7 +32,38 @@ function finishImport(){
   renderActive();
   renderLogSection();
 }
+// Shows STORE.current after a delete or an undo: its view, its hints, its log.
+function showCampaign(){
+  switchCampaignView();
+  updateHints();
+  persist();
+  renderCampaignBar();
+  renderActive();
+  clearNoteDraft();
+  renderLogSection();
+}
+// "Not saved" badge: the campaigns live in this tab's sessionStorage only,
+// so closing the tab deletes them unless Dropbox sync is on. Called by
+// renderDropbox() (19) on every sync status change, and at boot.
+function updateSaveBadge(){
+  const b = document.getElementById('saveBadge');
+  if(b) b.hidden = typeof dbxConfig !== 'undefined' && !!dbxConfig.enabled;
+}
+// True when closing the tab would lose work: Dropbox sync is off and a
+// campaign has log entries. The beforeunload handler (22) asks first.
+function unsavedWork(){
+  if(typeof dbxConfig !== 'undefined' && dbxConfig.enabled) return false;
+  return Object.values(STORE.campaigns).some(c => c && Array.isArray(c.log) && c.log.length);
+}
 function wireCampaignBar(){
+  // "Campaign ⋯" menu (Rename / Export / Import / Delete): closes after a
+  // pick, on a click outside it, and on Escape.
+  const menu = document.getElementById('campaignMenu');
+  menu.querySelector('.campaign-menu-list').addEventListener('click', e => { if(e.target.closest('button')) menu.open = false; });
+  document.addEventListener('click', e => { if(menu.open && !menu.contains(e.target)) menu.open = false; });
+  menu.addEventListener('keydown', e => { if(e.key === 'Escape' && menu.open){ menu.open = false; menu.querySelector('summary').focus(); } });
+  document.getElementById('saveBadge').addEventListener('click', ()=> openSettings());
+
   document.getElementById('campaignSelect').addEventListener('change', e=>{
     STORE.current = e.target.value;
     switchCampaignView();
@@ -69,19 +100,24 @@ function wireCampaignBar(){
     renderActive();
     renderLogSection();
   });
+  // Delete runs at once; the toast offers Undo for UNDO_MS (04).
   document.getElementById('btnDeleteCampaign').addEventListener('click', ()=>{
     const names = Object.keys(STORE.campaigns);
     if(names.length<=1){ alert("At least one campaign must remain."); return; }
-    if(!confirm(`Delete campaign "${STORE.current}"? This cannot be undone.`)) return;
-    delete STORE.campaigns[STORE.current];
+    const name = STORE.current, data = STORE.campaigns[name], at = names.indexOf(name);
+    delete STORE.campaigns[name];
     STORE.current = Object.keys(STORE.campaigns)[0];
-    switchCampaignView();
-    updateHints();
-    persist();
-    renderCampaignBar();
-    renderActive();
-    clearNoteDraft();
-    renderLogSection();
+    showCampaign();
+    showUndoToast(`Deleted campaign "${name}".`, ()=>{
+      if(STORE.campaigns[name]) return;   // a new campaign took the name
+      const order = Object.keys(STORE.campaigns);
+      order.splice(Math.min(at, order.length), 0, name);
+      const back = {};
+      order.forEach(n => { back[n] = n === name ? data : STORE.campaigns[n]; });
+      STORE.campaigns = back;
+      STORE.current = name;
+      showCampaign();
+    });
   });
 
   document.getElementById('btnExportCampaign').addEventListener('click', ()=>{

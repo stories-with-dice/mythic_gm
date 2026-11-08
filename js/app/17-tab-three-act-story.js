@@ -9,12 +9,13 @@
    `campaign().gme`); this tab's own state is `campaign().gme.threeAct`.
 
    The worksheet has, per Act, two circle tracks:
-     - OUTER track (4 circles, the last one red): mark one per distinct
-       Story Beat achieved in a Scene (max one per category per Scene).
-       Reaching the 4th (red) circle ends the Act.
-     - INNER track (uncapped, cycles the last entry once exhausted): mark
-       one whenever a Scene goes by with NO Story Beat. Most inner marks
-       trigger a specific Act Event dictating what the next Scene must be.
+     - OUTER track (THREE_ACT_OUTER_MAX in 03: 4, 5 and 4 circles, the last
+       one red): mark one per distinct Story Beat achieved in a Scene (max
+       one per category per Scene). Reaching the red circle ends the Act.
+     - INNER track (cycles the last entry once exhausted): mark one whenever
+       a Scene goes by with NO Story Beat. Most inner marks trigger a
+       specific Act Event dictating what the next Scene must be. Act 3's
+       inner track ends in a red circle too: it leads to the Resolution.
    Circle counts/order below were read directly off the worksheet graphic
    (Mythic Magazine #42, p.16) since the OCR'd page text scrambles the
    spiral layout.
@@ -33,18 +34,27 @@ const THREE_ACT_BEATS = [
     { key: 'tension',   label: 'Tension' } ]
 ];
 
-// Inner-track Act Event sequence per Act, in worksheet order. Once a Scene
-// count exceeds the list, the last entry repeats (the catch-all events —
-// Story Thread Activity / Tension — are explicitly "can happen any time").
+// Inner-track Act Event sequence per Act, one entry per inner circle of the
+// worksheet (One-Pages Cheat Sheet v1.8, p.10). Once a Scene count exceeds
+// the list, the last entry repeats.
+//   Act 1: 5 circles — Incident Scene, Introduce NPC, then 3 joined to Story Thread Activity.
+//   Act 2: 6 circles — the first three lead to Conflict and Progress; their
+//     arrows cross. Read as Conflict, Progress, Conflict: the middle circle's
+//     line runs down to Progress and crosses the bottom circle's line up to
+//     Conflict (two lines into Conflict would not need to cross). Then
+//     Twist?, New Conflict?, Story Thread Activity.
+//   Act 3: 3 circles — Story Thread Activity, then 2 joined to Tension — and
+//     a 4th, red circle that leads to the Resolution, like the outer track.
 const THREE_ACT_INNER_EVENTS = [
-  ['incident', 'introduceNpc', 'threadActivity', 'threadActivity'],
-  ['conflict', 'conflict', 'conflict', 'progress', 'twist', 'newConflict', 'threadActivity'],
-  ['threadActivity', 'threadActivity', 'threadActivity', 'tension', 'tension']
+  ['incident', 'introduceNpc', 'threadActivity', 'threadActivity', 'threadActivity'],
+  ['conflict', 'progress', 'conflict', 'twist', 'newConflict', 'threadActivity'],
+  ['threadActivity', 'tension', 'tension', 'resolution']
 ];
 
 const THREE_ACT_EVENT_LABELS = {
   incident: 'Incident Scene', introduceNpc: 'Introduce NPC', threadActivity: 'Story Thread Activity',
-  conflict: 'Conflict', progress: 'Progress', twist: 'Twist?', newConflict: 'New Conflict?', tension: 'Tension'
+  conflict: 'Conflict', progress: 'Progress', twist: 'Twist?', newConflict: 'New Conflict?', tension: 'Tension',
+  resolution: 'Resolution'
 };
 
 const THREE_ACT_NAMES = ['Setup', 'Conflict', 'Resolution'];
@@ -63,7 +73,7 @@ function fireThreeActEvent(type, ta){
   const lines = [];
   let addThreadSuggestion = null;
   const wordPair = () => {
-    const w = randomEventWords();
+    const w = eventMeaningWords();
     lines.push(`Meaning: **${w.a.word} / ${w.d.word}**`);
     return w;
   };
@@ -139,7 +149,7 @@ const THREE_ACT_FLOW_HTML = `
 <div class="pub-flow">
   <div class="flow-group">
     <h4>Each Act</h4>
-    <div class="flow-step"><b>Story Beat happens in a Scene</b> → mark the next <b>outer</b> circle (one per distinct category, max once per Scene). The 4th, red circle ends the Act.</div>
+    <div class="flow-step"><b>Story Beat happens in a Scene</b> → mark the next <b>outer</b> circle (one per distinct category, max once per Scene). The last, red circle ends the Act: the 4th in Acts 1 and 3, the 5th in Act 2.</div>
     <div class="flow-arrow">&#9660;</div>
     <div class="flow-step"><b>No Story Beat happens</b> → mark the next <b>inner</b> circle. This usually triggers an Act Event that dictates the next Scene (skip it if its one-time condition already happened).</div>
   </div>
@@ -149,7 +159,7 @@ const THREE_ACT_FLOW_HTML = `
     <div class="flow-step"><b>Act 2 — Conflict:</b> Conflict &middot; A Twist? &middot; Progress/Regression.</div>
     <div class="flow-step"><b>Act 3 — Resolution:</b> Progress/Regression &middot; Tension.</div>
     <div class="flow-arrow">&#9660;</div>
-    <div class="flow-step">Act 3's outer track ends → <b>Resolution</b> Scene (Expected — resolve the Story Thread) → <b>Closing</b> Scene (Expected — the epilogue).</div>
+    <div class="flow-step">Act 3's outer track ends, or its inner track reaches the 4th, red circle → <b>Resolution</b> Scene (Expected — resolve the Story Thread) → <b>Closing</b> Scene (Expected — the epilogue).</div>
   </div>
   <div class="flow-group">
     <h4>Protected Story Thread</h4>
@@ -165,9 +175,10 @@ function renderThreeAct(){
 
   const actCard = (idx) => {
     const n = idx + 1;
-    const outerPips = Array.from({ length: 4 }, (_, i) => {
+    const outerMax = THREE_ACT_OUTER_MAX[idx];   // 4, 5, 4 (03)
+    const outerPips = Array.from({ length: outerMax }, (_, i) => {
       const filled = i < ta.outer[idx];
-      const final = i === 3;
+      const final = i === outerMax - 1;
       return `<span class="beat-pip${filled ? ' filled' : ''}${final ? ' final' : ''}"></span>`;
     }).join('');
     const beats = THREE_ACT_BEATS[idx].map(b => b.label).join(' &middot; ');
@@ -177,7 +188,7 @@ function renderThreeAct(){
       <h4>Act ${n} &mdash; ${THREE_ACT_NAMES[idx]}</h4>
       <div class="small-note">${beats}</div>
       <div class="beat-track">${outerPips}</div>
-      <div class="small-note">Outer (Story Beats): ${ta.outer[idx]} / 4 &nbsp;&middot;&nbsp; Inner (no-beat Scenes): ${ta.inner[idx]}</div>
+      <div class="small-note">Outer (Story Beats): ${ta.outer[idx]} / ${outerMax} &nbsp;&middot;&nbsp; Inner (no-beat Scenes): ${ta.inner[idx]}</div>
       ${n === ta.act && ta.phase === 'acts' ? `<div class="small-note">If nothing happens next: <b>${nextInner}</b></div>` : ''}
     </div>`;
   };
@@ -304,10 +315,10 @@ function wireThreeAct(){
         const t = ta();
         const lines = ['**In Media Res** — starting Act 1 in the thick of it. Fires all three opening Act Events at once:'];
         t.inner[0] = 3;
-        t.outer[0] = Math.min(4, t.outer[0] + 3);
+        t.outer[0] = Math.min(THREE_ACT_OUTER_MAX[0], t.outer[0] + 3);
         t.npcIntroduced = true;
         ['incident', 'introduceNpc', 'threadActivity'].forEach(type => {
-          const w = randomEventWords();
+          const w = eventMeaningWords();
           lines.push(`- **${THREE_ACT_EVENT_LABELS[type]}** — Meaning: **${w.a.word} / ${w.d.word}**`);
         });
         lines.push('Interpret the first Scene using these three prompts, then write the Story Thread above once you land on it.');
@@ -327,24 +338,31 @@ function wireThreeAct(){
       if(checked.length === 0){
         t.inner[actIdx] += 1;
         const type = threeActInnerEvent(actIdx, t.inner[actIdx]);
-        const res = fireThreeActEvent(type, t);
-        lines.push(`No Story Beat this Scene — inner mark ${t.inner[actIdx]} → **${THREE_ACT_EVENT_LABELS[type]}**`, ...res.lines);
-        threeActThreadSuggestion = res.addThreadSuggestion;
+        if(type === 'resolution'){
+          // Act 3's red inner circle: the Act ends, as with the outer track.
+          t.phase = 'resolution';
+          threeActThreadSuggestion = null;
+          lines.push(`No Story Beat this Scene — inner mark ${t.inner[actIdx]} (the red circle) → **Act 3 complete** → moving to Resolution.`);
+        } else {
+          const res = fireThreeActEvent(type, t);
+          lines.push(`No Story Beat this Scene — inner mark ${t.inner[actIdx]} → **${THREE_ACT_EVENT_LABELS[type]}**`, ...res.lines);
+          threeActThreadSuggestion = res.addThreadSuggestion;
+        }
       } else {
         threeActThreadSuggestion = null;
         const beatDefs = THREE_ACT_BEATS[actIdx];
         checked.forEach(key => {
-          if(t.outer[actIdx] >= 4) return;
+          if(t.outer[actIdx] >= THREE_ACT_OUTER_MAX[actIdx]) return;
           t.outer[actIdx] += 1;
           const def = beatDefs.find(b => b.key === key);
-          lines.push(`Story Beat achieved: **${def ? def.label : key}** — outer mark ${t.outer[actIdx]} / 4`);
+          lines.push(`Story Beat achieved: **${def ? def.label : key}** — outer mark ${t.outer[actIdx]} / ${THREE_ACT_OUTER_MAX[actIdx]}`);
           if(key === 'establish'){
             const txt = (document.getElementById('threeActThreadInput') || {}).value || '';
             t.storyThread = txt.trim();
           }
           if(key === 'npc') t.npcIntroduced = true;
         });
-        if(t.outer[actIdx] >= 4){
+        if(t.outer[actIdx] >= THREE_ACT_OUTER_MAX[actIdx]){
           if(t.act < 3){
             t.act += 1;
             lines.push(`**Act ${actIdx + 1} complete** → moving to Act ${t.act}.`);
@@ -362,7 +380,7 @@ function wireThreeAct(){
     });
   } else if(ta().phase === 'resolution'){
     document.getElementById('btn3aRollResolutionWords').addEventListener('click', () => {
-      const w = randomEventWords();
+      const w = eventMeaningWords();
       const lines = [`Meaning: **${w.a.word} / ${w.d.word}**`];
       threeActResultHtml = applyMd(lines);
       addLog('3-Act Story', `**Resolution inspiration** — Meaning: **${w.a.word} / ${w.d.word}**`);
@@ -378,7 +396,7 @@ function wireThreeAct(){
     });
   } else if(ta().phase === 'closing'){
     document.getElementById('btn3aRollClosingWords').addEventListener('click', () => {
-      const w = randomEventWords();
+      const w = eventMeaningWords();
       const lines = [`Meaning: **${w.a.word} / ${w.d.word}**`];
       threeActResultHtml = applyMd(lines);
       addLog('3-Act Story', `**Closing inspiration** — Meaning: **${w.a.word} / ${w.d.word}**`);
@@ -408,6 +426,7 @@ function wireThreeAct(){
   if(addSuggestedBtn){
     addSuggestedBtn.addEventListener('click', () => {
       if(!threeActThreadSuggestion) return;
+      if(listCount(g().threads, threeActThreadSuggestion) >= LIST_MAX_REPEAT){ alert(`"${threeActThreadSuggestion}" is already ${LIST_MAX_REPEAT} times in the Threads List (the maximum).`); return; }
       g().threads.push(threeActThreadSuggestion);
       addLog('3-Act Story', `**Threads List** — added "${escapeMd(threeActThreadSuggestion)}" (blocking Thread).`);
       threeActThreadSuggestion = null;

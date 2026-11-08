@@ -16,9 +16,24 @@ function buildLogMarkdown(newestFirst){
   });
   return md;
 }
+// The on-screen view, newest first. Each entry is a row: a time column
+// (HH:MM, the full timestamp and section in its title) and the entry's own
+// Markdown. A date row starts each new day. The section name shows only when
+// the entry's Markdown does not start with a bold label (a Quick Note).
+// Copy / Download keep the full Markdown with the "### ts — section" headings.
 function renderLogHtml(){
-  const rawHtml = marked.parse(buildLogMarkdown(true));
-  return DOMPurify.sanitize(rawHtml);
+  const log = campaign().log;
+  if(!log.length) return `<p class="log-empty">No results logged yet. Roll something on any tab and it will appear here.</p>`;
+  let day = null, html = '';
+  log.slice().reverse().forEach(e => {
+    const ts = String(e.ts || '');
+    const d = ts.slice(0, 10), time = ts.slice(11, 16) || ts;
+    if(d !== day){ day = d; html += `<div class="log-day">${escapeAttr(d)}</div>`; }
+    const md = String(e.md || '');
+    const tag = /^\s*\*\*/.test(md) ? '' : `<span class="log-tag">${escapeAttr(e.section)}</span>`;
+    html += `<div class="log-entry"><time title="${escapeAttr(ts + ' — ' + e.section)}">${escapeAttr(time)}</time><div class="log-md">${tag}${marked.parse(md)}</div></div>`;
+  });
+  return DOMPurify.sanitize(html);
 }
 function renderLogSection(){
   const host = document.getElementById('logSection');
@@ -28,7 +43,7 @@ function renderLogSection(){
   const fromBottom = scrollEl && scrollEl.scrollTop > 4 ? scrollEl.scrollHeight - scrollEl.scrollTop : null;
   host.innerHTML = `
   <h2 class="tool-title">Campaign Log</h2>
-  <p class="tool-desc">Every roll from every tab, rendered from Markdown for this campaign, newest first. Copy or download it as Markdown to keep alongside your session notes.</p>
+  <p class="tool-desc">Every roll from every tab in this campaign, newest first. Copy or download it as Markdown.</p>
   <div class="log-toolbar">
     <div class="small-note">${campaign().log.length} entries — campaign "${STORE.current}"</div>
     <div class="right">
@@ -67,10 +82,19 @@ function wireLogSection(){
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   });
+  // Clear runs at once; the toast offers Undo for UNDO_MS (04).
   document.getElementById('btnClearLog').addEventListener('click', ()=>{
-    if(!confirm("Clear the entire log for this campaign? This cannot be undone.")) return;
-    campaign().log = [];
+    const c = campaign(), name = STORE.current, before = c.log;
+    if(!before.length) return;
+    c.log = [];
     persist();
     renderLogSection();
+    showUndoToast(`Cleared the log of "${name}".`, ()=>{
+      const back = STORE.campaigns[name];
+      if(!back) return;
+      back.log = before.concat(back.log);   // keep anything logged since the clear
+      persist();
+      renderLogSection();
+    });
   });
 }

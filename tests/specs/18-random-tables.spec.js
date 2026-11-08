@@ -133,10 +133,17 @@ describe('editable random tables', () => {
 
 describe('Expected Scene fields', () => {
   beforeEach(() => { resetApp(); });
-  it('are 8 lines tall on every tab that has one', () => {
+  it('start 3 lines tall and grow with the text on every tab that has one', () => {
     [['gme', '#gmeExpectedScene'], ['pub', '#pubExpectedScene'], ['nodes', '#nodeExpectedScene']].forEach(([tab, sel]) => {
+      campaign().gme.expectedScene = '';   // shared by the three tabs
       showTab(tab);
-      expect($(sel).rows).toBe(8);
+      const el = $(sel);
+      expect(el.rows).toBe(3);
+      expect(el.hasAttribute('data-autogrow')).toBe(true);
+      const before = el.offsetHeight;
+      el.value = Array(12).fill('a line').join('\n');
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(el.offsetHeight).toBeGreaterThan(before);
     });
   });
 });

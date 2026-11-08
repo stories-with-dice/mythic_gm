@@ -405,33 +405,14 @@ function renderNodeNarratives(){
   ${tabHeader(`Node Based Narratives`, `Record the adventure as a sheet of Nodes and Connections instead of the Threads and Characters Lists. When an Altered Scene, an Interrupt Scene or a Random Event happens, move along the Connections from the current Scene to find an <b>Influence Node</b>. Chaos Factor, Scene number and Expected Scene are shared with the <b>Mythic GME</b> tab.`, NODE_FLOW_HTML)}
 
   <div class="card">
-    <h3 class="block-title">Chaos Factor &amp; Scene</h3>
-    <div class="row" style="gap:26px; align-items:center;">
-      <div class="pp-readout"><span class="num">${g.chaosFactor}</span><span class="lbl">Chaos Factor (1–9)</span></div>
-      <div class="row">
-        <button class="btn small" id="btnNodeCfMinus">CF &minus;1</button>
-        <button class="btn small" id="btnNodeCfPlus">CF +1</button>
-      </div>
-      <div class="pp-readout"><span class="num">${g.sceneNumber}</span><span class="lbl">Scene</span></div>
-    </div>
-    <div class="field" style="margin-top:14px;">
+    <h3 class="block-title">Scene ${g.sceneNumber} test</h3>
+    <div class="field">
       <label for="nodeExpectedScene">Expected Scene — how you think Scene ${g.sceneNumber} will start</label>
-      <textarea id="nodeExpectedScene" class="field-input" rows="8" style="width:100%; resize:vertical;" placeholder="e.g. The PC goes to interview Celeste again.">${escapeAttr(g.expectedScene)}</textarea>
+      <textarea id="nodeExpectedScene" class="field-input" rows="3" data-autogrow style="width:100%; resize:vertical;" placeholder="e.g. The PC goes to interview Celeste again.">${escapeAttr(g.expectedScene)}</textarea>
     </div>
     <div class="row"><button class="btn primary" id="btnNodeTestScene">Test vs Chaos Factor</button></div>
     <div class="small-note">Altered Scene → ${s.alteredInfluence ? 'Influence Node' : 'Scene Adjustment + Meaning word'} &nbsp;·&nbsp; Interrupt Scene → Random Event (${s.focusMode === 'node' ? 'Node Random Event Focus Table' : 'campaign Event Focus Table'}) + Meaning words.</div>
     <div id="nodeSceneTestResult" style="margin-top:12px;">${nodeSceneTestHtml}</div>
-    <div class="divider"></div>
-    <div class="row" style="align-items:flex-end;">
-      <div class="field">
-        <label for="nodeControl">End of Scene — was the PC in control?</label>
-        <select id="nodeControl" class="field-input">
-          <option value="in">Yes — in control (Chaos Factor −1)</option>
-          <option value="out">No — not in control (Chaos Factor +1)</option>
-        </select>
-      </div>
-      <button class="btn" id="btnNodeEndScene">End Scene &amp; Update CF</button>
-    </div>
   </div>
 
   <div class="card">
@@ -439,7 +420,7 @@ function renderNodeNarratives(){
     <div class="row" style="align-items:flex-end;">
       <div class="field" style="flex:1; min-width:200px;">
         <label for="nodeTitle">Adventure name</label>
-        <input type="text" id="nodeTitle" class="field-input" maxlength="120" value="${escapeAttr(s.title)}" placeholder="e.g. A Haunting At Shallow Rock">
+        <input type="text" id="nodeTitle" class="field-input" maxlength="120" value="${escapeAttr(s.title)}" placeholder="e.g. Shallow Rock">
       </div>
     </div>
     <div class="row" style="align-items:flex-end; margin-top:10px;">
@@ -556,20 +537,12 @@ function wireNodeNarratives(){
     const lines = [`Event Focus (1d100: ${fRoll}) → **${md(f.result)}**${f.influence && f.result !== 'Influence Node' ? ' → read as **Influence Node**' : ''}`];
     if(f.influence) lines.push(...influenceLines());
     if(f.result === 'New NPC') lines.push('Add a Character Node for the new NPC.');
-    const m = randomEventWords();
-    lines.push(`Meaning: **${m.a.word} / ${m.d.word}** (rolls ${m.a.roll}, ${m.d.roll})`);
+    const m = eventMeaningWords();   // two words from one Meaning Table (14)
+    lines.push(`Meaning (Action): **${m.a.word} / ${m.d.word}** (rolls ${m.a.roll}, ${m.d.roll})`);
     return lines;
   }
 
-  /* ---- Chaos Factor / Scene ---- */
-  document.getElementById('btnNodeCfMinus').addEventListener('click', () => {
-    g().chaosFactor = Math.max(1, g().chaosFactor - 1);
-    persist(); addLog(LOG, `**Chaos Factor** lowered to ${g().chaosFactor}.`); renderActive();
-  });
-  document.getElementById('btnNodeCfPlus').addEventListener('click', () => {
-    g().chaosFactor = Math.min(9, g().chaosFactor + 1);
-    persist(); addLog(LOG, `**Chaos Factor** raised to ${g().chaosFactor}.`); renderActive();
-  });
+  /* ---- Expected Scene (Chaos Factor + End Scene: the Scene strip, 04) ---- */
   const exp = document.getElementById('nodeExpectedScene');
   exp.addEventListener('input', () => { g().expectedScene = exp.value; persist(); });
 
@@ -599,19 +572,6 @@ function wireNodeNarratives(){
     nodeSceneTestHtml = toHtml(lines, type === 'Expected Scene' ? '' : 'no');
     nodeMsgHtml = '';
     addLog(LOG, `**Test Expected Scene ${g().sceneNumber}** —\n  - ` + lines.join('\n  - '));
-    renderActive();
-  });
-
-  document.getElementById('btnNodeEndScene').addEventListener('click', () => {
-    const inControl = document.getElementById('nodeControl').value === 'in';
-    const gme = g();
-    const ended = gme.sceneNumber;
-    gme.chaosFactor = inControl ? Math.max(1, gme.chaosFactor - 1) : Math.min(9, gme.chaosFactor + 1);
-    gme.sceneNumber += 1;
-    gme.expectedScene = '';
-    nodeSceneTestHtml = '';
-    persist();
-    addLog(LOG, `**Scene ${ended} ended** — PC ${inControl ? 'in control → Chaos Factor −1' : 'not in control → Chaos Factor +1'} (now ${gme.chaosFactor}). Beginning Scene ${gme.sceneNumber}.`);
     renderActive();
   });
 

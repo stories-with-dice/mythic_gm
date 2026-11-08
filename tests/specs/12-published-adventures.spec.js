@@ -231,7 +231,7 @@ describe('Published Adventures tab', () => {
   describe('shared Chaos Factor / scene clock', () => {
     it('CF +/- here changes the shared gme.chaosFactor', () => {
       expect(campaign().gme.chaosFactor).toBe(5);
-      click('#btnPubCfPlus');
+      click('#btnSceneCfPlus');
       expect(campaign().gme.chaosFactor).toBe(6);
       showTab('gme');
       expect($('#panelHost').textContent).toContain('Chaos Factor');
@@ -240,8 +240,8 @@ describe('Published Adventures tab', () => {
     it('End Scene adjusts the shared CF, advances the scene, clears the Expected Scene', () => {
       const g = campaign().gme;
       g.chaosFactor = 5; g.sceneNumber = 3; g.expectedScene = 'x'; persist(); showTab('pub');
-      setValue('#pubControl', 'in');
-      click('#btnPubEndScene');
+      setValue('#sceneControl', 'in');
+      click('#btnSceneEnd');
       expect(campaign().gme.chaosFactor).toBe(4);
       expect(campaign().gme.sceneNumber).toBe(4);
       expect(campaign().gme.expectedScene).toBe('');

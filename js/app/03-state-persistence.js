@@ -206,12 +206,24 @@ function sanitizeGm(raw){
 // lists/eventFocusTable with the Mythic GME tab; its own state tracks the
 // protected Story Thread and progress through the Act 1/2/3 "outer" (Story
 // Beat) and "inner" (no-beat / Act Event) circle tracks from the worksheet.
+// Threads / Characters Lists: an entry may appear at most LIST_MAX_REPEAT
+// times (Mythic GME 2e, Scenes: "up to a maximum of 3 repeated times in a
+// List"). Keeps the first copies, in order.
+const LIST_MAX_REPEAT = 3;
+function capListRepeats(list){
+  const seen = new Map();
+  return list.filter(s => { const n = (seen.get(s) || 0) + 1; seen.set(s, n); return n <= LIST_MAX_REPEAT; });
+}
+
+// Outer track size per Act on the worksheet (the last circle is red and ends
+// the Act): Act 2 has one circle more than Acts 1 and 3.
+const THREE_ACT_OUTER_MAX = [4, 5, 4];
 function freshThreeAct(){
   return {
     storyThread: "",
     act: 1,                 // 1 | 2 | 3
     phase: "acts",           // "acts" | "resolution" | "closing" | "done"
-    outer: [0, 0, 0],        // Story Beat marks per act, 0-4 (the 4th ends the Act)
+    outer: [0, 0, 0],        // Story Beat marks per act, 0..THREE_ACT_OUTER_MAX[act] (the last ends the Act)
     inner: [0, 0, 0],        // no-beat marks per act (uncapped; cycles the Act Event list)
     npcIntroduced: false,    // Act 1 "Introduce Important NPCs" achieved at least once
     pcProtected: false       // house rule (Mythic Mag #42 p.24): PC can't be removed
@@ -222,8 +234,8 @@ function sanitizeThreeAct(raw){
   if(!raw || typeof raw !== "object") return base;
   const act = [1, 2, 3].includes(raw.act) ? raw.act : 1;
   const phase = ["acts", "resolution", "closing", "done"].includes(raw.phase) ? raw.phase : "acts";
-  const clamp4 = arr => Array.isArray(arr)
-    ? [0, 1, 2].map(i => Number.isFinite(arr[i]) ? Math.max(0, Math.min(4, Math.round(arr[i]))) : 0)
+  const clampOuter = arr => Array.isArray(arr)
+    ? [0, 1, 2].map(i => Number.isFinite(arr[i]) ? Math.max(0, Math.min(THREE_ACT_OUTER_MAX[i], Math.round(arr[i]))) : 0)
     : [0, 0, 0];
   const clampPos = arr => Array.isArray(arr)
     ? [0, 1, 2].map(i => Number.isFinite(arr[i]) ? Math.max(0, Math.round(arr[i])) : 0)
@@ -231,7 +243,7 @@ function sanitizeThreeAct(raw){
   return {
     storyThread: typeof raw.storyThread === "string" ? raw.storyThread : "",
     act, phase,
-    outer: clamp4(raw.outer),
+    outer: clampOuter(raw.outer),
     inner: clampPos(raw.inner),
     npcIntroduced: !!raw.npcIntroduced,
     pcProtected: !!raw.pcProtected
@@ -356,7 +368,8 @@ function freshCampaign(){
       eventFocusTable: defaultEventFocus(),  // editable Random Event Focus Table
       deconstructed: freshDeconstructed(),   // "Published Adventures" tab (shares chaosFactor/scene/lists/focus above)
       threeAct: freshThreeAct(),             // "3-Act Story" tab (shares threads/characters above)
-      nodeSheet: freshNodeSheet()            // "Node Narratives" tab (shares chaosFactor/scene above)
+      nodeSheet: freshNodeSheet(),           // "Node Narratives" tab (shares chaosFactor/scene above)
+      fateMethod: 'chart'                    // Fate Questions: 'chart' (Fate Chart, 1d100) or 'check' (Fate Check, 2d10)
     },
     tables: {},              // the campaign's own copy of each edited random table (RANDOM_TABLES in 01)
     log: [],
@@ -484,7 +497,7 @@ function sanitizeCampaign(raw){
   const chaosFactor = Number.isFinite(cf) ? Math.max(1, Math.min(9, Math.round(cf))) : base.gme.chaosFactor;
   const sceneNumber = (Number.isFinite(rawGme.sceneNumber) && rawGme.sceneNumber >= 1) ? Math.round(rawGme.sceneNumber) : 1;
   const expectedScene = typeof rawGme.expectedScene === "string" ? rawGme.expectedScene : "";
-  const cleanList = arr => Array.isArray(arr) ? arr.filter(s => typeof s === "string" && s.trim()).map(s => s.trim()) : [];
+  const cleanList = arr => capListRepeats(Array.isArray(arr) ? arr.filter(s => typeof s === "string" && s.trim()).map(s => s.trim()) : []);
   const threads = cleanList(rawGme.threads);
   const characters = cleanList(rawGme.characters);
   let tracks = Array.isArray(rawGme.tracks) ? rawGme.tracks.map(sanitizeTrack).filter(Boolean) : [];
@@ -516,7 +529,9 @@ function sanitizeCampaign(raw){
   const threeAct = sanitizeThreeAct(rawGme.threeAct);
   const nodeSheet = sanitizeNodeSheet(rawGme.nodeSheet);
 
-  const gme = { chaosFactor, sceneNumber, expectedScene, threads, characters, tracks, nextTrackId, eventFocusTable, deconstructed, threeAct, nodeSheet };
+  const fateMethod = rawGme.fateMethod === 'check' ? 'check' : 'chart';
+
+  const gme = { chaosFactor, sceneNumber, expectedScene, threads, characters, tracks, nextTrackId, eventFocusTable, deconstructed, threeAct, nodeSheet, fateMethod };
 
   const log = Array.isArray(raw.log) ? raw.log
     .filter(e=>e && typeof e==="object")

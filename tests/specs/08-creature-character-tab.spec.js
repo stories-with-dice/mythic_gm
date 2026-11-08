@@ -29,6 +29,19 @@ describe('Creature Crafter tab', () => {
     expect(lastLog().md).toContain('Ability rolled');
   });
 
+  it('New Behavior of 9 rolls Initial Behavior again (sheet: "Roll again on Initial Behavior")', async () => {
+    await withRolls([9, 5], () => click('#btnNewBehavior'));
+    expect($('#newBehaviorResult')).toContain('Initial Behavior (1d10: 5)');
+    expect($('#newBehaviorResult')).toContain(INITIAL_BEHAVIOR[5]);
+    expect($$('#newBehaviorResult .word-chip')).toHaveLength(0);
+  });
+
+  it('New Behavior of 9, then 10 on Initial Behavior, also rolls an Ability pair', async () => {
+    await withRolls([9, 10, 1, 3], () => click('#btnNewBehavior'));
+    expect($$('#newBehaviorResult .word-chip')).toHaveLength(2);
+    expect(lastLog().md).toContain('Ability rolled');
+  });
+
   it('Roll 2 ability words renders a pair', async () => {
     await withRolls([1, 100], () => click('#btnAbility'));
     expect($$('#abilityResult .word-chip')).toHaveLength(2);

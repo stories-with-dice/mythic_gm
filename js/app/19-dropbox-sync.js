@@ -705,6 +705,7 @@ function dropboxStatusText(){
 // The panel markup is built once (wireDropbox), and this only updates it, so
 // a half-typed code or app key is never wiped by a status change.
 function renderDropbox(){
+  updateSaveBadge();   // 05: the "Not saved" badge shows while sync is off
   // Status badge on the campaign bar's Settings button; hidden while sync is off.
   const badge = document.getElementById('dbxStatus');
   if(badge){

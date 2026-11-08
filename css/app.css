@@ -1259,3 +1259,196 @@ h4.to-sub{font-family:var(--font-display); font-size:14px; margin:16px 0 6px; co
   .to-sheet-table td, .to-sheet-table td:nth-child(n){width:auto; padding:0;}
   .to-sheet-table td:nth-child(2){grid-column:1 / -1; order:-1;}
 }
+
+/* =========================================================================
+   UX review fixes (layout, Scene strip, tab groups, menu, toast, log view,
+   mobile tap targets, text sizes). Kept together at the end so these rules
+   win over the older ones with the same specificity.
+   ========================================================================= */
+
+/* ---- Layout: Quick Note + Campaign Log in a right column on wide screens ---- */
+.layout{display:block;}
+.main-col{min-width:0;}
+/* Not split: the right column from 1200px. Split view needs the width for
+   two panes, so there it starts at 1700px. */
+@media (min-width:1200px){
+  body:not(.split-view) .wrap{max-width:1640px;}
+  body:not(.split-view) .layout{display:grid; grid-template-columns:minmax(0, 1fr) 380px; gap:22px; align-items:start;}
+  body:not(.split-view) .side-col{
+    position:sticky; top:12px; margin-top:18px;
+    max-height:calc(100vh - 24px);
+    display:flex; flex-direction:column; gap:14px;
+  }
+  body:not(.split-view) .side-col .note-section, body:not(.split-view) .side-col .log-section{margin-top:0; padding:14px 16px;}
+  body:not(.split-view) .side-col .note-section{flex:none;}
+  body:not(.split-view) .side-col .note-section p.tool-desc, body:not(.split-view) .side-col .log-section p.tool-desc{margin-bottom:8px; font-size:13px;}
+  body:not(.split-view) .side-col .log-section{flex:1; min-height:0; display:flex; flex-direction:column;}
+  body:not(.split-view) .side-col .log-render{flex:1; min-height:160px; max-height:none; padding:10px 12px;}
+  body:not(.split-view) .side-col .log-toolbar{flex-wrap:wrap; gap:6px;}
+  body:not(.split-view) .side-col .EasyMDEContainer .CodeMirror{max-height:180px;}
+  body:not(.split-view) .side-col .editor-toolbar{padding:4px 6px;}
+  body:not(.split-view) .side-col .editor-toolbar button{width:24px; min-width:24px;}   /* EasyMDE sets min-width:30px */
+  body:not(.split-view) .side-col .editor-toolbar i.separator{margin:0 3px;}
+  /* the tab bar shares the width with the right column: narrower tabs */
+  body:not(.split-view) nav.tabs button{padding-left:11px; padding-right:11px;}
+}
+@media (min-width:1700px){
+  body.split-view .wrap{max-width:1960px;}
+  body.split-view .layout{display:grid; grid-template-columns:minmax(0, 1fr) 380px; gap:22px; align-items:start;}
+  body.split-view .side-col{
+    position:sticky; top:12px; margin-top:18px;
+    max-height:calc(100vh - 24px);
+    display:flex; flex-direction:column; gap:14px;
+  }
+  body.split-view .side-col .note-section, body.split-view .side-col .log-section{margin-top:0; padding:14px 16px;}
+  body.split-view .side-col .note-section{flex:none;}
+  body.split-view .side-col .note-section p.tool-desc, body.split-view .side-col .log-section p.tool-desc{margin-bottom:8px; font-size:13px;}
+  body.split-view .side-col .log-section{flex:1; min-height:0; display:flex; flex-direction:column;}
+  body.split-view .side-col .log-render{flex:1; min-height:160px; max-height:none; padding:10px 12px;}
+  body.split-view .side-col .log-toolbar{flex-wrap:wrap; gap:6px;}
+  body.split-view .side-col .EasyMDEContainer .CodeMirror{max-height:180px;}
+  body.split-view .side-col .editor-toolbar{padding:4px 6px;}
+  body.split-view .side-col .editor-toolbar button{width:24px; min-width:24px;}   /* EasyMDE sets min-width:30px */
+  body.split-view .side-col .editor-toolbar i.separator{margin:0 3px;}
+  /* the tab bar shares the width with the right column: narrower tabs */
+  body.split-view nav.tabs button{padding-left:11px; padding-right:11px;}
+}
+
+/* ---- Scene strip: shared Chaos Factor + End Scene (04, SCENE_TABS) ---- */
+.scene-strip{
+  position:sticky; top:0; z-index:20;
+  display:flex; flex-wrap:wrap; align-items:center; gap:10px 22px;
+  background:var(--panel-2);
+  border:1px solid var(--line); border-bottom:none;
+  border-radius:0 6px 0 0;
+  padding:8px 16px;
+}
+.scene-strip[hidden]{display:none;}
+.scene-strip:not([hidden]) + .panel-split main.panel{border-top-right-radius:0;}
+.scene-strip-group{display:flex; align-items:center; gap:8px;}
+.scene-strip-lbl{font-family:var(--font-display); font-size:13px; color:var(--text-dim);}
+.scene-strip-num{font-family:var(--font-mono); font-size:22px; line-height:1; color:var(--gold-bright); min-width:1.2ch; text-align:center;}
+.scene-strip .btn.small{min-width:30px;}
+.scene-strip-divider{width:1px; align-self:stretch; background:var(--line); margin:2px 0;}
+.scene-strip select.field-input{min-width:0; padding:4px 8px;}
+@media (max-width:640px){ .scene-strip{padding:8px 12px; gap:8px 14px;} .scene-strip-divider{display:none;} }
+
+/* ---- Tab bar: groups + edge fade ---- */
+nav.tabs{gap:14px; align-items:flex-end;}
+.tab-group{display:flex; flex-direction:column; flex:none;}
+.tab-group-label{
+  font-family:var(--font-display); font-size:12px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text-dim); padding:0 0 3px 10px;
+}
+.tab-group-tabs{display:flex; gap:3px;}
+nav.tabs.more-right{-webkit-mask-image:linear-gradient(to right, #000 calc(100% - 44px), transparent); mask-image:linear-gradient(to right, #000 calc(100% - 44px), transparent);}
+nav.tabs.more-left{-webkit-mask-image:linear-gradient(to right, transparent, #000 44px); mask-image:linear-gradient(to right, transparent, #000 44px);}
+nav.tabs.more-left.more-right{-webkit-mask-image:linear-gradient(to right, transparent, #000 44px, #000 calc(100% - 44px), transparent); mask-image:linear-gradient(to right, transparent, #000 44px, #000 calc(100% - 44px), transparent);}
+
+/* ---- "Open beside…" split picker in the main tab header ---- */
+.split-pick{margin-left:auto; min-width:0; padding:4px 8px; font-size:13px; max-width:180px;}
+/* a phone has no width for two panes */
+@media (max-width:640px){ .split-pick{display:none;} }
+
+/* ---- Campaign menu + "Not saved" badge ---- */
+.campaign-menu{position:relative;}
+.campaign-menu > summary{list-style:none; display:inline-flex; align-items:center;}
+.campaign-menu > summary::-webkit-details-marker{display:none;}
+.campaign-menu[open] > summary{border-color:var(--gold-bright);}
+.campaign-menu-list{
+  position:absolute; right:0; top:calc(100% + 4px); z-index:60;
+  display:flex; flex-direction:column; gap:4px; min-width:150px;
+  background:var(--panel); border:1px solid var(--line); border-radius:4px;
+  padding:6px; box-shadow:0 6px 18px color-mix(in srgb, var(--ink) 40%, transparent);
+}
+.campaign-menu-list .btn{width:100%; text-align:left;}
+.save-badge{border-color:var(--rust); color:var(--rust-bright) !important;}
+.save-badge[hidden]{display:none;}
+
+/* ---- Undo toast ---- */
+.toast{
+  position:fixed; left:50%; bottom:20px; transform:translateX(-50%); z-index:150;
+  display:flex; align-items:center; gap:12px;
+  max-width:calc(100vw - 32px);
+  background:var(--panel); color:var(--text);
+  border:1px solid var(--line); border-left:4px solid var(--gold-bright); border-radius:4px;
+  padding:10px 12px 10px 14px;
+  box-shadow:0 8px 24px color-mix(in srgb, var(--ink) 50%, transparent);
+}
+.toast[hidden]{display:none;}
+.toast-x{background:none; border:none; color:var(--text-dim); font-size:18px; line-height:1; padding:0 4px;}
+
+/* ---- New result highlight ---- */
+@keyframes resultFlash{
+  from{background:color-mix(in srgb, var(--gold-bright) 20%, var(--panel-2));}
+  to{background:var(--panel-2);}
+}
+.result-box.result-new{animation:resultFlash 1.4s ease-out;}
+@media (prefers-reduced-motion:reduce){ .result-box.result-new{animation:none;} }
+
+/* ---- Campaign Log rows (renderLogHtml(), 13) ---- */
+.log-day{
+  font-family:var(--font-display); font-size:12px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text-dim); padding:8px 0 4px; border-bottom:1px solid var(--line);
+}
+.log-day:first-child{padding-top:0;}
+.log-entry{display:grid; grid-template-columns:44px minmax(0, 1fr); gap:10px; padding:7px 0; border-bottom:1px solid var(--line-soft);}
+.log-entry time{font-family:var(--font-mono); font-size:12px; color:var(--text-dim); padding-top:2px;}
+.log-md > :last-child{margin-bottom:0;}
+.log-md p{margin:0 0 4px;}
+.log-tag{display:block; font-family:var(--font-display); font-size:12px; color:var(--text-dim); margin-bottom:2px;}
+.log-empty{color:var(--text-dim); font-style:italic; margin:0;}
+
+/* ---- Discover Meaning word groups (06) ---- */
+.word-group + .word-group{margin-top:6px;}
+.word-group.latest .word-chip{font-size:16px; padding:5px 12px;}
+.word-group.old{opacity:.62;}
+.word-group.old .word-chip{font-size:13px;}
+
+/* ---- A disabled button inside a span with a title (the tooltip still shows) ---- */
+.btn-wrap{display:inline-block;}
+
+/* ---- Text sizes: nothing under 12px, labels and notes at 13px ---- */
+.field label, .campaign-bar label, .small-note, .hint, .pp-readout .lbl{font-size:13px;}
+.btn.small{font-size:13px;}
+.matrix-table .col-count, .matrix-table .row-count{font-size:12px;}
+.plotpoint .theme, .gm-insp-table th{font-size:12px;}
+
+/* ---- Triple-O modes: a 2 x 2 grid on a narrow card ---- */
+@media (max-width:480px){
+  .to-modes{display:grid; grid-template-columns:1fr 1fr; width:100%;}
+  .to-seg{border-right:0; border-bottom:1px solid var(--line);}
+  .to-seg:nth-child(odd){border-right:1px solid var(--line);}
+  .to-seg:nth-last-child(-n+2){border-bottom:0;}
+}
+
+/* ---- Touch screens and phones: tap targets of 40-44px ---- */
+@media (max-width:640px), (pointer:coarse){
+  .btn{min-height:44px;}
+  .btn.small{min-height:40px; padding:6px 12px;}
+  .btn.small.intro-toggle, .split-close{width:36px; height:36px; min-height:36px;}
+  .help-btn{width:40px; height:40px;}
+  nav.tabs button{min-height:44px;}
+  select, .field-input{min-height:44px;}
+  .to-seg{min-height:44px;}
+  .gme-list li button{min-height:36px; min-width:36px;}
+  .scene-strip .btn.small{min-width:40px;}
+  .editor-toolbar button{height:40px; min-width:36px;}
+}
+
+/* ---- 3D dice stage (21c-dice-3d.js / 21d-dice-roll.js) ---- */
+.dice-stage{position:fixed; inset:0; z-index:140; cursor:pointer;}
+.dice-stage[hidden]{display:none;}
+.dice-stage canvas{position:absolute; inset:0; display:block; transition:opacity .45s ease;}
+.dice-backdrop{
+  position:absolute; inset:0;
+  background:color-mix(in srgb, var(--ink) 45%, transparent);
+  -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+  transition:opacity .25s ease;
+}
+/* after the landing: the result shows, the dice stay a moment, clicks pass through */
+.dice-stage.revealed{pointer-events:none; cursor:default;}
+.dice-stage.revealed .dice-backdrop{opacity:0;}
+.dice-stage.out canvas{opacity:0;}
+.settings-check{gap:8px; cursor:pointer;}
+.settings-check + .settings-check{margin-top:6px;}

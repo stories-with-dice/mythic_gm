@@ -10,7 +10,8 @@
        (1d10 > CF => Expected; <= CF => odd = Altered, even = Interrupt)
      - Thread Progress Tracks (10/15/20 pts, 5-pt phases, auto-Flashpoint at a
        phase boundary if none happened, Discovery Checks, Conclusion)
-   Fate Questions (the Discovery Check) reuse askTheGM() from the GM tab.
+   Fate Questions (the card and the Discovery Check) use the Fate Chart or the
+   Fate Check (askFateQuestion(), the method in gme.fateMethod).
    ========================================================================= */
 
 // Thread Discovery Check Table (1d10 + current Progress Points) — 2e Variations.
@@ -33,10 +34,18 @@ const DISCOVERY_ODDS = ['50/50 or Unknown', 'Likely', 'Very Likely', 'Nearly Cer
 // (SCENE_ADJUSTMENTS in 01-data-tables.js is the default), read on 1d6.
 function sceneAdjustment(roll){
   if(roll <= 6) return tableEntry('sceneAdjustments', roll);
-  // 7-10: make two adjustments (reroll a duplicate so they differ)
-  const a = rollDie(6);
-  let b = rollDie(6);
-  if(b === a) b = (b % 6) + 1;
+  // 7-10: roll the table (1d10) twice more, rolling again on 7-10 and on a
+  // repeat of the first adjustment, so the two differ. Real d10s, so the 3D
+  // dice show what the rules roll. (`tries` only guards a stubbed rollDie.)
+  const again = (not) => {
+    for(let tries = 0; tries < 60; tries++){
+      const r = rollDie(10);
+      if(r <= 6 && r !== not) return r;
+    }
+    return not === 1 ? 2 : 1;
+  };
+  const a = again(0);
+  const b = again(a);
   return `Make 2 Adjustments — ${tableEntry('sceneAdjustments', a)} + ${tableEntry('sceneAdjustments', b)}`;
 }
 
@@ -46,16 +55,114 @@ function rollEventFocus(table, roll){
   return (sorted.find(r => roll <= r.max) || sorted[sorted.length - 1]).result;
 }
 
-// One Meaning word from either the Action or the Description column (the tool
-// picks the column). Used to colour an Altered / Interrupt Scene.
+// One Meaning word from either the Action or the Description column. Used to
+// colour an Altered Scene. The tool picks the column: that is not a die of the
+// rules, so it does not use rollDie() (and is not shown as a 3D die).
 function oneMeaningWord(){
-  const col = rollDie(2) === 1 ? 'action' : 'desc';
+  const col = Math.random() < 0.5 ? 'action' : 'desc';
   const r = rollDie(100);
   return { col, label: col === 'action' ? 'Action' : 'Description', roll: r, word: discoverWord(r, col) };
 }
 
+/* ----- Fate Questions (Mythic GME 2e, One-Pages Cheat Sheet "Fate Questions") ----- */
+// The Fate Chart: every cell is [Exceptional Yes up to, Yes up to,
+// Exceptional No from] (null = none, the "x" on the chart). The 81 cells are
+// one ladder of 13 triples: each Odds row moves one step per Chaos Factor
+// point, and each Odds row is one step above the row under it.
+const FATE_LADDER = [
+  [null, 1, 81], [1, 5, 82], [2, 10, 83], [3, 15, 84], [5, 25, 86], [7, 35, 88], [10, 50, 91],
+  [13, 65, 94], [15, 75, 96], [17, 85, 98], [18, 90, 99], [19, 95, 100], [20, 99, null]
+];
+// The 9 Odds, best first: the same names and order as the Fate Chart rows.
+const FATE_ODDS = Object.keys(ASK_ODDS);
+function fateChartCell(odds, cf){
+  const r = Math.max(0, FATE_ODDS.indexOf(odds));
+  return FATE_LADDER[Math.max(0, Math.min(FATE_LADDER.length - 1, cf + 1 + (4 - r)))];
+}
+// A double (11 ... 99) whose digit is at or under the Chaos Factor is a Random Event.
+function fateChartAnswer(odds, cf, roll){
+  const [ey, y, en] = fateChartCell(odds, cf);
+  const answer = ey !== null && roll <= ey ? 'Exceptional Yes'
+    : roll <= y ? 'Yes'
+    : en !== null && roll >= en ? 'Exceptional No' : 'No';
+  const isDouble = roll >= 11 && roll <= 99 && roll % 11 === 0;
+  return { answer, cell: [ey, y, en], isDouble, event: isDouble && roll % 10 <= cf };
+}
+// The Fate Check: 2d10 + an Odds modifier + a Chaos Factor modifier.
+const FATE_CHECK_ODDS_MOD = { 'Certain':5, 'Nearly Certain':4, 'Very Likely':2, 'Likely':1, '50/50 or Unknown':0, 'Unlikely':-1, 'Very Unlikely':-2, 'Nearly Impossible':-4, 'Impossible':-5 };
+const FATE_CHECK_CF_MOD = { 1:-5, 2:-4, 3:-2, 4:-1, 5:0, 6:1, 7:2, 8:4, 9:5 };
+// 18+ Exceptional Yes, 11+ Yes, 5-10 No, 4 or less Exceptional No. Doubles
+// whose digit is at or under the Chaos Factor are a Random Event.
+function fateCheckAnswer(odds, cf, d1, d2){
+  const om = FATE_CHECK_ODDS_MOD[odds] || 0, cm = FATE_CHECK_CF_MOD[cf] || 0;
+  const total = d1 + d2 + om + cm;
+  const answer = total >= 18 ? 'Exceptional Yes' : total >= 11 ? 'Yes' : total <= 4 ? 'Exceptional No' : 'No';
+  const isDouble = d1 === d2;
+  return { answer, total, oddsMod: om, cfMod: cm, isDouble, event: isDouble && d1 <= cf };
+}
+// Rolls one Fate Question with the campaign's method. Returns the answer, a
+// short roll text (HTML-safe) for the screen and the log, and the Random Event flag.
+function askFateQuestion(odds, cf, method){
+  if(method === 'check'){
+    const d1 = rollDie(10), d2 = rollDie(10);
+    const r = fateCheckAnswer(odds, cf, d1, d2);
+    const sign = n => (n < 0 ? '−' + (-n) : '+' + n);
+    return Object.assign(r, {
+      roll: r.total,
+      text: `Fate Check 2d10: ${d1} + ${d2} ${sign(r.oddsMod)} (Odds) ${sign(r.cfMod)} (CF ${cf}) = ${r.total}`,
+      eventText: `doubles ${d1}-${d2}, ${d1} ≤ CF ${cf}`,
+      noEventText: `Doubles ${d1}-${d2}, but ${d1} is over the Chaos Factor ${cf}: no Random Event.`
+    });
+  }
+  const roll = rollDie(100);
+  const r = fateChartAnswer(odds, cf, roll);
+  const [ey, y, en] = r.cell;
+  return Object.assign(r, {
+    roll,
+    text: `Fate Chart 1d100: ${roll} (Odds ${odds}, CF ${cf}: Exc. Yes ≤ ${ey === null ? '—' : ey}, Yes ≤ ${y}, Exc. No ≥ ${en === null ? '—' : en})`,
+    eventText: `double ${roll}, ${roll % 10} ≤ CF ${cf}`,
+    noEventText: `Double ${roll}, but ${roll % 10} is over the Chaos Factor ${cf}: no Random Event.`
+  });
+}
+
+/* ----- Random Events (2e): Event Meaning and the Lists ----- */
+// Event Meaning: "Choose a Meaning Table and roll d100 twice to get two
+// words." The app uses the Action column for both words (events are
+// actions). Same shape as randomEventWords() (06), so the callers share
+// eventChips / eventMd.
+function eventMeaningWords(){
+  const r1 = rollDie(100), r2 = rollDie(100);
+  return { col: 'action', a: { roll: r1, word: discoverWord(r1, 'action') }, d: { roll: r2, word: discoverWord(r2, 'action') } };
+}
+// An Event Focus that needs an existing NPC or Thread rolls on that List. An
+// empty List means the Event uses Current Context. Returns null for any
+// other Focus, else { html, md } to add under the Focus.
+const FOCUS_LIST = {
+  'NPC Action': 'characters', 'NPC Negative': 'characters', 'NPC Positive': 'characters',
+  'Move Toward A Thread': 'threads', 'Move Away From A Thread': 'threads', 'Close A Thread': 'threads'
+};
+function focusListRoll(focus){
+  const key = FOCUS_LIST[focus];
+  if(!key) return null;
+  const label = key === 'threads' ? 'Threads List' : 'Characters List';
+  const list = campaign().gme[key];
+  if(!list.length) return {
+    html: `<div class="small-note">${label} is empty: the Event uses Current Context.</div>`,
+    md: `${label} is empty → Current Context`
+  };
+  const n = rollDie(list.length);
+  return {
+    html: `<div class="small-note">${label} (1d${list.length}: ${n}) → <b>${escapeAttr(list[n - 1])}</b></div>`,
+    md: `${label} (1d${list.length}: ${n}) → **${escapeMd(list[n - 1])}**`
+  };
+}
+// How many times `value` is in a List already (LIST_MAX_REPEAT in 03 is the limit).
+function listCount(list, value){ return list.filter(s => s === value).length; }
+
 // transient result HTML, cached so an unrelated renderActive() doesn't wipe it
 let gmeSceneTestHtml = '';
+let gmeFateHtml = '';
+let gmeFateOdds = '50/50 or Unknown';   // the Fate Question odds stay selected across re-renders
 let gmeListRollHtml = { threads: '', characters: '' };
 let gmeTrackResultHtml = {};   // track id -> last action's result HTML
 
@@ -68,7 +175,7 @@ function renderMythicGME(){
       <li>
         <span class="txt">${escapeAttr(s)}</span>
         <button type="button" data-edit="${key}" data-i="${i}" title="Edit">Edit</button>
-        <button type="button" data-dupe="${key}" data-i="${i}" title="Add a copy (weighting)">&#10697;</button>
+        <button type="button" data-dupe="${key}" data-i="${i}" ${listCount(items, s) >= LIST_MAX_REPEAT ? 'disabled title="Already 3 times in the List (the maximum)"' : 'title="Add a copy (weighting, up to 3 times)"'}>&#10697;</button>
         <button type="button" data-rm="${key}" data-i="${i}" title="Remove">&#10005;</button>
       </li>`).join('');
     return `
@@ -77,7 +184,7 @@ function renderMythicGME(){
       <div class="row">
         <input type="text" id="${inputId}" class="field-input" style="flex:1; min-width:180px;" placeholder="Add an entry…">
         <button class="btn" id="${addId}">Add</button>
-        <button class="btn primary" id="${rollId}" ${items.length ? '' : 'disabled'}>Roll on List</button>
+        <span class="btn-wrap" ${items.length ? '' : `title="The list is empty. A Random Event that calls for this List uses Current Context instead."`}><button class="btn primary" id="${rollId}" ${items.length ? '' : 'disabled'}>Roll on List</button></span>
       </div>
       <div id="${key}RollResult" style="margin-top:10px;">${gmeListRollHtml[key]}</div>
       ${items.length
@@ -129,38 +236,42 @@ function renderMythicGME(){
 
 
   return `
-  ${tabHeader(`Mythic Game Master Emulator (full 2e)`, `The full Mythic Scene loop: keep your Threads and Characters Lists, track the Chaos Factor, and test each Expected Scene against it. Fate Questions here use the same odds logic as <b>Ask the Game Master</b>.`)}
+  ${tabHeader(`Mythic Game Master Emulator (full 2e)`, `The full Mythic Scene loop: keep your Threads and Characters Lists, track the Chaos Factor, and test each Expected Scene against it. Fate Questions use the Fate Chart (Odds against the Chaos Factor) or the Fate Check (2d10 + modifiers).`)}
 
   <div class="card">
-    <h3 class="block-title">Chaos Factor &amp; Scene</h3>
-    <div class="row" style="gap:26px; align-items:center;">
-      <div class="pp-readout"><span class="num">${g.chaosFactor}</span><span class="lbl">Chaos Factor (1–9)</span></div>
-      <div class="row">
-        <button class="btn small" id="btnGmeCfMinus">CF &minus;1</button>
-        <button class="btn small" id="btnGmeCfPlus">CF +1</button>
+    <h3 class="block-title">Fate Question</h3>
+    <div class="row" style="align-items:flex-end;">
+      <div class="field" style="flex:2; min-width:200px;">
+        <label for="gmeFateQ">Your question (optional, for the log)</label>
+        <input type="text" id="gmeFateQ" class="field-input" style="width:100%" placeholder="Is the door locked?">
       </div>
-      <div class="pp-readout"><span class="num">${g.sceneNumber}</span><span class="lbl">Scene</span></div>
+      <div class="field">
+        <label for="gmeFateOdds">Odds</label>
+        <select id="gmeFateOdds" class="field-input">${Object.keys(ASK_ODDS).map(k => `<option value="${k}" ${k === gmeFateOdds ? 'selected' : ''}>${k}</option>`).join('')}</select>
+      </div>
+      <div class="field">
+        <label for="gmeFateMethod">Method</label>
+        <select id="gmeFateMethod" class="field-input">
+          <option value="chart" ${g.fateMethod !== 'check' ? 'selected' : ''}>Fate Chart (1d100)</option>
+          <option value="check" ${g.fateMethod === 'check' ? 'selected' : ''}>Fate Check (2d10)</option>
+        </select>
+      </div>
+      <button class="btn primary" id="btnGmeFate">Ask</button>
     </div>
+    <div class="small-note">${g.fateMethod === 'check'
+      ? `2d10 + the Odds modifier + the Chaos Factor modifier (CF ${g.chaosFactor}: ${FATE_CHECK_CF_MOD[g.chaosFactor] >= 0 ? '+' : '−'}${Math.abs(FATE_CHECK_CF_MOD[g.chaosFactor])}). 18+ Exceptional Yes, 11+ Yes, 4 or less Exceptional No. Doubles at or under the Chaos Factor start a Random Event.`
+      : `The Fate Chart row for the Odds, in the Chaos Factor ${g.chaosFactor} column. A double (11, 22 … 99) whose digit is at or under the Chaos Factor starts a Random Event.`}</div>
+    <div id="gmeFateResult">${gmeFateHtml}</div>
+  </div>
 
-    <div class="field" style="margin-top:14px;">
+  <div class="card">
+    <h3 class="block-title">Scene ${g.sceneNumber} test</h3>
+    <div class="field">
       <label for="gmeExpectedScene">Expected Scene — how you think Scene ${g.sceneNumber} will start</label>
-      <textarea id="gmeExpectedScene" class="field-input" rows="8" style="width:100%; resize:vertical;" placeholder="e.g. The PC drops in on the suspect at his workplace to question him.">${escapeAttr(g.expectedScene)}</textarea>
+      <textarea id="gmeExpectedScene" class="field-input" rows="3" data-autogrow style="width:100%; resize:vertical;" placeholder="e.g. The PC questions the suspect at work.">${escapeAttr(g.expectedScene)}</textarea>
     </div>
     <div class="row"><button class="btn primary" id="btnGmeTestScene">Test vs Chaos Factor</button></div>
     <div id="gmeSceneTestResult" style="margin-top:12px;">${gmeSceneTestHtml}</div>
-
-    <div class="divider"></div>
-    <div class="row" style="align-items:flex-end;">
-      <div class="field">
-        <label for="gmeControl">End of Scene — was the PC in control?</label>
-        <select id="gmeControl" class="field-input">
-          <option value="in">Yes — in control (Chaos Factor −1)</option>
-          <option value="out">No — not in control (Chaos Factor +1)</option>
-        </select>
-      </div>
-      <button class="btn" id="btnGmeEndScene">End Scene &amp; Update CF</button>
-    </div>
-    <div class="small-note">Ends Scene ${g.sceneNumber}, adjusts the Chaos Factor, and advances to Scene ${g.sceneNumber + 1}.</div>
   </div>
 
   <div class="grid2">
@@ -175,7 +286,7 @@ function renderMythicGME(){
     <div class="row" style="align-items:flex-end;">
       <div class="field" style="flex:1; min-width:200px;">
         <label for="gmeTrackFocus">Focus Thread</label>
-        <input type="text" id="gmeTrackFocus" class="field-input" list="gmeThreadList" placeholder="Type or pick from the Threads List">
+        <input type="text" id="gmeTrackFocus" class="field-input" list="gmeThreadList" placeholder="Pick or type a Thread">
       </div>
       <div class="field">
         <label for="gmeTrackSize">Track length</label>
@@ -199,15 +310,43 @@ function wireMythicGME(){
   const eventChips = m => `<div class="word-chip"><b>${m.a.word}</b></div><div class="word-chip"><b>${m.d.word}</b></div>`;
   const eventMd = m => `Meaning: **${m.a.word} / ${m.d.word}** (rolls ${m.a.roll}, ${m.d.roll})`;
 
-  /* ----- Chaos Factor ----- */
-  document.getElementById('btnGmeCfMinus').addEventListener('click', ()=>{
-    g().chaosFactor = Math.max(1, g().chaosFactor - 1);
-    persist(); addLog('Mythic GME', `**Chaos Factor** lowered to ${g().chaosFactor}.`); renderActive();
+  /* ----- Fate Question ----- */
+  // askFateQuestion(): the Fate Chart or the Fate Check (g().fateMethod).
+  // A Random Event: Event Focus from the campaign's table, the List roll for
+  // an NPC / Thread Focus, and the Event Meaning word pair.
+  document.getElementById('gmeFateOdds').addEventListener('change', e => { gmeFateOdds = e.target.value; });
+  document.getElementById('gmeFateMethod').addEventListener('change', e => {
+    g().fateMethod = e.target.value === 'check' ? 'check' : 'chart';
+    persist();
+    renderActive();
   });
-  document.getElementById('btnGmeCfPlus').addEventListener('click', ()=>{
-    g().chaosFactor = Math.min(9, g().chaosFactor + 1);
-    persist(); addLog('Mythic GME', `**Chaos Factor** raised to ${g().chaosFactor}.`); renderActive();
+  document.getElementById('btnGmeFate').addEventListener('click', ()=>{
+    const q = document.getElementById('gmeFateQ').value.trim();
+    const odds = gmeFateOdds = document.getElementById('gmeFateOdds').value;
+    const cf = g().chaosFactor;
+    const r = askFateQuestion(odds, cf, g().fateMethod);
+    const no = r.answer.includes('No');
+    let html = `<div class="result-box ${no ? 'no' : ''}"><span class="roll-num">${r.roll}</span> &nbsp; Odds: <b>${odds}</b> &nbsp;→&nbsp; <span class="answer-tag ${no ? 'no' : 'yes'}">${r.answer}</span>`;
+    html += `<div class="small-note">${r.text}</div>`;
+    if(q) html += `<div class="small-note">${escapeAttr(q)}</div>`;
+    let md = `**Fate Question** — ${q ? '"' + escapeMd(q) + '" — ' : ''}Odds: ${odds} — ${r.text} → **${r.answer}**`;
+    if(r.event){
+      const fRoll = rollDie(100);
+      const focus = rollEventFocus(g().eventFocusTable, fRoll);
+      const lr = focusListRoll(focus);
+      const m = eventMeaningWords();
+      html += `<div class="small-note">Random Event (${r.eventText})!</div>
+        <div class="small-note">Event Focus (1d100: ${fRoll}) → <b>${escapeAttr(focus)}</b></div>${lr ? lr.html : ''}${eventChips(m)}`;
+      md += `\n  - 🎲 *Random Event (${r.eventText})* — Event Focus (1d100: ${fRoll}) → **${escapeMd(focus)}**` + (lr ? ` — ${lr.md}` : '') + ` — ${eventMd(m)}`;
+    } else if(r.isDouble){
+      html += `<div class="small-note">${r.noEventText}</div>`;
+    }
+    html += `</div>`;
+    gmeFateHtml = html;
+    document.getElementById('gmeFateResult').innerHTML = html;
+    addLog('Mythic GME', md);
   });
+  document.getElementById('gmeFateQ').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('btnGmeFate').click(); } });
 
   /* ----- Expected Scene text (save without re-rendering, to keep focus) ----- */
   const exp = document.getElementById('gmeExpectedScene');
@@ -226,13 +365,13 @@ function wireMythicGME(){
       note = 'The Scene begins in the next most expected way — apply the Scene Adjustment below, coloured by the Meaning word.';
     } else {
       type = 'Interrupt Scene';
-      note = 'Ignore your expectation. Generate a Random Event from the Event Focus below, coloured by the Meaning word.';
+      note = 'Ignore your expectation. A Random Event starts the Scene: the Event Focus below, and the Meaning word pair.';
     }
     const changed = type !== 'Expected Scene';
     const expText = (g().expectedScene || '').trim();
 
-    // Altered  -> Scene Adjustment Table (1d10) + one Meaning word
-    // Interrupt -> Random Event Focus Table (1d100) + one Meaning word
+    // Altered  -> Scene Adjustment Table (1d10) + one Meaning word (1d100)
+    // Interrupt -> a Random Event: Event Focus Table (1d100) + a Meaning word pair (2 x 1d100)
     let extraHtml = '', extraMd = '';
     if(type === 'Altered Scene'){
       const aRoll = rollDie(10);
@@ -242,12 +381,15 @@ function wireMythicGME(){
         <div class="small-note">Meaning (${w.label}, 1d100: ${w.roll}):</div><div class="word-chip"><b>${w.word}</b></div>`;
       extraMd = `\n  - Scene Adjustment (1d10: ${aRoll}) → **${adj}**\n  - Meaning (${w.label}, 1d100: ${w.roll}) → **${w.word}**`;
     } else if(type === 'Interrupt Scene'){
+      // A Random Event (2e): Event Focus (1d100), a List roll for an NPC /
+      // Thread Focus, and Event Meaning: two words from one Meaning Table (2 x 1d100).
       const fRoll = rollDie(100);
       const focus = rollEventFocus(g().eventFocusTable, fRoll);
-      const w = oneMeaningWord();
-      extraHtml = `<div class="small-note">Event Focus (1d100: ${fRoll}) → <b>${escapeAttr(focus)}</b></div>
-        <div class="small-note">Meaning (${w.label}, 1d100: ${w.roll}):</div><div class="word-chip"><b>${w.word}</b></div>`;
-      extraMd = `\n  - Event Focus (1d100: ${fRoll}) → **${escapeMd(focus)}**\n  - Meaning (${w.label}, 1d100: ${w.roll}) → **${w.word}**`;
+      const lr = focusListRoll(focus);
+      const m = eventMeaningWords();
+      extraHtml = `<div class="small-note">Event Focus (1d100: ${fRoll}) → <b>${escapeAttr(focus)}</b></div>${lr ? lr.html : ''}
+        <div class="small-note">Meaning (Action, 1d100: ${m.a.roll}, ${m.d.roll}):</div>${eventChips(m)}`;
+      extraMd = `\n  - Event Focus (1d100: ${fRoll}) → **${escapeMd(focus)}**` + (lr ? `\n  - ${lr.md}` : '') + `\n  - ${eventMd(m)}`;
     }
 
     gmeSceneTestHtml = `<div class="result-box ${changed ? 'no' : ''}">
@@ -262,25 +404,12 @@ function wireMythicGME(){
       (expText ? ` — Expected: "${escapeMd(expText)}"` : '') + extraMd);
   });
 
-  /* ----- End Scene: adjust CF, advance scene ----- */
-  document.getElementById('btnGmeEndScene').addEventListener('click', ()=>{
-    const inControl = document.getElementById('gmeControl').value === 'in';
-    const gme = g();
-    const ended = gme.sceneNumber;
-    gme.chaosFactor = inControl ? Math.max(1, gme.chaosFactor - 1) : Math.min(9, gme.chaosFactor + 1);
-    gme.sceneNumber += 1;
-    gme.expectedScene = '';
-    gmeSceneTestHtml = '';
-    persist();
-    addLog('Mythic GME', `**Scene ${ended} ended** — PC ${inControl ? 'in control → Chaos Factor −1' : 'not in control → Chaos Factor +1'} (now ${gme.chaosFactor}). Beginning Scene ${gme.sceneNumber}.`);
-    renderActive();
-  });
-
   /* ----- Threads / Characters Lists ----- */
   function addTo(key, inputId, label){
     const el = document.getElementById(inputId);
     const v = el.value.trim();
     if(!v) return;
+    if(listCount(g()[key], v) >= LIST_MAX_REPEAT){ alert(`"${v}" is already ${LIST_MAX_REPEAT} times in the ${label} (the maximum).`); return; }
     g()[key].push(v);
     persist();
     addLog('Mythic GME', `**${label}** — added "${escapeMd(v)}".`);
@@ -310,6 +439,7 @@ function wireMythicGME(){
   }));
   document.querySelectorAll('[data-dupe]').forEach(b=> b.addEventListener('click', ()=>{
     const key = b.dataset.dupe, i = Number(b.dataset.i);
+    if(listCount(g()[key], g()[key][i]) >= LIST_MAX_REPEAT) return;
     g()[key].splice(i, 0, g()[key][i]);
     persist();
     renderActive();
@@ -344,7 +474,7 @@ function wireMythicGME(){
       for(let k = 1; k <= need; k++){
         if(track.points >= k * 5 && !track.flashpoints[k - 1]){
           track.flashpoints[k - 1] = true;
-          events.push({ phase: k, m: randomEventWords() });
+          events.push({ phase: k, m: eventMeaningWords() });
         }
       }
     }
@@ -418,7 +548,7 @@ function wireMythicGME(){
   document.querySelectorAll('[data-flash]').forEach(b=> b.addEventListener('click', ()=>{
     const t = trackById(b.dataset.flash);
     if(!t || t.concluded) return;
-    showTrackResult(t, 'Flashpoint +2', applyPoints(t, 2, 'flashpoint'), randomEventWords());
+    showTrackResult(t, 'Flashpoint +2', applyPoints(t, 2, 'flashpoint'), eventMeaningWords());
     renderActive();
   }));
 
@@ -426,12 +556,12 @@ function wireMythicGME(){
     const t = trackById(b.dataset.discovery);
     if(!t || t.concluded) return;
     const odds = document.getElementById('gmeDiscOdds_' + t.id).value;
-    const qRoll = rollDie(100);
-    const { answer } = askTheGM(odds, qRoll);   // same logic as Ask the Game Master
+    const fq = askFateQuestion(odds, g().chaosFactor, g().fateMethod);   // the Fate Chart or the Fate Check
+    const answer = fq.answer;
 
     let html = `<div class="result-box ${answer.includes('No') ? 'no' : ''}"><b>${escapeAttr(t.focus)}</b> — Discovery Check
-      <div class="small-note">"Is something discovered?" &middot; Odds ${odds} &middot; 1d100 ${qRoll} → <b>${answer}</b></div>`;
-    const lines = [`Discovery Check "Is something discovered?" — Odds: ${odds}, Roll: ${qRoll} → **${answer}**`];
+      <div class="small-note">"Is something discovered?" &middot; ${fq.text} → <b>${answer}</b></div>`;
+    const lines = [`Discovery Check "Is something discovered?" — Odds: ${odds}, ${fq.text} → **${answer}**`];
 
     let rolls = answer === 'Exceptional Yes' ? 2 : answer === 'Yes' ? 1 : 0;
     if(answer === 'No'){
@@ -447,7 +577,7 @@ function wireMythicGME(){
       const total = r + t.points;
       const eff = discoveryCheckResult(total);
       const res = applyPoints(t, eff.delta, eff.kind === 'flashpoint' ? 'flashpoint' : 'progress');
-      const m = randomEventWords();
+      const m = eventMeaningWords();
       html += `<div class="small-note" style="margin-top:6px;">Thread Discovery Check Table — 1d10(${r}) + ${res.before} Progress = <b>${total}</b> → <b>${eff.label}</b> <span class="small-note">(${res.before} → ${res.after} / ${t.size})</span></div>${eventChips(m)}`;
       lines.push(`Table: 1d10(${r}) + ${res.before} = ${total} → **${eff.label}** (${res.before} → ${res.after}/${t.size}) — ${eventMd(m)}`);
       res.events.forEach(ev=>{

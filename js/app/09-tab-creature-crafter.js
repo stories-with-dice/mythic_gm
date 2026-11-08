@@ -84,7 +84,16 @@ function wireCreature(){
     const text = newBehaviorResult(r);
     let html = `<div class="result-box"><span class="roll-num">${r}</span> → ${text}</div>`;
     let md = `**New Behavior** — Roll 1d10: ${r} → ${text}`;
-    if(r===10){
+    let abilityRoll = r===10;
+    if(r===9){
+      // 9: "Roll again on Initial Behavior for the creature's next action."
+      const r2 = rollDie(10);
+      const text2 = tableEntry('creatureBehavior', r2);
+      html += `<div class="small-note">Initial Behavior (1d10: ${r2}) → <b>${text2}</b></div>`;
+      md += `\n  - Initial Behavior — Roll 1d10: ${r2} → ${text2}`;
+      abilityRoll = r2===10;   // a 10 on either Behavior Table: the creature exhibits an Ability
+    }
+    if(abilityRoll){
       const a1=rollDie(100), a2=rollDie(100);
       const w1=abilityWord(a1), w2=abilityWord(a2);
       html += `<div class="small-note">Ability triggered:</div><div class="word-chip"><b>${w1}</b></div><div class="word-chip"><b>${w2}</b></div>`;

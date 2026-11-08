@@ -39,6 +39,60 @@ describe('UI scaffolding', () => {
     });
   });
 
+  describe('tab groups and keyboard (tablist)', () => {
+    it('puts the tabs under three labeled groups', () => {
+      expect($$('#tabNav .tab-group-label').map(e => e.textContent)).toEqual(['Mythic 2e', 'One-Page', 'Players']);
+      expect($$('#tabNav .tab-group')[0].querySelectorAll('button')).toHaveLength(4);
+    });
+    it('marks the tabs as a tablist with one selected tab', () => {
+      expect($('#tabNav').getAttribute('role')).toBe('tablist');
+      const sel = $$('#tabNav [role="tab"]').filter(b => b.getAttribute('aria-selected') === 'true');
+      expect(sel).toHaveLength(1);
+      expect(sel[0].dataset.tab).toBe(currentTab);
+      expect(sel[0].tabIndex).toBe(0);
+    });
+    it('ArrowRight / ArrowLeft / Home / End open the next tab', () => {
+      const key = k => $('#tabNav button[data-tab="' + currentTab + '"]').dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
+      key('ArrowRight'); expect(currentTab).toBe('pub');
+      key('ArrowLeft');  expect(currentTab).toBe('gme');
+      key('ArrowLeft');  expect(currentTab).toBe('tripleO');
+      key('Home');       expect(currentTab).toBe('gme');
+      key('End');        expect(currentTab).toBe('tripleO');
+    });
+    it('"Open beside…" in the main tab header opens the split view', () => {
+      showTab('gm');
+      setValue('[data-split-pick]', 'mystery');
+      expect(rightTab).toBe('mystery');
+      expect($('#panelSplit').classList.contains('split')).toBe(true);
+      setValue('#panelHost [data-split-pick]', '');
+      expect(rightTab).toBeNull();
+    });
+  });
+
+  describe('Scene strip (shared Chaos Factor + End Scene)', () => {
+    it('shows on the four Mythic 2e tabs and hides on the others', () => {
+      ['gme', 'pub', 'threeAct', 'nodes'].forEach(id => { showTab(id); expect($('#sceneStrip').hidden).toBe(false); });
+      showTab('gm');
+      expect($('#sceneStrip').hidden).toBe(true);
+    });
+    it('shows when only the right pane holds a Mythic 2e tab', () => {
+      showTab('gm');
+      rightClickTab('threeAct');
+      expect($('#sceneStrip').hidden).toBe(false);
+    });
+    it('the old per-tab Chaos Factor controls are gone', () => {
+      ['gme', 'pub', 'nodes'].forEach(id => { showTab(id); expect($('#panelHost').querySelectorAll('[id$="CfPlus"], [id$="EndScene"]')).toHaveLength(0); });
+    });
+    it('End Scene clears every tab\'s last Scene test result and logs under the shown tab', () => {
+      gmeSceneTestHtml = pubSceneTestHtml = nodeSceneTestHtml = '<div>x</div>';
+      showTab('pub');
+      click('#btnSceneEnd');
+      expect([gmeSceneTestHtml, pubSceneTestHtml, nodeSceneTestHtml]).toEqual(['', '', '']);
+      expect(lastLog().section).toBe('Published Adventures');
+      expect($('#sceneNum').textContent).toBe('2');
+    });
+  });
+
   describe('split view (right-click a tab)', () => {
     it('is unsplit by default', () => {
       expect(rightTab).toBeNull();
@@ -95,11 +149,12 @@ describe('UI scaffolding', () => {
       expect($('#panelHost')).toContain('One-Page Mystery Matrix');
     });
 
-    it('an action in the right pane updates that pane and leaves the left pane\'s own tab intact', () => {
+    it('an action in the right pane updates that pane and leaves the left pane\'s own tab intact', async () => {
       showTab('gm');
       rightClickTab('gme');   // main = gm (Game Master), right = gme (Mythic GME)
-      click($('#panelHostRight').querySelector('#btnGmeCfMinus'));
-      expect(campaign().gme.chaosFactor).toBe(4);
+      await withRolls([30], () => click($('#panelHostRight').querySelector('#btnGmeFate')));
+      expect(lastLog().md).toContain('Fate Question');
+      expect($('#panelHostRight').querySelector('#gmeFateResult')).toContain('Yes');
       expect($('#panelHostRight')).toContain('Mythic Game Master Emulator');
       expect($('#panelHost')).toContain('One-Page Game Master Emulator');   // left pane still shows Game Master
     });
@@ -352,11 +407,51 @@ describe('UI scaffolding', () => {
       expect(Object.keys(STORE.campaigns).length).toBeGreaterThanOrEqual(1);
     });
 
-    it('Delete removes a campaign when more than one exists', async () => {
+    it('Delete removes a campaign at once (no confirm) and offers Undo', async () => {
       await withDialogs({ prompt: 'Doomed' }, () => click('#btnNewCampaign'));
       expect(STORE.campaigns['Doomed']).toBeDefined();
-      await withDialogs({ confirm: true }, () => click('#btnDeleteCampaign'));
+      await withDialogs({ confirm: false }, () => click('#btnDeleteCampaign'));
       expect(STORE.campaigns['Doomed']).toBe(undefined);
+      expect($('#toast').hidden).toBe(false);
+      expect($('#toast')).toContain('Deleted campaign "Doomed"');
+    });
+
+    it('Undo after Delete brings the campaign back, in its place, and selects it', async () => {
+      await withDialogs({ prompt: 'Doomed' }, () => click('#btnNewCampaign'));
+      addLog('X', 'kept');
+      const order = Object.keys(STORE.campaigns);
+      click('#btnDeleteCampaign');
+      click('#btnToastUndo');
+      expect(Object.keys(STORE.campaigns)).toEqual(order);
+      expect(STORE.current).toBe('Doomed');
+      expect(campaign().log.map(e => e.md)).toEqual(['kept']);
+      expect($('#campaignSelect').value).toBe('Doomed');
+    });
+
+    it('Rename, Export, Import and Delete sit in the "Campaign ⋯" menu, which closes after a pick', async () => {
+      const menu = $('#campaignMenu');
+      ['#btnRenameCampaign', '#btnExportCampaign', '#btnImportCampaign', '#btnDeleteCampaign']
+        .forEach(id => expect(menu.contains($(id))).toBe(true));
+      menu.open = true;
+      await withDialogs({ prompt: null }, () => click('#btnRenameCampaign'));
+      expect(menu.open).toBe(false);
+    });
+
+    it('the "Not saved" badge shows while Dropbox sync is off', () => {
+      expect($('#saveBadge').hidden).toBe(false);
+      dbxConfig.enabled = true; renderDropbox();
+      expect($('#saveBadge').hidden).toBe(true);
+      dbxConfig.enabled = false; renderDropbox();
+      expect($('#saveBadge').hidden).toBe(false);
+    });
+
+    it('unsavedWork() is true only with log entries and Dropbox sync off', () => {
+      expect(unsavedWork()).toBe(false);
+      addLog('X', 'one');
+      expect(unsavedWork()).toBe(true);
+      dbxConfig.enabled = true;
+      expect(unsavedWork()).toBe(false);
+      dbxConfig.enabled = false;
     });
 
     it('switching the <select> changes the active campaign and re-renders', async () => {

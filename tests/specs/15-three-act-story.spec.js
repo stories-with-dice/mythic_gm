@@ -52,29 +52,21 @@ describe('3-Act Story tab', () => {
   });
 
   describe('threeActInnerEvent() — inner track sequence', () => {
-    it('Act 1: Incident, Introduce NPC, then Story Thread Activity repeats', () => {
+    it('Act 1 (5 inner circles): Incident, Introduce NPC, then Story Thread Activity repeats', () => {
+      expect(THREE_ACT_INNER_EVENTS[0]).toHaveLength(5);
       expect(threeActInnerEvent(0, 1)).toBe('incident');
       expect(threeActInnerEvent(0, 2)).toBe('introduceNpc');
       expect(threeActInnerEvent(0, 3)).toBe('threadActivity');
-      expect(threeActInnerEvent(0, 4)).toBe('threadActivity');
+      expect(threeActInnerEvent(0, 5)).toBe('threadActivity');
       expect(threeActInnerEvent(0, 9)).toBe('threadActivity'); // cycles past the end
     });
-    it('Act 2: Conflict x3, Progress, Twist, New Conflict, then Story Thread Activity repeats', () => {
-      expect(threeActInnerEvent(1, 1)).toBe('conflict');
-      expect(threeActInnerEvent(1, 2)).toBe('conflict');
-      expect(threeActInnerEvent(1, 3)).toBe('conflict');
-      expect(threeActInnerEvent(1, 4)).toBe('progress');
-      expect(threeActInnerEvent(1, 5)).toBe('twist');
-      expect(threeActInnerEvent(1, 6)).toBe('newConflict');
+    it('Act 2 (6 inner circles): Conflict, Progress, Conflict, Twist, New Conflict, then Story Thread Activity repeats', () => {
+      expect(THREE_ACT_INNER_EVENTS[1]).toEqual(['conflict', 'progress', 'conflict', 'twist', 'newConflict', 'threadActivity']);
       expect(threeActInnerEvent(1, 7)).toBe('threadActivity');
       expect(threeActInnerEvent(1, 20)).toBe('threadActivity');
     });
-    it('Act 3: Story Thread Activity x3, then Tension repeats', () => {
-      expect(threeActInnerEvent(2, 1)).toBe('threadActivity');
-      expect(threeActInnerEvent(2, 3)).toBe('threadActivity');
-      expect(threeActInnerEvent(2, 4)).toBe('tension');
-      expect(threeActInnerEvent(2, 5)).toBe('tension');
-      expect(threeActInnerEvent(2, 12)).toBe('tension');
+    it('Act 3 (3 inner circles + a red one): Story Thread Activity, Tension x2, then Resolution', () => {
+      expect(THREE_ACT_INNER_EVENTS[2]).toEqual(['threadActivity', 'tension', 'tension', 'resolution']);
     });
   });
 
@@ -138,7 +130,8 @@ describe('3-Act Story tab', () => {
       expect(sanitizeThreeAct(null)).toEqual(freshThreeAct());
       expect(sanitizeThreeAct({ act: 99, phase: 'bogus', outer: 'x', inner: null })).toEqual(freshThreeAct());
     });
-    it('clamps outer to 0-4 and act/phase to their enums', () => {
+    it('clamps outer to the size of each Act (4, 5, 4) and act/phase to their enums', () => {
+      expect(sanitizeThreeAct({ outer: [9, 9, 9] }).outer).toEqual([4, 5, 4]);
       const s = sanitizeThreeAct({ act: 2, phase: 'closing', outer: [10, -1, 2], inner: [3, -5, 1], storyThread: 'Find it', npcIntroduced: true, pcProtected: true });
       expect(s.act).toBe(2);
       expect(s.phase).toBe('closing');
@@ -193,6 +186,31 @@ describe('3-Act Story tab', () => {
       expect(t.outer[0]).toBe(4);
       expect(t.act).toBe(2);
       expect(t.phase).toBe('acts');
+    });
+    it('Act 2 has 5 outer circles: the 4th does not end it, the 5th does', () => {
+      const t = ta();
+      t.act = 2; t.outer[1] = 3; t.storyThread = 'Find the journal';
+      persist();
+      showTab('threeAct');
+      $('.beat-checks input[data-beat="progress"]').checked = true;
+      click('#btn3aRecordScene');
+      expect(t.outer[1]).toBe(4);
+      expect(t.act).toBe(2);
+      $('.beat-checks input[data-beat="progress"]').checked = true;
+      click('#btn3aRecordScene');
+      expect(t.outer[1]).toBe(5);
+      expect(t.act).toBe(3);
+      expect($('#panelHost')).toContain('/ 5');
+    });
+    it('the 4th, red inner circle of Act 3 moves to the Resolution phase', async () => {
+      const t = ta();
+      t.act = 3; t.inner[2] = 3; t.storyThread = 'Find the journal';
+      persist();
+      showTab('threeAct');
+      await withRolls([5], () => click('#btn3aRecordScene'));   // no Story Beat checked
+      expect(t.inner[2]).toBe(4);
+      expect(t.phase).toBe('resolution');
+      expect(lastLog().md).toContain('Act 3 complete');
     });
     it('completing Act 3 moves to the Resolution phase', () => {
       const t = ta();

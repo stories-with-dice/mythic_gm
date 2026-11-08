@@ -171,7 +171,7 @@ function renderHelpContent(){
       <div class="flow-diagram">
         <div class="flow-group">
           <h4>Setup &mdash; once per campaign</h4>
-          <div class="flow-step">Set the <b>Chaos Factor</b> (1&ndash;9; 5 is the 2e default) and seed the <b>Threads</b> &amp; <b>Characters</b> Lists (duplicates are allowed &mdash; that's how you weight them).</div>
+          <div class="flow-step">Set the <b>Chaos Factor</b> (1&ndash;9; 5 is the 2e default) in the Scene strip under the tab bar, and seed the <b>Threads</b> &amp; <b>Characters</b> Lists (up to 3 copies of an entry &mdash; that's how you weight them).</div>
         </div>
         <div class="flow-group">
           <h4>Each Scene &mdash; repeat</h4>
@@ -181,12 +181,12 @@ function renderHelpContent(){
           <ul class="flow-branch">
             <li>&gt; CF &rarr; <b>Expected Scene</b> &mdash; plays out exactly as written.</li>
             <li>&le; CF &amp; <b>odd</b> &rarr; <b>Altered Scene</b> &mdash; roll the Scene Adjustment Table + one Meaning word.</li>
-            <li>&le; CF &amp; <b>even</b> &rarr; <b>Interrupt Scene</b> &mdash; roll the (editable) Random Event Focus Table + one Meaning word.</li>
+            <li>&le; CF &amp; <b>even</b> &rarr; <b>Interrupt Scene</b> &mdash; a Random Event: roll the (editable) Random Event Focus Table + a Meaning word pair.</li>
           </ul>
           <div class="flow-arrow">&#9660;</div>
-          <div class="flow-step"><b>C.</b> Play it out with Fate Questions and Discover Meaning as needed.</div>
+          <div class="flow-step"><b>C.</b> Play it out. Ask <b>Fate Questions</b> on this tab, with the Fate Chart (Odds against the Chaos Factor) or the Fate Check (2d10 + modifiers). Doubles at or under the Chaos Factor start a Random Event: Event Focus, a List roll for an NPC or Thread Focus, and two Meaning words. Use Discover Meaning on the Game Master tab as needed.</div>
           <div class="flow-arrow">&#9660;</div>
-          <div class="flow-step"><b>D.</b> <b>End the Scene</b>: PC in control &rarr; Chaos Factor &minus;1; not in control &rarr; +1. Advance to the next Scene.</div>
+          <div class="flow-step"><b>D.</b> <b>End the Scene</b> in the Scene strip: PC in control &rarr; Chaos Factor &minus;1; not in control &rarr; +1. Advance to the next Scene.</div>
           <div class="flow-loop">&#8635; back to A for the next Scene.</div>
         </div>
         <div class="flow-group">
@@ -244,8 +244,10 @@ function renderHelpContent(){
 
     <div class="help-section" id="help-utility">
       <h3 class="block-title">Quick Note, Campaign Log &amp; Campaigns</h3>
-      <p><b>Quick Note</b> and the <b>Campaign Log</b> sit below every tab, no matter which one is active. Quick Note is a Markdown scratchpad &mdash; press Enter (or the toolbar) to commit it to the Log. The Log is the running record of everything you roll across every tab, newest entry at the top; it stores raw Markdown as the source of truth, and only renders it to sanitized HTML for on-screen display. Copy or Download export that Markdown verbatim, oldest first. The open tabs, the split view and the open <b>?</b> intros are saved with each campaign, so a reload, an export or Dropbox sync brings them back. Hint text in the fields shows only during the first day of a campaign.</p>
-      <p>The <b>Campaign</b> dropdown at the top of the page switches between separate save slots (New / Rename / Delete), each with its own state for every tab above. Export/Import round-trip a campaign through a JSON file &mdash; worth doing before closing the tab, since campaigns live in <code>sessionStorage</code> and do not survive closing the browser tab.</p>
+      <p><b>Quick Note</b> and the <b>Campaign Log</b> are always on screen: in a column on the right of a wide window, below the tab on a narrow one. Quick Note is a Markdown scratchpad &mdash; press Enter (or the toolbar) to commit it to the Log. The Log is the running record of everything you roll across every tab, newest entry at the top; it stores raw Markdown as the source of truth, and only renders it to sanitized HTML for on-screen display. Copy or Download export that Markdown verbatim, oldest first. <b>Clear log</b> runs at once; the toast at the bottom offers <b>Undo</b> for 10 seconds. The open tabs, the split view and the open <b>?</b> intros are saved with each campaign, so a reload, an export or Dropbox sync brings them back. Hint text in the fields shows only during the first day of a campaign.</p>
+      <p>The <b>Campaign</b> dropdown at the top of the page switches between separate save slots, each with its own state for every tab. <b>New</b> is next to it; Rename, Export, Import and Delete are in the <b>Campaign &#8943;</b> menu. Delete runs at once, with <b>Undo</b> in the toast. Export/Import round-trip a campaign through a JSON file. Campaigns live in <code>sessionStorage</code>: closing the browser tab deletes them. While Dropbox sync is off, a <b>&#9888; Not saved</b> badge shows in the campaign bar, and the browser asks before it closes a tab that has log entries.</p>
+      <p>The tabs are in three groups: <b>Mythic 2e</b>, <b>One-Page</b> and <b>Players</b>. Use the arrow keys to move between tabs. To see two tabs side by side, pick one in <b>Open beside&hellip;</b> next to the tab title, or right-click a tab. On the four Mythic 2e tabs, the <b>Scene strip</b> under the tab bar holds the shared Chaos Factor, the Scene number and End Scene.</p>
+      <p><b>3D dice.</b> Every button that rolls dice throws them as 3D dice first, with sound. The dice land on the rolled numbers, and the result shows a moment later. A d100 is two d10s (tens and units); a size with no die shape is a coin. Click the dice or press Escape to skip to the result. In <b>&#9881; Settings &rarr; Dice</b> you can turn the 3D dice and the sound off, and pick one of 12 dice skins, the theme's skin, or Random (a skin for every die).</p>
       <p><b>Dropbox sync</b> (in <b>&#9881; Settings</b> in the campaign bar) is optional and off by default. When you connect it, every campaign is saved as one file in your Dropbox app folder a few seconds after each change. A new tab, or another browser where you connect, then loads the same campaigns. If the Dropbox copy and this tab both changed, the app merges them campaign by campaign. It asks only about a campaign that changed on both sides: keep this tab's copy, the Dropbox copy, or both. Setup needs a free Dropbox app key once; the panel lists the steps.</p>
     </div>
 

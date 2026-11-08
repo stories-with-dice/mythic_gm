@@ -35,9 +35,17 @@ describe('Mythic GME tab', () => {
       await withRolls([2, 5], () => {
         expect(sceneAdjustment(8)).toBe('Make 2 Adjustments — Add A Character + Remove An Object');
       });
-      await withRolls([4, 4], () => {                        // duplicate -> second bumped
+      await withRolls([4, 4, 5], () => {                     // a repeat is rolled again
         expect(sceneAdjustment(9)).toBe('Make 2 Adjustments — Increase An Activity + Remove An Object');
       });
+    });
+    it('rolls the two adjustments on 1d10, rolling again on 7-10', async () => {
+      const sides = [];
+      const vals = [9, 3, 7, 6];
+      await withRolls(sd => { sides.push(sd); return vals[sides.length - 1]; }, () => {
+        expect(sceneAdjustment(10)).toBe('Make 2 Adjustments — Reduce/Remove An Activity + Add An Object');
+      });
+      expect(sides).toEqual([10, 10, 10, 10]);
     });
   });
 
@@ -58,12 +66,151 @@ describe('Mythic GME tab', () => {
     });
   });
 
+  describe('Fate Question', () => {
+    it('answers with the Ask the Game Master odds and logs it', async () => {
+      showTab('gme');
+      setValue('#gmeFateQ', 'Is the door locked?');
+      await withRolls([30], () => click('#btnGmeFate'));
+      expect($('#gmeFateResult')).toContain('Yes');
+      expect(lastLog().md).toContain('**Fate Question**');
+      expect(lastLog().md).toContain('Is the door locked?');
+    });
+    it('a double at or under the Chaos Factor starts a Random Event', async () => {
+      campaign().gme.chaosFactor = 5; showTab('gme');
+      await withRolls([33, 1, 1, 1], () => click('#btnGmeFate'));
+      expect($('#gmeFateResult')).toContain('Random Event');
+      expect(lastLog().md).toContain('Event Focus');
+    });
+    it('a double over the Chaos Factor does not', async () => {
+      campaign().gme.chaosFactor = 5; showTab('gme');
+      await withRolls([77], () => click('#btnGmeFate'));
+      expect($('#gmeFateResult')).toContain('no Random Event');
+      expect(lastLog().md).not.toContain('Event Focus');
+    });
+    it('the result and the odds survive a re-render', async () => {
+      showTab('gme');
+      setValue('#gmeFateOdds', 'Likely');
+      await withRolls([30], () => click('#btnGmeFate'));
+      renderActive();
+      expect($('#gmeFateResult')).toContain('Likely');
+      expect($('#gmeFateOdds').value).toBe('Likely');
+    });
+  });
+
+
+  describe('Fate Chart (One-Pages Cheat Sheet, p.7)', () => {
+    // Read off the sheet cell by cell: [Exceptional Yes up to, Yes up to, Exceptional No from], x = null.
+    const SHEET = {
+      'Certain':           '10 50 91|13 65 94|15 75 96|17 85 98|18 90 99|19 95 100|20 99 x|20 99 x|20 99 x',
+      'Nearly Certain':    '7 35 88|10 50 91|13 65 94|15 75 96|17 85 98|18 90 99|19 95 100|20 99 x|20 99 x',
+      'Very Likely':       '5 25 86|7 35 88|10 50 91|13 65 94|15 75 96|17 85 98|18 90 99|19 95 100|20 99 x',
+      'Likely':            '3 15 84|5 25 86|7 35 88|10 50 91|13 65 94|15 75 96|17 85 98|18 90 99|19 95 100',
+      '50/50 or Unknown':  '2 10 83|3 15 84|5 25 86|7 35 88|10 50 91|13 65 94|15 75 96|17 85 98|18 90 99',
+      'Unlikely':          '1 5 82|2 10 83|3 15 84|5 25 86|7 35 88|10 50 91|13 65 94|15 75 96|17 85 98',
+      'Very Unlikely':     'x 1 81|1 5 82|2 10 83|3 15 84|5 25 86|7 35 88|10 50 91|13 65 94|15 75 96',
+      'Nearly Impossible': 'x 1 81|x 1 81|1 5 82|2 10 83|3 15 84|5 25 86|7 35 88|10 50 91|13 65 94',
+      'Impossible':        'x 1 81|x 1 81|x 1 81|1 5 82|2 10 83|3 15 84|5 25 86|7 35 88|10 50 91'
+    };
+    it('matches all 81 cells of the sheet', () => {
+      Object.keys(SHEET).forEach(odds => SHEET[odds].split('|').forEach((cell, i) => {
+        const want = cell.split(' ').map(v => v === 'x' ? null : Number(v));
+        expect(fateChartCell(odds, i + 1)).toEqual(want);
+      }));
+    });
+    it('reads a roll against the cell', () => {
+      expect(fateChartAnswer('50/50 or Unknown', 5, 10).answer).toBe('Exceptional Yes');
+      expect(fateChartAnswer('50/50 or Unknown', 5, 50).answer).toBe('Yes');
+      expect(fateChartAnswer('50/50 or Unknown', 5, 51).answer).toBe('No');
+      expect(fateChartAnswer('50/50 or Unknown', 5, 91).answer).toBe('Exceptional No');
+      expect(fateChartAnswer('Certain', 9, 100).answer).toBe('No');            // no Exceptional No ("x")
+      expect(fateChartAnswer('Impossible', 1, 1).answer).toBe('Yes');          // no Exceptional Yes ("x")
+    });
+    it('a double is a Random Event only when its digit is at or under the Chaos Factor', () => {
+      expect(fateChartAnswer('Likely', 5, 33).event).toBe(true);
+      expect(fateChartAnswer('Likely', 5, 55).event).toBe(true);
+      expect(fateChartAnswer('Likely', 5, 66).event).toBe(false);
+      expect(fateChartAnswer('Likely', 9, 100).event).toBe(false);
+    });
+  });
+
+  describe('Fate Check (2d10 + modifiers)', () => {
+    it('adds the Odds and Chaos Factor modifiers and reads the total', () => {
+      expect(fateCheckAnswer('50/50 or Unknown', 5, 5, 6).total).toBe(11);
+      expect(fateCheckAnswer('50/50 or Unknown', 5, 5, 6).answer).toBe('Yes');
+      expect(fateCheckAnswer('50/50 or Unknown', 5, 4, 6).answer).toBe('No');
+      expect(fateCheckAnswer('Certain', 9, 4, 4).total).toBe(18);
+      expect(fateCheckAnswer('Certain', 9, 4, 4).answer).toBe('Exceptional Yes');
+      expect(fateCheckAnswer('Impossible', 1, 6, 5).total).toBe(1);
+      expect(fateCheckAnswer('Impossible', 1, 6, 5).answer).toBe('Exceptional No');
+      expect(fateCheckAnswer('Likely', 6, 2, 2).total).toBe(6);   // 4 + 1 (Likely) + 1 (CF 6)
+    });
+    it('doubles at or under the Chaos Factor are a Random Event', () => {
+      expect(fateCheckAnswer('Likely', 5, 5, 5).event).toBe(true);
+      expect(fateCheckAnswer('Likely', 5, 6, 6).event).toBe(false);
+      expect(fateCheckAnswer('Likely', 5, 2, 3).event).toBe(false);
+    });
+    it('the method select is saved in the campaign and the card rolls 2d10', async () => {
+      showTab('gme');
+      setValue('#gmeFateMethod', 'check');
+      expect(campaign().gme.fateMethod).toBe('check');
+      const sides = [];
+      await withRolls(s => { sides.push(s); return 3; }, () => click('#btnGmeFate'));
+      expect(sides.slice(0, 2)).toEqual([10, 10]);
+      expect(lastLog().md).toContain('Fate Check 2d10: 3 + 3');
+      expect(lastLog().md).toContain('Random Event');           // doubles 3 <= CF 5
+      expect(sanitizeCampaign({ gme: { fateMethod: 'bogus' } }).gme.fateMethod).toBe('chart');
+    });
+    it('the Discovery Check of a Progress Track uses the same method', async () => {
+      showTab('gme');
+      campaign().gme.fateMethod = 'check';
+      setValue('#gmeTrackFocus', 'Find it');
+      click('#btnGmeAddTrack');
+      const id = campaign().gme.tracks[0].id;
+      await withRolls([2, 3], () => click('[data-discovery="' + id + '"]'));
+      expect(lastLog().md).toContain('Fate Check 2d10: 2 + 3');
+    });
+  });
+
+  describe('Random Events (One-Pages Cheat Sheet, p.8)', () => {
+    it('Event Meaning: two words from one Meaning Table (Action)', async () => {
+      const m = await withRolls([1, 3], () => eventMeaningWords());
+      expect(m.a.word).toBe(DISCOVER_ACTION[0]);
+      expect(m.d.word).toBe(DISCOVER_ACTION[1]);
+    });
+    it('an NPC or Thread Focus rolls on its List; an empty List means Current Context', async () => {
+      campaign().gme.characters = ['Ann', 'Bob'];
+      const r = await withRolls([2], () => focusListRoll('NPC Negative'));
+      expect(r.md).toContain('Characters List (1d2: 2)');
+      expect(r.md).toContain('Bob');
+      expect(focusListRoll('Close A Thread').md).toContain('Current Context');
+      expect(focusListRoll('Remote Event')).toBeNull();
+    });
+    it('an Interrupt Scene with a Thread Focus rolls the Threads List', async () => {
+      campaign().gme.threads = ['Escape', 'Revenge'];
+      showTab('gme');
+      // 4 => Interrupt; focus 60 => Move Away From A Thread; list 2 => Revenge; words 1, 1
+      await withRolls([4, 60, 2, 1, 1], () => click('#btnGmeTestScene'));
+      expect(lastLog().md).toContain('Threads List (1d2: 2) → **Revenge**');
+    });
+  });
+
+  describe('List limit: at most 3 copies of an entry', () => {
+    it('Add and ⧉ stop at 3 copies, and the import cleans extra copies', async () => {
+      showTab('gme');
+      for (let i = 0; i < 3; i++) { setValue('#gmeThreadInput', 'Escape'); click('#btnGmeAddThread'); }
+      await withDialogs({ alert: undefined }, () => { setValue('#gmeThreadInput', 'Escape'); click('#btnGmeAddThread'); });
+      expect(campaign().gme.threads).toEqual(['Escape', 'Escape', 'Escape']);
+      expect($('[data-dupe="threads"][data-i="0"]').disabled).toBe(true);
+      expect(sanitizeCampaign({ gme: { characters: ['A', 'A', 'A', 'A', 'B'] } }).gme.characters).toEqual(['A', 'A', 'A', 'B']);
+    });
+  });
+
   describe('Chaos Factor', () => {
     it('starts at 5 and clamps to 1..9', () => {
       expect(campaign().gme.chaosFactor).toBe(5);
-      for (let i = 0; i < 10; i++) click('#btnGmeCfMinus');
+      for (let i = 0; i < 10; i++) click('#btnSceneCfMinus');
       expect(campaign().gme.chaosFactor).toBe(1);
-      for (let i = 0; i < 20; i++) click('#btnGmeCfPlus');
+      for (let i = 0; i < 20; i++) click('#btnSceneCfPlus');
       expect(campaign().gme.chaosFactor).toBe(9);
       expect(lastLog().md).toContain('Chaos Factor');
     });
@@ -79,8 +226,12 @@ describe('Mythic GME tab', () => {
       expect(lastLog().md).toContain('→ **Expected Scene**');
     });
     it('an Altered Scene rolls the Scene Adjustment Table (1d10) + one Meaning word', async () => {
-      // 3 => Altered; adj-roll 1 => "Remove A Character"; col-roll 1 => Action; word-roll 40
-      await withRolls([3, 1, 1, 40], () => click('#btnGmeTestScene'));
+      // 3 => Altered; adj-roll 1 => "Remove A Character"; word-roll 40. The column
+      // is the tool's pick (Math.random, not a die): 0.1 => Action.
+      const realRandom = Math.random;
+      Math.random = () => 0.1;
+      try { await withRolls([3, 1, 40], () => click('#btnGmeTestScene')); }
+      finally { Math.random = realRandom; }
       const box = $('#gmeSceneTestResult');
       expect(box).toContain('Altered Scene');
       expect(box).toContain('Scene Adjustment');
@@ -90,15 +241,16 @@ describe('Mythic GME tab', () => {
       expect(lastLog().md).toContain('Scene Adjustment (1d10: 1) → **Remove A Character**');
       expect(lastLog().md).toContain('Meaning (Action, 1d100: 40)');
     });
-    it('an Interrupt Scene rolls the Event Focus Table (1d100) + one Meaning word', async () => {
-      // 4 => Interrupt; focus-roll 30 => "NPC Action" (default table); col-roll 2 => Description; word 55
+    it('an Interrupt Scene is a Random Event: Event Focus (1d100) + a Meaning word pair (2 x 1d100)', async () => {
+      // 4 => Interrupt; focus-roll 30 => "NPC Action" (default table); words 2 and 55
       await withRolls([4, 30, 2, 55], () => click('#btnGmeTestScene'));
       const box = $('#gmeSceneTestResult');
       expect(box).toContain('Interrupt Scene');
       expect(box).toContain('Event Focus');
       expect(box).toContain('NPC Action');
-      expect(box).toContain('Meaning (Description');
-      expect($$('#gmeSceneTestResult .word-chip')).toHaveLength(1);
+      expect($$('#gmeSceneTestResult .word-chip')).toHaveLength(2);
+      expect(box).toContain(DISCOVER_ACTION[0]);   // word roll 2 -> row 1
+      expect(box).toContain(DISCOVER_ACTION[27]);  // word roll 55 -> row 28: both words from the Action column
       expect(lastLog().md).toContain('Event Focus (1d100: 30) → **NPC Action**');
     });
     it('an Expected Scene result adds no Scene Adjustment, Event Focus or Meaning word', async () => {
@@ -123,8 +275,8 @@ describe('Mythic GME tab', () => {
     it('PC in control lowers CF, advances the Scene, clears the Expected Scene', () => {
       const g = campaign().gme;
       g.chaosFactor = 5; g.sceneNumber = 3; g.expectedScene = 'something'; persist(); showTab('gme');
-      setValue('#gmeControl', 'in');
-      click('#btnGmeEndScene');
+      setValue('#sceneControl', 'in');
+      click('#btnSceneEnd');
       expect(campaign().gme.chaosFactor).toBe(4);
       expect(campaign().gme.sceneNumber).toBe(4);
       expect(campaign().gme.expectedScene).toBe('');
@@ -132,8 +284,8 @@ describe('Mythic GME tab', () => {
     });
     it('PC not in control raises CF, clamped at 9', () => {
       campaign().gme.chaosFactor = 9; persist(); showTab('gme');
-      setValue('#gmeControl', 'out');
-      click('#btnGmeEndScene');
+      setValue('#sceneControl', 'out');
+      click('#btnSceneEnd');
       expect(campaign().gme.chaosFactor).toBe(9);
       expect(campaign().gme.sceneNumber).toBe(2);
     });
@@ -292,7 +444,7 @@ describe('Mythic GME tab', () => {
       expect(document.querySelector('.gme-track .gme-progressbar')).toBeTruthy();
       expect($('.gme-track-mini')).toContain('/ 15');
       // survives an unrelated re-render
-      click('#btnGmeCfPlus');
+      click('#btnSceneCfPlus');
       expect(document.querySelector('[data-progress="' + id + '"]')).toBeNull();
       // expand again
       click('[data-collapse-track="' + id + '"]');

@@ -34,6 +34,10 @@ function renderSettingsShellHtml(){
       <div class="small-note">Saved in this browser only. It is not exported or synced.</div>
     </section>
     <section class="settings-section">
+      <h3 class="block-title">Dice</h3>
+      <div id="settingsDice"></div>
+    </section>
+    <section class="settings-section">
       <h3 class="block-title">Dropbox sync</h3>
       <div id="settingsDropbox"></div>
     </section>

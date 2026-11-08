@@ -191,7 +191,7 @@ function renderPublished(){
     <div class="row" style="align-items:flex-end; margin-top:10px;">
       <div class="field" style="flex:1; min-width:200px;">
         <label for="pubTitle">Adventure title</label>
-        <input type="text" id="pubTitle" class="field-input" value="${escapeAttr(d.title)}" placeholder="e.g. The Sword Of Cacinth Castle">
+        <input type="text" id="pubTitle" class="field-input" value="${escapeAttr(d.title)}" placeholder="e.g. Cacinth Castle">
       </div>
       <div class="field">
         <label for="pubPageCount">Total pages</label>
@@ -222,39 +222,20 @@ function renderPublished(){
     <div id="pubElementResult" style="margin-top:12px;">${pubElementHtml}</div>
     ${pendingNote}
     <div class="row" style="margin-top:8px;">
-      <input type="text" id="pubElementWord" class="field-input" style="flex:1; min-width:160px;" placeholder="Sum up the Element in one word…" ${listFull ? 'disabled' : ''}>
+      <input type="text" id="pubElementWord" class="field-input" style="flex:1; min-width:160px;" placeholder="One word for the Element" ${listFull ? 'disabled' : ''}>
       <button class="btn" id="btnPubElementWord" ${listFull ? 'disabled' : ''}>Add to Meaning List</button>
     </div>
   </div>
 
   <div class="card">
-    <h3 class="block-title">Chaos Factor &amp; Scene (Deconstructed test)</h3>
-    <div class="row" style="gap:26px; align-items:center;">
-      <div class="pp-readout"><span class="num">${g.chaosFactor}</span><span class="lbl">Chaos Factor (1–9)</span></div>
-      <div class="row">
-        <button class="btn small" id="btnPubCfMinus">CF &minus;1</button>
-        <button class="btn small" id="btnPubCfPlus">CF +1</button>
-      </div>
-      <div class="pp-readout"><span class="num">${g.sceneNumber}</span><span class="lbl">Scene</span></div>
-    </div>
-    <div class="field" style="margin-top:14px;">
+    <h3 class="block-title">Scene ${g.sceneNumber} test (Deconstructed)</h3>
+    <div class="field">
       <label for="pubExpectedScene">Expected Scene — how you think Scene ${g.sceneNumber} will start</label>
-      <textarea id="pubExpectedScene" class="field-input" rows="8" style="width:100%; resize:vertical;" placeholder="e.g. Gandle explores the next layer of the cavern.">${escapeAttr(g.expectedScene)}</textarea>
+      <textarea id="pubExpectedScene" class="field-input" rows="3" data-autogrow style="width:100%; resize:vertical;" placeholder="e.g. Gandle explores the next layer of the cavern.">${escapeAttr(g.expectedScene)}</textarea>
     </div>
     <div class="row"><button class="btn primary" id="btnPubTestScene">Test vs Chaos Factor</button></div>
     <div class="small-note" style="margin-top:-2px;">&gt; CF &amp; odd → Expected &nbsp;·&nbsp; &gt; CF &amp; even → <b>Crisis Scene</b> &nbsp;·&nbsp; ≤ CF → Altered (odd) / Interrupt (even), each with an Adventure Element.</div>
     <div id="pubSceneTestResult" style="margin-top:12px;">${pubSceneTestHtml}</div>
-    <div class="divider"></div>
-    <div class="row" style="align-items:flex-end;">
-      <div class="field">
-        <label for="pubControl">End of Scene — was the PC in control?</label>
-        <select id="pubControl" class="field-input">
-          <option value="in">Yes — in control (Chaos Factor −1)</option>
-          <option value="out">No — not in control (Chaos Factor +1)</option>
-        </select>
-      </div>
-      <button class="btn" id="btnPubEndScene">End Scene &amp; Update CF</button>
-    </div>
   </div>
 
   <div class="card">
@@ -381,30 +362,9 @@ function wirePublished(){
     renderActive();
   });
 
-  /* ---- Chaos Factor / Scene ---- */
-  document.getElementById('btnPubCfMinus').addEventListener('click', () => {
-    g().chaosFactor = Math.max(1, g().chaosFactor - 1);
-    persist(); addLog('Published Adventures', `**Chaos Factor** lowered to ${g().chaosFactor}.`); renderActive();
-  });
-  document.getElementById('btnPubCfPlus').addEventListener('click', () => {
-    g().chaosFactor = Math.min(9, g().chaosFactor + 1);
-    persist(); addLog('Published Adventures', `**Chaos Factor** raised to ${g().chaosFactor}.`); renderActive();
-  });
+  /* ---- Expected Scene (Chaos Factor + End Scene: the Scene strip, 04) ---- */
   const exp = document.getElementById('pubExpectedScene');
   exp.addEventListener('input', () => { g().expectedScene = exp.value; persist(); });
-
-  document.getElementById('btnPubEndScene').addEventListener('click', () => {
-    const inControl = document.getElementById('pubControl').value === 'in';
-    const gme = g();
-    const ended = gme.sceneNumber;
-    gme.chaosFactor = inControl ? Math.max(1, gme.chaosFactor - 1) : Math.min(9, gme.chaosFactor + 1);
-    gme.sceneNumber += 1;
-    gme.expectedScene = '';
-    pubSceneTestHtml = '';
-    persist();
-    addLog('Published Adventures', `**Scene ${ended} ended** — PC ${inControl ? 'in control → Chaos Factor −1' : 'not in control → Chaos Factor +1'} (now ${gme.chaosFactor}). Beginning Scene ${gme.sceneNumber}.`);
-    renderActive();
-  });
 
   document.getElementById('btnPubTestScene').addEventListener('click', () => {
     const cf = g().chaosFactor;
@@ -428,6 +388,8 @@ function wirePublished(){
       const fRoll = rollDie(100);
       const focus = rollEventFocus(g().eventFocusTable, fRoll);
       lines.push(`Ignore your Expected Scene. Random Event — Event Focus (1d100: ${fRoll}) → **${escapeMd(focus)}**. Instead of a Meaning word, roll an Adventure Element:`);
+      const lr = focusListRoll(focus);   // an NPC / Thread Focus rolls on its List (14)
+      if(lr) lines.push(lr.md);
       lines.push(rollElementLines('interrupt').line);
     } else { // Crisis Scene
       lines.push('An even roll above the Chaos Factor replaces the Expected Scene with a **Crisis Scene** — generated below:');

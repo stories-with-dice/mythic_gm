@@ -37,8 +37,26 @@ describe('Game Master tab', () => {
       expect(lastLog().section).toBe('Discover Meaning');
     });
 
-    it('Roll both produces two words', async () => {
+    it('Roll both produces two words and one log entry', async () => {
+      const before = campaign().log.length;
       await withRolls([1, 2], () => click('#btnRollBoth'));
+      expect($$('#discoverWords .word-chip')).toHaveLength(2);
+      expect(campaign().log.length).toBe(before + 1);
+      expect(lastLog().md).toContain(DISCOVER_ACTION[0]);
+      expect(lastLog().md).toContain(DISCOVER_DESC[0]);
+    });
+
+    it('groups the words in pairs, newest first, and keeps only the last 4 pairs', async () => {
+      for (let i = 0; i < 5; i++) await withRolls([1, 1], () => click('#btnRollBoth'));
+      expect($$('#discoverWords .word-group')).toHaveLength(4);
+      expect($('#discoverWords .word-group').classList.contains('latest')).toBe(true);
+      expect($$('#discoverWords .word-group.old')).toHaveLength(3);
+    });
+
+    it('a Description roll after an Action roll joins the same pair', async () => {
+      await withRolls([1], () => click('#btnRollAction'));
+      await withRolls([1], () => click('#btnRollDesc'));
+      expect($$('#discoverWords .word-group')).toHaveLength(1);
       expect($$('#discoverWords .word-chip')).toHaveLength(2);
     });
 

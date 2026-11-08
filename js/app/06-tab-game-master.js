@@ -45,7 +45,11 @@ function renderGM(){
   </div>
   `;
 }
-let gmWordLog = []; // transient list of discover-meaning words rolled this session (per-tab view only)
+// Discover Meaning results on screen: groups of words, newest last. A group
+// is one Action + Description pair (a single roll fills the open half of the
+// newest group, else starts a new one). Only the last GM_WORD_GROUPS show.
+let gmWordLog = [];
+const GM_WORD_GROUPS = 4;
 let lastInspirationHtml = ''; // cached so an unrelated renderActive() doesn't wipe it
 
 // Weighted pick from the Random Inspiration Source list: 1..totalWeight, walk
@@ -108,19 +112,38 @@ function wireGM(){
     addLog('Ask the GM', md);
   });
 
-  function showWord(kind){
+  const kindLabel = k => k === 'action' ? 'Action' : 'Description';
+  function rollWord(kind){
     const roll = rollDie(100);
-    const word = discoverWord(roll, kind);
-    gmWordLog.push({kind,roll,word});
+    return { kind, roll, word: discoverWord(roll, kind) };
+  }
+  function pushWords(words){
+    const last = gmWordLog[gmWordLog.length - 1];
+    if(words.length === 1 && last && last.length === 1 && last[0].kind !== words[0].kind) last.push(words[0]);
+    else gmWordLog.push(words);
+    gmWordLog = gmWordLog.slice(-GM_WORD_GROUPS);
     renderWordLog();
-    addLog('Discover Meaning', `**Discover Meaning** (${kind==='action'?'Action':'Description'}) — Roll: ${roll} → **${word}**`);
+  }
+  function showWord(kind){
+    const w = rollWord(kind);
+    pushWords([w]);
+    addLog('Discover Meaning', `**Discover Meaning** (${kindLabel(kind)}) — Roll: ${w.roll} → **${w.word}**`);
   }
   function renderWordLog(){
-    document.getElementById('discoverWords').innerHTML = gmWordLog.map(w=>`<span class="word-chip">${w.kind==='action'?'Action':'Desc'} ${w.roll}: <b>${w.word}</b></span>`).join(' ') || '<span class="small-note">No words rolled yet.</span>';
+    const n = gmWordLog.length;
+    document.getElementById('discoverWords').innerHTML = n
+      ? gmWordLog.slice().reverse().map((g, i) => `<div class="word-group${i === 0 ? ' latest' : ' old'}">${
+          g.map(w => `<span class="word-chip" title="${kindLabel(w.kind)}, 1d100: ${w.roll}">${w.kind==='action'?'Action':'Desc'} ${w.roll}: <b>${w.word}</b></span>`).join(' ')}</div>`).join('')
+      : '<span class="small-note">No words rolled yet.</span>';
   }
   document.getElementById('btnRollAction').addEventListener('click', ()=>showWord('action'));
   document.getElementById('btnRollDesc').addEventListener('click', ()=>showWord('desc'));
-  document.getElementById('btnRollBoth').addEventListener('click', ()=>{ showWord('action'); showWord('desc'); });
+  // One pair, one log entry.
+  document.getElementById('btnRollBoth').addEventListener('click', ()=>{
+    const a = rollWord('action'), d = rollWord('desc');
+    pushWords([a, d]);
+    addLog('Discover Meaning', `**Discover Meaning** — Action ${a.roll} → **${a.word}** / Description ${d.roll} → **${d.word}**`);
+  });
   document.getElementById('btnClearWords').addEventListener('click', ()=>{ gmWordLog=[]; renderWordLog(); });
   renderWordLog();
 

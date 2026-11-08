@@ -88,6 +88,37 @@ describe('Mystery Matrix tab', () => {
     expect(lastLog().md).toContain('Matrix reset');
   });
 
+  it('a New Connected Clue with no Suspect to connect to is Nothing useful (no box)', async () => {
+    await withRolls([60], () => click('#btnDiscoveryCheck'));   // 60 + 0 => newConnectedClue
+    expect(campaign().mystery.boxes).toHaveLength(0);
+    expect($('#discoveryResult')).toContain('Nothing useful is found');
+  });
+
+  it('a Clincher with no Suspect is Nothing useful (no box)', async () => {
+    addBoxViaUI('C', 'clue');
+    await withRolls([100], () => click('#btnDiscoveryCheck'));  // 100 + 1 => clincher
+    expect(campaign().mystery.boxes).toHaveLength(1);
+    expect(campaign().mystery.solvedBoxUid).toBeNull();
+    expect($('#discoveryResult')).toContain('Nothing useful is found');
+  });
+
+  it('Connect existing Clue & Suspect never removes a Connection', async () => {
+    addBoxViaUI('C', 'clue');
+    addBoxViaUI('S', 'suspect');
+    toggleConnection(1, 2);
+    await withRolls([85, 1, 1], () => click('#btnDiscoveryCheck'));   // 85 + 2 => connectExisting; box 1, then box 2
+    expect(connectionExists(1, 2)).toBe(true);
+    expect($('#discoveryResult')).toContain('already connected');
+  });
+
+  it('a full Matrix (20 boxes) adds no box and says so', async () => {
+    for (let i = 0; i < 20; i++) addBox(i % 2 ? 'S' : 'C', 'b' + i);
+    showTab('mystery');
+    await withRolls([20], () => click('#btnDiscoveryCheck'));   // 20 + 20 => newSuspect
+    expect(campaign().mystery.boxes).toHaveLength(20);
+    expect($('#discoveryResult')).toContain('the Matrix is full');
+  });
+
   it('Remove (✕) deletes one box and prunes its connections', async () => {
     addBoxViaUI('C', 'clue');
     addBoxViaUI('S', 'suspect');

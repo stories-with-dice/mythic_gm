@@ -38,25 +38,25 @@ const TRIPLE_O_MODE_INFO = {
   action: {
     label: 'Action', title: 'What does the character do?',
     hint: 'Define three possible actions from their Traits and the current situation. A few words are enough.',
-    prompts: { obvious: 'The most predictable course of action', option: 'An alternative action that still makes sense', odd: 'An unexpected or atypical behavior' },
+    prompts: { obvious: 'Most predictable action', option: 'Another sensible action', odd: 'Unexpected behavior' },
     doubles: 'Doubles: this behavior becomes more prevalent. Mark the Trait it reflects as Prevalent, or add a new Trait.'
   },
   question: {
     label: 'Question', title: 'Would they consider…?',
     hint: 'Ask whether the character acts without a prompt: notices a detail, checks for danger, thinks of the clever solution. Each entry is one answer: Yes, No, Yes and…, No but…',
-    prompts: { obvious: 'e.g. Yes, and confidently', option: 'e.g. Yes, but with caution', odd: 'e.g. No, and they are distracted' },
+    prompts: { obvious: 'e.g. Yes, and confidently', option: 'e.g. Yes, but with caution', odd: 'e.g. No, and distracted' },
     doubles: 'Doubles: an instinctive behavior starts to emerge. Note it as a Trait if it is worth tracking.'
   },
   group: {
     label: 'Group Action', title: 'What does the party decide?',
     hint: 'Write three courses of action, ideally each from a different character. If one is clearly dominant (a leader, the expert), put it first. Otherwise use Rank by dice: 1d6 each, highest = Obvious, lowest = Odd.',
-    prompts: { obvious: 'The group\'s most compelling choice', option: 'A second course of action', odd: 'The least likely direction' },
+    prompts: { obvious: 'The group\'s best choice', option: 'A second course of action', odd: 'The least likely direction' },
     doubles: 'Doubles: a party Trait emerges, a kind of decision that becomes more common in future group choices.'
   },
   check: {
     label: 'Check', title: 'How does the attempt turn out?',
     hint: 'Use the Triple-O Check to resolve an action without your system\'s rules. Look at the character\'s Traits, condition and the risk, then define three outcomes. They need not run from failure to success.',
-    prompts: { obvious: 'The most likely outcome', option: 'A less expected, still likely outcome', odd: 'The outcome you would not expect' },
+    prompts: { obvious: 'The most likely outcome', option: 'A less expected outcome', odd: 'The surprise outcome' },
     doubles: 'Doubles: on a good outcome, a momentary opportunity or a temporary positive condition (inspired, emboldened). On a bad outcome, a complication (wounded, uncertain, a cost). Add it as a Temporary Trait.'
   }
 };
@@ -180,7 +180,7 @@ function tripleODoublesHtml(r){
   let body = '';
   if(r.mode === 'group'){
     body = `<div class="row" style="margin-top:6px;">
-      <input type="text" id="toDoublesText" class="field-input" style="flex:1; min-width:180px;" maxlength="80" value="${escapeAttr(keptText)}" placeholder="Party Trait, e.g. Rest when hurt">
+      <input type="text" id="toDoublesText" class="field-input" style="flex:1; min-width:180px;" maxlength="80" value="${escapeAttr(keptText)}" placeholder="e.g. Rest when hurt">
       <button class="btn small" id="btnToDoublesParty">Add party Trait</button>
     </div>`;
   } else {
@@ -257,7 +257,7 @@ function tripleOSheetHtml(ch){
       <tbody>${rows || '<tr><td colspan="4" class="small-note">No Traits yet.</td></tr>'}</tbody>
     </table>
     <div class="row" style="margin-top:8px;">
-      <input type="text" id="toNewTrait_${ch.id}" class="field-input" style="flex:1; min-width:180px;" maxlength="80" placeholder="New Trait, e.g. Cautious to a fault" ${full ? 'disabled' : ''}>
+      <input type="text" id="toNewTrait_${ch.id}" class="field-input" style="flex:1; min-width:180px;" maxlength="80" placeholder="e.g. Cautious to a fault" ${full ? 'disabled' : ''}>
       <button class="btn small" data-to-trait-add="${ch.id}" ${full ? 'disabled' : ''}>Add Trait</button>
     </div>
     <div class="row" style="margin-top:8px;">
@@ -349,7 +349,7 @@ function renderTripleO(){
     ${whoList}
     ${d.mode === 'question' ? `<div class="field" style="margin-top:10px;">
       <label for="toQuestion">Question</label>
-      <input type="text" id="toQuestion" class="field-input" maxlength="200" value="${escapeAttr(d.question)}" placeholder="Would they consider placing the gem in the statue's eye?">
+      <input type="text" id="toQuestion" class="field-input" maxlength="200" value="${escapeAttr(d.question)}" placeholder="Will they use the gem?">
     </div>` : ''}
     <div class="to-entries">${TRIPLE_O_BANDS.map(entry).join('')}</div>
     <div class="row" style="margin-top:10px;">
@@ -367,7 +367,7 @@ function renderTripleO(){
   <div class="card">
     <h3 class="block-title">Trait Sheets</h3>
     <div class="row">
-      <input type="text" id="toNewChar" class="field-input" style="flex:1; min-width:180px;" maxlength="60" placeholder="New character, e.g. Bran, the Warrior" ${full ? 'disabled' : ''}>
+      <input type="text" id="toNewChar" class="field-input" style="flex:1; min-width:180px;" maxlength="60" placeholder="e.g. Bran, the Warrior" ${full ? 'disabled' : ''}>
       <button class="btn" id="btnToAddChar" ${full ? 'disabled' : ''}>Add character</button>
     </div>
     ${toEditChars.size ? `<div class="small-note">Status: <b>Default</b> (who they are), <b>Prevalent</b> &#9733; (a behavior that grew in play), <b>Temporary</b> (a condition, e.g. Injured leg). Category: a short tag, e.g. ${TRIPLE_O_CATEGORIES.map(([k, v]) => `${k} ${v}`).join(', ')}.</div>` : ''}
@@ -376,7 +376,7 @@ function renderTripleO(){
     <h4 class="to-sub">Party Traits</h4>
     ${s.party.length ? `<ul class="gme-list">${partyRows}</ul>` : '<div class="small-note">None yet. Doubles on a Group Action add one.</div>'}
     <div class="row" style="margin-top:8px;">
-      <input type="text" id="toNewParty" class="field-input" style="flex:1; min-width:180px;" maxlength="80" placeholder="Party Trait, e.g. Rest when hurt" ${s.party.length >= TRIPLE_O_MAX_TRAITS ? 'disabled' : ''}>
+      <input type="text" id="toNewParty" class="field-input" style="flex:1; min-width:180px;" maxlength="80" placeholder="e.g. Rest when hurt" ${s.party.length >= TRIPLE_O_MAX_TRAITS ? 'disabled' : ''}>
       <button class="btn small" id="btnToAddParty" ${s.party.length >= TRIPLE_O_MAX_TRAITS ? 'disabled' : ''}>Add party Trait</button>
     </div>
   </div>

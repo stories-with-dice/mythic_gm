@@ -213,7 +213,7 @@ describe('Node Narratives tab', () => {
       addNode('scene', 'Again');
       expect(sheet().nodes).toHaveLength(1);
       expect($('#panelHost')).toContain('Scene 1 already has a Node');
-      click('#btnNodeEndScene');
+      click('#btnSceneEnd');
       expect(campaign().gme.sceneNumber).toBe(2);
       const two = addNode('scene', 'Two');
       expect(two.scene).toBe(2);
@@ -313,7 +313,7 @@ describe('Node Narratives tab', () => {
       expect($('#nodeSceneTestResult')).toContain('Interrupt Scene');
       expect($('#nodeSceneTestResult')).toContain('Event Focus (1d100: 30)');
       expect($('#nodeSceneTestResult')).toContain('Influence Node: Character: Theodore');
-      expect($('#nodeSceneTestResult')).toContain('Meaning:');
+      expect($('#nodeSceneTestResult')).toContain('Meaning (Action):');
     });
     it('with the Altered option off, an Altered Scene uses the Scene Adjustment Table', async () => {
       click('#btnNodeOptionsToggle');
@@ -334,12 +334,12 @@ describe('Node Narratives tab', () => {
       addNode('scene', 'S1');
       addNode('character', 'Theodore');
       await withRolls([1], () => click('#btnNodeInfluence'));
-      click('#btnNodeCfPlus');
+      click('#btnSceneCfPlus');
       expect($('#nodeResult')).toContain('Theodore');
     });
     it('shares the Chaos Factor and Scene with the Mythic GME tab', () => {
-      click('#btnNodeCfPlus');
-      click('#btnNodeEndScene');
+      click('#btnSceneCfPlus');
+      click('#btnSceneEnd');
       expect(campaign().gme.chaosFactor).toBe(5);
       expect(campaign().gme.sceneNumber).toBe(2);
       showTab('gme');

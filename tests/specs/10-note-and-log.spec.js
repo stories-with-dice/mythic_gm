@@ -80,18 +80,39 @@ describe('Campaign Log', () => {
     expect($('#logSection .log-toolbar')).toContain('2 entries');
   });
 
-  it('Clear log empties this campaign\'s log after confirmation', async () => {
+  it('Clear log empties this campaign\'s log at once and offers Undo', () => {
     addLog('X', 'one');
     renderLogSection();
-    await withDialogs({ confirm: true }, () => click('#btnClearLog'));
+    click('#btnClearLog');
     expect(campaign().log).toHaveLength(0);
+    expect($('#toast').hidden).toBe(false);
+    expect($('#toast')).toContain('Cleared the log');
   });
 
-  it('Clear log is a no-op when the user cancels the confirm', async () => {
+  it('Undo brings the cleared log back, before anything logged since', () => {
     addLog('X', 'one');
     renderLogSection();
-    await withDialogs({ confirm: false }, () => click('#btnClearLog'));
-    expect(campaign().log).toHaveLength(1);
+    click('#btnClearLog');
+    addLog('X', 'two');
+    click('#btnToastUndo');
+    expect(campaign().log.map(e => e.md)).toEqual(['one', 'two']);
+    expect($('#toast').hidden).toBe(true);
+  });
+
+  it('the screen shows each entry as a row with its time, and a date row per day', () => {
+    addLog('Ask the GM', '**Ask the GM** — Roll: 1');
+    renderLogSection();
+    expect($$('#logRender .log-entry')).toHaveLength(1);
+    expect($$('#logRender .log-day')).toHaveLength(1);
+    expect($('#logRender .log-entry time').textContent).toMatch(/^\d\d:\d\d$/);
+    expect($('#logRender').querySelector('h3')).toBeNull();   // no "### ts — section" heading on screen
+    expect(buildLogMarkdown()).toContain('### ');               // the export keeps it
+  });
+
+  it('a note (no bold label) shows its section name', () => {
+    addLog('Note', 'plain words');
+    renderLogSection();
+    expect($('#logRender .log-tag')).toContain('Note');
   });
 
   it('the log is per-campaign', async () => {
