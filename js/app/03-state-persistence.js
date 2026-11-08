@@ -113,6 +113,65 @@ function sanitizePlayerEmu(raw){
   return { pcs, nextPcId, npcs, nextNpcId, adjust, npcMoodMode, useHeldResponses };
 }
 
+// Triple-O tab (17c-tab-triple-o.js). `chars` are the Trait Sheets: a name,
+// free-text details and up to TRIPLE_O_MAX_TRAITS Traits, each with a status
+// (Default / Prevalent / Temporary, as on the sheet) and a short category
+// tag (e.g. CL, PR, MT). `party` holds the party Traits that a doubles roll
+// on a Group Action adds. `draft` is the Triple-O Check being set up, so a
+// re-render keeps what the user typed.
+const TRIPLE_O_STATUSES = ["default", "prevalent", "temporary"];
+const TRIPLE_O_MODES = ["action", "question", "group", "check"];
+const TRIPLE_O_MAX_TRAITS = 12;
+const TRIPLE_O_MAX_CHARS = 20;
+function freshTripleODraft(){
+  return { mode: "action", who: null, question: "", obvious: "", option: "", odd: "", doubleDown: false };
+}
+function freshTripleO(){
+  return { chars: [], nextCharId: 1, party: [], draft: freshTripleODraft() };
+}
+function sanitizeTripleOTrait(t){
+  if(!t || typeof t !== "object" || typeof t.text !== "string" || !t.text.trim()) return null;
+  return {
+    text: t.text.trim().slice(0, 80),
+    status: TRIPLE_O_STATUSES.includes(t.status) ? t.status : "default",
+    category: typeof t.category === "string" ? t.category.trim().slice(0, 6) : ""
+  };
+}
+function sanitizeTripleOTraits(arr){
+  return (Array.isArray(arr) ? arr.map(sanitizeTripleOTrait).filter(Boolean) : []).slice(0, TRIPLE_O_MAX_TRAITS);
+}
+function sanitizeTripleO(raw){
+  const base = freshTripleO();
+  if(!raw || typeof raw !== "object") return base;
+  const chars = (Array.isArray(raw.chars) ? raw.chars : [])
+    .filter(c => c && typeof c === "object")
+    .map(c => {
+      const id = Number(c.id);
+      return {
+        id: Number.isFinite(id) ? Math.round(id) : null,
+        name: (typeof c.name === "string" && c.name.trim()) ? c.name.trim().slice(0, 60) : "Unnamed character",
+        details: typeof c.details === "string" ? c.details.slice(0, 300) : "",
+        traits: sanitizeTripleOTraits(c.traits)
+      };
+    })
+    .slice(0, TRIPLE_O_MAX_CHARS);
+  const maxId = reindexById(chars);
+  const nextCharId = (Number.isFinite(raw.nextCharId) && raw.nextCharId >= maxId) ? Math.round(raw.nextCharId) : maxId;
+  const d = (raw.draft && typeof raw.draft === "object") ? raw.draft : {};
+  const str = (v, n) => typeof v === "string" ? v.slice(0, n) : "";
+  const mode = TRIPLE_O_MODES.includes(d.mode) ? d.mode : "action";
+  const whoId = Number(d.who);
+  // `who` is a character id, or null (nobody picked); a Group Action is the whole party
+  const who = mode === "group" ? null : (chars.some(c => c.id === whoId) ? whoId : null);
+  const draft = {
+    mode, who,
+    question: str(d.question, 200),
+    obvious: str(d.obvious, 200), option: str(d.option, 200), odd: str(d.odd, 200),
+    doubleDown: !!d.doubleDown
+  };
+  return { chars, nextCharId, party: sanitizeTripleOTraits(raw.party), draft };
+}
+
 // Random Inspiration Source list (Game Master tab, Discover Meaning). A
 // user-editable weighted list — "Roll" picks one entry weighted by `weight`.
 function freshInspirationEntries(){
@@ -284,6 +343,7 @@ function freshCampaign(){
     adventure: { mainTheme:null },
     mystery: { boxes:[], nextUid:1, solvedBoxUid:null },
     playerEmu: freshPlayerEmu(),
+    tripleO: freshTripleO(),   // Triple-O tab: Trait Sheets, party Traits, the Check being set up
     gm: freshGm(),
     gme: {
       chaosFactor: 5,          // Mythic GME 2e default; range 1-9
@@ -414,6 +474,7 @@ function sanitizeCampaign(raw){
   const mystery = { boxes, nextUid, solvedBoxUid };
 
   const playerEmu = sanitizePlayerEmu(raw.playerEmu);
+  const tripleO = sanitizeTripleO(raw.tripleO);
 
   const gm = sanitizeGm(raw.gm);
 
@@ -466,7 +527,7 @@ function sanitizeCampaign(raw){
   const createdAt = Number.isFinite(raw.createdAt) && raw.createdAt > 0 ? Math.round(raw.createdAt) : null;
   const ui = sanitizeUi(raw.ui);
 
-  return { location, adventure, mystery, playerEmu, gm, gme, tables, log, createdAt, ui };
+  return { location, adventure, mystery, playerEmu, tripleO, gm, gme, tables, log, createdAt, ui };
 }
 
 function loadStore(){

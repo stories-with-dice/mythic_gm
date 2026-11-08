@@ -34,6 +34,7 @@ Each tool is a tab. The Mythic GME tab opens first.
 | Character Crafter | NPC descriptors, stats, and behavior. |
 | Mystery Matrix | Clues and Suspects, connections, and the Clincher. |
 | Player Emulator | A solo player emulator from *Cloud Empress: Solo Protocol*: PC Response Charts, NPC moods, and an encounter mood verdict. |
+| Triple-O | *Triple-O: The Player Character Emulator* by Cezar Capacle: play from the GM's seat. Trait Sheets for each character, the Triple-O Check (Obvious / Option / Odd) for Actions, Questions, Group Actions and Checks, Double-Down, and the 14 d66 spark and specific tables. |
 
 Two panels are always below the active tab:
 

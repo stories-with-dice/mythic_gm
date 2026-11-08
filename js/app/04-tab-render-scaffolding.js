@@ -25,7 +25,8 @@ const TABS = [
   {id:'creature', label:'Creature Crafter'},
   {id:'character', label:'Character Crafter'},
   {id:'mystery', label:'Mystery Matrix'},
-  {id:'playerEmu', label:'Player Emulator'}
+  {id:'playerEmu', label:'Player Emulator'},
+  {id:'tripleO', label:'Triple-O'}
 ];
 let currentTab = 'gme';
 let rightTab = null;   // tab id pinned to the split-right pane, or null when unsplit
@@ -143,10 +144,10 @@ function renderTab(id){
 // defined in files that load *after* this one; only safe to call once
 // everything has loaded, i.e. from inside renderActive()/wireActive().
 function tabRenderers(){
-  return { gm:renderGM, adventure:renderAdventure, location:renderLocation, creature:renderCreature, character:renderCharacter, mystery:renderMystery, gme:renderMythicGME, pub:renderPublished, playerEmu:renderPlayerEmu, threeAct:renderThreeAct, nodes:renderNodeNarratives };
+  return { gm:renderGM, adventure:renderAdventure, location:renderLocation, creature:renderCreature, character:renderCharacter, mystery:renderMystery, gme:renderMythicGME, pub:renderPublished, playerEmu:renderPlayerEmu, threeAct:renderThreeAct, nodes:renderNodeNarratives, tripleO:renderTripleO };
 }
 function tabWirers(){
-  return { gm:wireGM, adventure:wireAdventure, location:wireLocation, creature:wireCreature, character:wireCharacter, mystery:wireMystery, gme:wireMythicGME, pub:wirePublished, playerEmu:wirePlayerEmu, threeAct:wireThreeAct, nodes:wireNodeNarratives };
+  return { gm:wireGM, adventure:wireAdventure, location:wireLocation, creature:wireCreature, character:wireCharacter, mystery:wireMystery, gme:wireMythicGME, pub:wirePublished, playerEmu:wirePlayerEmu, threeAct:wireThreeAct, nodes:wireNodeNarratives, tripleO:wireTripleO };
 }
 
 function renderTabNav(){
@@ -183,6 +184,7 @@ function renderActive(){
 
   const splitWrap = document.getElementById('panelSplit');
   const rightHost = document.getElementById('panelHostRight');
+  document.body.classList.toggle('split-view', !!rightTab);   // css: a wider .wrap while split
   if(rightTab){
     splitWrap.classList.add('split');
     rightHost.innerHTML = `

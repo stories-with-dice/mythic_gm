@@ -13,6 +13,7 @@ Attribution-NonCommercial 4.0 International license (CC BY-NC 4.0). See
 
 The files in `js/vendor/` and `css/vendor-easymde.css` are not covered by
 that license. They keep their own licenses (see "Vendor libraries" below).
+The adapted Triple-O material is under CC BY-SA 4.0 (see "Triple-O" below).
 
 ## Mythic content (Word Mill Games)
 
@@ -42,6 +43,23 @@ The Player Emulator tab adapts tables from *Cloud Empress: Solo Protocol*.
 *Cloud Empress* — <https://cloudempress.com/>. These tables are not covered
 by Word Mill Games' license, and by this project's CC BY-NC 4.0 license only
 as far as their authors allow.
+
+## Triple-O (Cezar Capacle)
+
+The Triple-O tab adapts *Triple-O: The Player Character Emulator*, version
+1.0.2, by Cezar Capacle, published by Critical Kit Ltd (2026),
+<https://capacle.itch.io/triple-o-zine>. The text of Triple-O is licensed
+under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+
+Changes: the 14 d66 tables are transcribed into `js/app/01b-triple-o-tables.js`,
+and the rules are summarized and automated as dice rolls in
+`js/app/17c-tab-triple-o.js` (the Triple-O Check, Double-Down, Group Action
+ranking and the Trait Sheet). A tie in the Group Action ranking is not
+covered by the rules: the app rolls the three dice again and writes this to
+the Campaign Log. Because of the ShareAlike term, this adapted Triple-O
+material (the tables, and the rule summaries and flowchart text) is shared
+under CC BY-SA 4.0, not under this project's CC BY-NC 4.0 license. The app
+has no Triple-O art, logos, or trade dress.
 
 ## Vendor libraries
 

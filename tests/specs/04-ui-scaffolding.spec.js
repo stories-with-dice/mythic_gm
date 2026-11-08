@@ -429,3 +429,14 @@ describe('UI scaffolding', () => {
     });
   });
 });
+
+describe('Split view — container width', () => {
+  beforeEach(resetApp);
+  it('the body gets split-view (a wider, still centered .wrap) only while split', () => {
+    expect(document.body.classList.contains('split-view')).toBe(false);
+    rightClickTab('gm');
+    expect(document.body.classList.contains('split-view')).toBe(true);
+    click('#btnCloseSplit');
+    expect(document.body.classList.contains('split-view')).toBe(false);
+  });
+});

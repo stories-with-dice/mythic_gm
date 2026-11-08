@@ -95,6 +95,7 @@ function renderHelpContent(){
       <li><a href="#help-pub">Published Adventures</a></li>
       <li><a href="#help-nodes">Node Narratives</a></li>
       <li><a href="#help-pe">Player Emulator</a></li>
+      <li><a href="#help-tripleo">Triple-O</a></li>
       <li><a href="#help-utility">Quick Note, Log &amp; Campaigns</a></li>
       <li><a href="#help-credits">License &amp; credits</a></li>
     </ul>
@@ -235,6 +236,12 @@ function renderHelpContent(){
       </div>
     </div>
 
+    <div class="help-section" id="help-tripleo">
+      <h3 class="block-title">Triple-O &mdash; The Player Character Emulator</h3>
+      <p>Play solo from the GM's seat: you run the adventure, and the dice decide what the player characters do (<i>Triple-O</i> by Cezar Capacle). Keep each character's Traits on a <b>Trait Sheet</b> (Default, Prevalent or Temporary, with a short category tag), then use the <b>Triple-O Check</b> for an Action, a Question, a Group Action or a Check. The d66 spark and specific tables help you define the Option and the Odd, make Traits, or improvise an NPC. The tab does not use the Mythic Chaos Factor or Lists.</p>
+      ${TRIPLE_O_FLOW_HTML}
+    </div>
+
     <div class="help-section" id="help-utility">
       <h3 class="block-title">Quick Note, Campaign Log &amp; Campaigns</h3>
       <p><b>Quick Note</b> and the <b>Campaign Log</b> sit below every tab, no matter which one is active. Quick Note is a Markdown scratchpad &mdash; press Enter (or the toolbar) to commit it to the Log. The Log is the running record of everything you roll across every tab, newest entry at the top; it stores raw Markdown as the source of truth, and only renders it to sanitized HTML for on-screen display. Copy or Download export that Markdown verbatim, oldest first. The open tabs, the split view and the open <b>?</b> intros are saved with each campaign, so a reload, an export or Dropbox sync brings them back. Hint text in the fields shows only during the first day of a campaign.</p>
@@ -247,6 +254,7 @@ function renderHelpContent(){
       <p>Mythic Toolkit is an <b>unofficial fan tool</b>. It is not made or endorsed by Word Mill Games. It is free and non-commercial, and it does not replace the books.</p>
       <p>This work is based on <i>Mythic Game Master Emulator Second Edition</i>, <i>One-Page Mythic Game Master Emulator</i>, <i>The Adventure Crafter</i>, <i>The Location Crafter</i>, <i>The Creature Crafter</i>, and <i>Mythic Magazine</i> (incl. Volumes 42, 50 and 71), by Tana Pigeon, published by <a href="https://www.wordmillgames.com/" target="_blank" rel="noopener">Word Mill Games</a> under <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a>. The tables are transcribed, and the rules are adapted and automated as dice rolls.</p>
       <p>The Player Emulator adapts tables from <i>Cloud Empress: Solo Protocol</i> (<a href="https://cloudempress.com/" target="_blank" rel="noopener">cloudempress.com</a>).</p>
+      <p>The Triple-O tab adapts <i>Triple-O: The Player Character Emulator</i> (v1.0.2) by Cezar Capacle, published by Critical Kit Ltd (<a href="https://capacle.itch.io/triple-o-zine" target="_blank" rel="noopener">capacle.itch.io/triple-o-zine</a>). Its text is licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>. The Triple-O tables and rule summaries in this app are adapted from it (transcribed, summarized, automated as dice rolls) and are shared under CC BY-SA 4.0.</p>
       <p>This app is licensed under <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a>. It bundles marked (MIT), DOMPurify (Apache-2.0 / MPL-2.0), and EasyMDE (MIT) under their own licenses.</p>
     </div>
   </div>`;
