@@ -240,8 +240,8 @@ describe('Published Adventures tab', () => {
     it('End Scene adjusts the shared CF, advances the scene, clears the Expected Scene', () => {
       const g = campaign().gme;
       g.chaosFactor = 5; g.sceneNumber = 3; g.expectedScene = 'x'; persist(); showTab('pub');
-      setValue('#sceneControl', 'in');
       click('#btnSceneEnd');
+      setValue('#sceneControl', 'in');
       expect(campaign().gme.chaosFactor).toBe(4);
       expect(campaign().gme.sceneNumber).toBe(4);
       expect(campaign().gme.expectedScene).toBe('');

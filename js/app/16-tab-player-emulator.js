@@ -193,6 +193,16 @@ let peEncounterHtml = '';
 let peResponseHtml = {};      // pc id -> last "Roll response" result HTML (shown on the PC card)
 let peLastResponse = {};      // pc id -> last response { name, rating, wild, ... } for reuse in an encounter
 let peRefOpen = false;        // reference tables collapsed by default
+let pePcCollapsed = new Set(); // pc ids whose card shows only the chart and Roll response (not saved)
+let peChartEdit = null;       // the Response Chart editor modal: { pcId, rows:[{name, rating, segments}] } or null
+
+// The chart bar. `labeled` writes each response's name over its colored segment.
+function peChartBarHtml(chart, labeled){
+  return `<div class="pe-chart${labeled ? ' labeled' : ''}">${chart.map(e => `
+    <span class="seg ${peRatingClass(e.rating)}" style="flex:${e.segments}" title="${escapeAttr(e.name)} (${peRatingLabel(e.rating)}) — ${e.segments}/10">${labeled
+      ? `<span class="seg-name">${escapeAttr(e.name)}</span><span class="seg-rating">${peRatingLabel(e.rating)}</span>`
+      : peRatingLabel(e.rating)}</span>`).join('')}</div>`;
+}
 
 function renderPlayerEmu(){
   const pe = campaign().playerEmu || (campaign().playerEmu = freshPlayerEmu());
@@ -202,9 +212,26 @@ function renderPlayerEmu(){
     const wild = pc.outlook === PE_WILDCARD_OUTLOOK;
     const total = pc.chart.reduce((s, e) => s + e.rating, 0);
 
+    const collapsed = pePcCollapsed.has(pc.id);
+    const rollBtn = `<button class="btn primary" data-pc-roll="${pc.id}" ${pc.chart.length || wild ? '' : 'disabled'}>Roll response</button>`;
+    const toggleBtn = `<button class="btn small" data-pc-collapse="${pc.id}" aria-expanded="${!collapsed}" title="${collapsed ? 'Show the whole card' : 'Show only the chart and Roll response'}">${collapsed ? 'Show' : 'Hide'}</button>`;
+    if(collapsed){
+      return `
+    <div class="pe-pc collapsed" data-pc="${pc.id}">
+      <div class="pe-pc-head">
+        <span class="pe-name-txt">${escapeAttr(pc.name)}${outlook
+          ? ` <span class="pe-outlook-txt" title="${escapeAttr(outlook.text)}">Outlook ${escapeAttr(outlook.name)}</span>`
+          : ''}</span>
+        ${toggleBtn}
+      </div>
+      ${pc.chart.length ? peChartBarHtml(pc.chart, true) : `<div class="small-note">No Response Chart yet.</div>`}
+      <div class="row pe-collapsed-roll">${rollBtn}</div>
+      <div id="peResponseResult_${pc.id}" style="margin-top:10px;">${peResponseHtml[pc.id] || ''}</div>
+    </div>`;
+    }
+
     const chartBar = pc.chart.length
-      ? `<div class="pe-chart">${pc.chart.map(e => `
-          <span class="seg ${peRatingClass(e.rating)}" style="flex:${e.segments}" title="${escapeAttr(e.name)} (${peRatingLabel(e.rating)}) — ${e.segments}/10">${peRatingLabel(e.rating)}</span>`).join('')}</div>
+      ? `${peChartBarHtml(pc.chart, false)}
         <div class="pe-legend">${pc.chart.map((e, i) => {
           const lo = pc.chart.slice(0, i).reduce((s, x) => s + x.segments, 0) + 1;
           const hi = lo + e.segments - 1;
@@ -218,6 +245,7 @@ function renderPlayerEmu(){
         <input type="text" class="field-input pe-name" data-pc-name="${pc.id}" value="${escapeAttr(pc.name)}" placeholder="Character name">
         <button class="btn small" data-pc-outlook="${pc.id}">Roll Outlook</button>
         <button class="btn small danger" data-pc-rm="${pc.id}">Remove</button>
+        ${toggleBtn}
       </div>
       <div class="small-note" style="margin-top:6px;">
         ${outlook
@@ -233,7 +261,8 @@ function renderPlayerEmu(){
           </select>
         </div>
         <button class="btn" data-pc-build="${pc.id}">${pc.chart.length ? 'Rebuild Response Chart' : 'Build Response Chart'}</button>
-        <button class="btn primary" data-pc-roll="${pc.id}" ${pc.chart.length || wild ? '' : 'disabled'}>Roll response</button>
+        <button class="btn" data-pc-edit-chart="${pc.id}">Edit chart</button>
+        ${rollBtn}
       </div>
       ${chartBar}
       ${pc.chart.length ? `<div class="small-note">Chart conflict rating sums to <span class="pe-rating ${peRatingClass(total)}">${peRatingLabel(total)}</span> across its 10 segments.</div>` : ''}
@@ -367,6 +396,7 @@ function wirePlayerEmu(){
     pe().pcs = pe().pcs.filter(p => p.id !== pc.id);
     delete peResponseHtml[pc.id];
     delete peLastResponse[pc.id];
+    pePcCollapsed.delete(pc.id);
     persist();
     addLog('Player Emulator', `**PC removed** — "${escapeMd(pc.name)}".`);
     renderActive();
@@ -378,6 +408,14 @@ function wirePlayerEmu(){
     pc.chartMode = PE_CHART_MODES.includes(sel.value) ? sel.value : 'normal';
     persist();
   }));
+
+  /* ----- collapse a card / edit the chart ----- */
+  document.querySelectorAll('[data-pc-collapse]').forEach(b => b.addEventListener('click', () => {
+    const id = Number(b.dataset.pcCollapse);
+    if(pePcCollapsed.has(id)) pePcCollapsed.delete(id); else pePcCollapsed.add(id);
+    renderActive();
+  }));
+  document.querySelectorAll('[data-pc-edit-chart]').forEach(b => b.addEventListener('click', () => openPeChartEditor(Number(b.dataset.pcEditChart))));
 
   /* ----- Outlook ----- */
   document.querySelectorAll('[data-pc-outlook]').forEach(b => b.addEventListener('click', () => {
@@ -581,4 +619,145 @@ function pePcResponse(pc){
   const d10 = rollDie(10);
   const e = peChartResponseAt(pc.chart, d10);
   return { name: e.name, rating: e.rating, wild: false, rollText: `1d10 ${d10} on chart`, logText: `(1d10: ${d10} on chart)` };
+}
+
+/* ----- Response Chart editor (modal) -----
+   One overlay, made on first use (div#peChartModal, a .settings-overlay).
+   It edits a copy of the chart in `peChartEdit.rows`; Save writes it to the
+   PC only when the rows are valid: 1-10 rows, each with a name, a rating
+   -4..+4 and 1-10 segments, and the segments sum to 10. Save logs the new
+   chart and drops the PC's held response (it may not be on the chart now). */
+const PE_RATINGS = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
+
+function peChartEditErrors(rows){
+  const errs = [];
+  if(!rows.length) errs.push('Add at least one response.');
+  if(rows.length > 10) errs.push('A chart has at most 10 responses.');
+  if(rows.some(r => !String(r.name).trim())) errs.push('Every response needs a name.');
+  if(rows.some(r => !Number.isInteger(r.segments) || r.segments < 1 || r.segments > 10)) errs.push('Each response fills 1 to 10 segments.');
+  const sum = rows.reduce((n, r) => n + (Number.isInteger(r.segments) ? r.segments : 0), 0);
+  if(sum !== 10) errs.push(`The segments sum to ${sum}; they must sum to 10.`);
+  return errs;
+}
+
+function peChartModalEl(){
+  let el = document.getElementById('peChartModal');
+  if(el) return el;
+  el = document.createElement('div');
+  el.id = 'peChartModal';
+  el.className = 'settings-overlay pe-chart-modal';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-labelledby', 'peChartModalTitle');
+  document.body.appendChild(el);
+  el.addEventListener('click', e => { if(e.target === el) closePeChartEditor(); });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape' && peChartEdit) closePeChartEditor(); });
+  return el;
+}
+
+function openPeChartEditor(pcId){
+  const pc = (campaign().playerEmu.pcs || []).find(p => p.id === pcId);
+  if(!pc) return;
+  peChartEdit = { pcId, rows: pc.chart.map(e => ({ name: e.name, rating: e.rating, segments: e.segments })) };
+  if(!peChartEdit.rows.length) peChartEdit.rows.push({ name: '', rating: 0, segments: 10 });
+  renderPeChartEditor();
+  peChartModalEl().classList.add('open');
+}
+function closePeChartEditor(){
+  peChartEdit = null;
+  const el = document.getElementById('peChartModal');
+  if(el){ el.classList.remove('open'); el.innerHTML = ''; }
+}
+
+function renderPeChartEditor(){
+  const el = peChartModalEl();
+  const ed = peChartEdit;
+  if(!ed) return;
+  const pc = campaign().playerEmu.pcs.find(p => p.id === ed.pcId);
+  if(!pc){ closePeChartEditor(); return; }
+  const rows = ed.rows;
+  const rowHtml = rows.map((r, i) => `<tr>
+      <td><input type="text" class="field-input" data-pce-name="${i}" maxlength="40" list="peTypeList" value="${escapeAttr(r.name)}" aria-label="Response ${i + 1} name"></td>
+      <td><select class="field-input" data-pce-rating="${i}" aria-label="Response ${i + 1} rating">${PE_RATINGS.map(n => `<option value="${n}" ${r.rating === n ? 'selected' : ''}>${peRatingLabel(n)}</option>`).join('')}</select></td>
+      <td><input type="number" class="field-input" data-pce-seg="${i}" min="1" max="10" step="1" value="${r.segments}" aria-label="Response ${i + 1} segments"></td>
+      <td class="pe-chart-edit-btns">
+        <button type="button" class="btn small" data-pce-up="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Move up">&uarr;</button>
+        <button type="button" class="btn small" data-pce-down="${i}" ${i === rows.length - 1 ? 'disabled' : ''} aria-label="Move down">&darr;</button>
+        <button type="button" class="btn small" data-pce-rm="${i}" ${rows.length <= 1 ? 'disabled' : ''} aria-label="Remove">&#10005;</button>
+      </td>
+    </tr>`).join('');
+  el.innerHTML = `<div class="settings-inner pe-chart-edit">
+    <button type="button" class="btn small settings-close" id="peChartClose" aria-label="Close">&times;</button>
+    <h3 id="peChartModalTitle" class="block-title">${escapeAttr(pc.name)} — Response Chart</h3>
+    <p class="small-note">A 1d10 on the chart lands on the segments in this order. Pick a Response Type from the list to fill its rating, or type your own.</p>
+    <div id="peChartPreview"></div>
+    <table class="pe-chart-edit-table">
+      <thead><tr><th>Response</th><th>Rating</th><th>Segments</th><th></th></tr></thead>
+      <tbody>${rowHtml}</tbody>
+    </table>
+    <datalist id="peTypeList">${PE_RESPONSE_TYPES.map(t => `<option value="${escapeAttr(t.name)}">${peRatingLabel(t.rating)}</option>`).join('')}</datalist>
+    <div class="row" style="margin-top:8px;">
+      <button type="button" class="btn small" id="btnPceAdd" ${rows.length >= 10 ? 'disabled' : ''}>Add response</button>
+    </div>
+    <div id="peChartErrors" class="small-note" style="margin-top:10px;"></div>
+    <div class="row" style="margin-top:14px; justify-content:flex-end;">
+      <button type="button" class="btn" id="btnPceCancel">Cancel</button>
+      <button type="button" class="btn primary" id="btnPceSave">Save chart</button>
+    </div>
+  </div>`;
+
+  // Preview, errors and Save update in place, so typing keeps the focus.
+  const refresh = () => {
+    const errs = peChartEditErrors(rows);
+    const valid = rows.filter(r => Number.isInteger(r.segments) && r.segments > 0);
+    document.getElementById('peChartPreview').innerHTML = valid.length ? peChartBarHtml(valid, true) : '';
+    document.getElementById('peChartErrors').innerHTML = errs.map(escapeAttr).join('<br>');
+    document.getElementById('btnPceSave').disabled = errs.length > 0;
+  };
+  const q = sel => el.querySelectorAll(sel);
+  q('[data-pce-name]').forEach(inp => {
+    inp.addEventListener('input', () => { rows[Number(inp.dataset.pceName)].name = inp.value.slice(0, 40); refresh(); });
+    inp.addEventListener('change', () => {
+      const i = Number(inp.dataset.pceName);
+      const t = PE_RESPONSE_TYPES.find(x => x.name.toLowerCase() === inp.value.trim().toLowerCase());
+      if(t){ rows[i].name = t.name; rows[i].rating = t.rating; renderPeChartEditor(); }
+    });
+  });
+  q('[data-pce-rating]').forEach(sel => sel.addEventListener('change', () => {
+    const n = Number(sel.value);
+    rows[Number(sel.dataset.pceRating)].rating = PE_RATINGS.includes(n) ? n : 0;
+    refresh();
+  }));
+  q('[data-pce-seg]').forEach(inp => inp.addEventListener('input', () => {
+    const n = Number(inp.value);
+    rows[Number(inp.dataset.pceSeg)].segments = Number.isFinite(n) ? n : 0;
+    refresh();
+  }));
+  const move = (i, j) => { const [r] = rows.splice(i, 1); rows.splice(j, 0, r); renderPeChartEditor(); };
+  q('[data-pce-up]').forEach(b => b.addEventListener('click', () => { const i = Number(b.dataset.pceUp); move(i, i - 1); }));
+  q('[data-pce-down]').forEach(b => b.addEventListener('click', () => { const i = Number(b.dataset.pceDown); move(i, i + 1); }));
+  q('[data-pce-rm]').forEach(b => b.addEventListener('click', () => { rows.splice(Number(b.dataset.pceRm), 1); renderPeChartEditor(); }));
+  document.getElementById('btnPceAdd').addEventListener('click', () => {
+    if(rows.length >= 10) return;
+    const used = rows.reduce((n, r) => n + (Number.isInteger(r.segments) ? r.segments : 0), 0);
+    rows.push({ name: '', rating: 0, segments: Math.max(1, Math.min(10, 10 - used)) });
+    renderPeChartEditor();
+    const inputs = el.querySelectorAll('[data-pce-name]');
+    if(inputs.length) inputs[inputs.length - 1].focus();
+  });
+  document.getElementById('peChartClose').addEventListener('click', closePeChartEditor);
+  document.getElementById('btnPceCancel').addEventListener('click', closePeChartEditor);
+  document.getElementById('btnPceSave').addEventListener('click', () => {
+    if(peChartEditErrors(rows).length) return;
+    const pc2 = campaign().playerEmu.pcs.find(p => p.id === ed.pcId);
+    if(!pc2){ closePeChartEditor(); return; }
+    pc2.chart = rows.map(r => ({ name: String(r.name).trim().slice(0, 40), rating: r.rating, segments: r.segments }));
+    delete peLastResponse[pc2.id];
+    delete peResponseHtml[pc2.id];
+    persist();
+    addLog('Player Emulator', `**${escapeMd(pc2.name)} — Response Chart edited**\n  - ${pc2.chart.map(e => `**${escapeMd(e.name)}** (${peRatingLabel(e.rating)}) ×${e.segments}`).join('\n  - ')}`);
+    closePeChartEditor();
+    renderActive();
+  });
+  refresh();
 }

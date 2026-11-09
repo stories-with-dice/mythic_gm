@@ -63,6 +63,10 @@ window.resetApp = function resetApp() {
   toSpark = null;
   toEditChars = new Set();
   toRefOpen = false;
+  toTraitRoll = null;
+  pePcCollapsed = new Set();
+  if(typeof closePeChartEditor === 'function') closePeChartEditor();
+  sceneEndOpen = false;
   helpOpen = false;
   const helpOverlay = document.getElementById('helpOverlay');
   if(helpOverlay){ helpOverlay.classList.remove('open'); helpOverlay.innerHTML = ''; }

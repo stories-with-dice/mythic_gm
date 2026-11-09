@@ -85,6 +85,7 @@ let toRankHtml = '';      // last Rank by dice result
 let toSpark = null;       // last spark roll: {label, parts:[{table, code, text, opp}], text}
 let toEditChars = new Set();   // Trait Sheets open for editing (character ids)
 let toRefOpen = false;    // Reference tables card
+let toTraitRoll = null;   // last Trait roll: {owner, text, status, roll, total, used}
 
 function tripleO(){
   const c = campaign();
@@ -113,6 +114,39 @@ function tripleOSpark(id){
   const keys = combo ? combo.keys : [id];
   const parts = keys.map(tripleORoll);
   return { label: combo ? combo.label : TRIPLE_O_TABLE_BY_KEY[id].label, parts, text: parts.map(p => p.text).join(' + ') };
+}
+
+// Trait status cycle for a click on a Trait chip under "Who acts?":
+// Default → Prevalent → Temporary → Default.
+const TRIPLE_O_STATUS_NEXT = { default: 'prevalent', prevalent: 'temporary', temporary: 'default' };
+// Trait roll weight: a Prevalent Trait counts twice.
+function tripleOTraitWeight(t){ return t.status === 'prevalent' ? 2 : 1; }
+// A weighted random pick on a list of Traits: one die with as many sides as
+// the total weight, walked in list order. `items` = [{owner, trait}].
+// Returns {index, owner, trait, roll, total}, or null for an empty list.
+function tripleORollTrait(items){
+  if(!items.length) return null;
+  const total = items.reduce((n, it) => n + tripleOTraitWeight(it.trait), 0);
+  const roll = rollDie(total);
+  let acc = 0;
+  for(let i = 0; i < items.length; i++){
+    acc += tripleOTraitWeight(items[i].trait);
+    if(roll <= acc) return { index: i, owner: items[i].owner, trait: items[i].trait, roll, total };
+  }
+  return null;
+}
+// The Traits a Trait roll uses: the picked character's, or in group mode
+// the party Traits plus every character's.
+function tripleOTraitPool(){
+  const s = tripleO();
+  if(s.draft.mode === 'group'){
+    return [
+      ...s.party.map(trait => ({ owner: 'The party', trait })),
+      ...s.chars.flatMap(c => c.traits.map(trait => ({ owner: c.name, trait })))
+    ];
+  }
+  const ch = tripleOChar(s.draft.who);
+  return ch ? ch.traits.map(trait => ({ owner: ch.name, trait })) : [];
 }
 
 // Rank by dice (Group Actions, step 3): 1d6 per course, highest = Obvious,
@@ -164,13 +198,34 @@ const TRIPLE_O_FLOW_HTML = `
 </div>`;
 
 /* ----- render helpers ----- */
-function tripleOTraitChip(t){
+// A Trait chip. With `ref` ("<charId>:<i>" or "party:<i>") it is a button:
+// a click moves the Trait to the next status (TRIPLE_O_STATUS_NEXT).
+function tripleOTraitChip(t, ref){
   const star = t.status === 'prevalent' ? '&#9733; ' : '';
   const cat = t.category ? ` <span class="to-cat">${escapeAttr(t.category)}</span>` : '';
-  return `<span class="word-chip to-trait ${t.status}" title="${TRIPLE_O_STATUS_LABEL[t.status]} Trait">${star}${escapeAttr(t.text)}${cat}</span>`;
+  const label = TRIPLE_O_STATUS_LABEL[t.status];
+  if(ref != null){
+    const next = TRIPLE_O_STATUS_LABEL[TRIPLE_O_STATUS_NEXT[t.status]];
+    return `<button type="button" class="word-chip to-trait to-trait-btn ${t.status}" data-to-tstat="${ref}" title="${label} Trait. Click to make it ${next}." aria-label="${escapeAttr(t.text)}: ${label}. Click to make it ${next}.">${star}${escapeAttr(t.text)}${cat}</button>`;
+  }
+  return `<span class="word-chip to-trait ${t.status}" title="${label} Trait">${star}${escapeAttr(t.text)}${cat}</span>`;
 }
-function tripleOTraitChips(traits, empty){
-  return traits.length ? traits.map(tripleOTraitChip).join('') : `<span class="small-note">${empty}</span>`;
+function tripleOTraitChips(traits, empty, owner){
+  return traits.length ? traits.map((t, i) => tripleOTraitChip(t, owner == null ? null : `${owner}:${i}`)).join('') : `<span class="small-note">${empty}</span>`;
+}
+
+// The last Trait roll, with buttons that copy the Trait into an entry.
+function tripleOTraitRollHtml(){
+  const r = toTraitRoll;
+  if(!r) return '';
+  return `<div class="result-box event to-trait-roll">
+    Trait roll: 1d${r.total} <span class="roll-num">${r.roll}</span> &rarr; ${escapeAttr(r.owner)}: <b>${r.status === 'prevalent' ? '&#9733; ' : ''}${escapeAttr(r.text)}</b>
+    <span class="small-note">(${TRIPLE_O_STATUS_LABEL[r.status]}${r.status === 'prevalent' ? ', weighted &times;2' : ''})</span>
+    ${r.used ? `<div class="small-note">&#10003; Copied to ${TRIPLE_O_BAND_LABEL[r.used]} in the Triple-O Check.</div>` : ''}
+    <div class="row" style="margin-top:8px;">
+      ${TRIPLE_O_BANDS.map(b => `<button class="btn small" data-to-trait-use="${b}">Use as ${TRIPLE_O_BAND_LABEL[b].replace('The ', '')}</button>`).join('')}
+    </div>
+  </div>`;
 }
 
 // The doubles follow-up inside a Check result: mark a Trait Prevalent, or add a Trait.
@@ -285,20 +340,31 @@ function renderTripleO(){
   const group = d.mode === 'group';
   const whoRows = s.chars.map(c => {
     const on = !group && c.id === d.who;
-    const traits = tripleOTraitChips(c.traits, 'No Traits yet.');
+    const traits = tripleOTraitChips(c.traits, 'No Traits yet.', c.id);
+    // The row is a div: the pick button and the Trait chip buttons sit side
+    // by side (a button cannot hold other buttons). A click on the row
+    // outside a chip picks the character too.
     return group
       ? `<div class="to-who"><div class="to-who-name">${escapeAttr(c.name)}</div><div class="to-who-traits">${traits}</div></div>`
-      : `<button type="button" class="to-who${on ? ' on' : ''}" data-to-who="${c.id}" aria-pressed="${on}">
-          <span class="to-who-mark" aria-hidden="true"></span>
-          <span class="to-who-name">${escapeAttr(c.name)}</span>
+      : `<div class="to-who pick${on ? ' on' : ''}" data-to-who-row="${c.id}">
+          <button type="button" class="to-who-pick" data-to-who="${c.id}" aria-pressed="${on}">
+            <span class="to-who-mark" aria-hidden="true"></span>
+            <span class="to-who-name">${escapeAttr(c.name)}</span>
+          </button>
           <span class="to-who-traits">${traits}</span>
-        </button>`;
+        </div>`;
   }).join('');
-  const partyRow = group ? `<div class="to-who on party"><div class="to-who-name">The party</div><div class="to-who-traits">${tripleOTraitChips(s.party, 'No party Traits yet.')}</div></div>` : '';
-  const whoList = `<div class="to-who-head">${group ? 'Who decides: the party. Check whose Traits weigh in.' : 'Who acts? Pick a character.'}</div>
+  const partyRow = group ? `<div class="to-who on party"><div class="to-who-name">The party</div><div class="to-who-traits">${tripleOTraitChips(s.party, 'No party Traits yet.', 'party')}</div></div>` : '';
+  const pool = tripleOTraitPool();
+  const whoList = `<div class="to-who-head">${group ? 'Who decides: the party. Check whose Traits weigh in.' : 'Who acts? Pick a character.'} Click a Trait to change its status (Default &rarr; Prevalent &#9733; &rarr; Temporary).</div>
     <div class="to-who-list" role="${group ? 'list' : 'group'}" aria-label="Characters">
       ${partyRow}${whoRows || '<div class="small-note">No characters yet. Add a Trait Sheet below.</div>'}
-    </div>`;
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <button class="btn small" id="btnToTraitRoll" ${pool.length ? '' : 'disabled'} title="A Prevalent Trait counts twice">Roll a Trait</button>
+      <span class="small-note">${pool.length ? `${group ? 'Party and character Traits' : `${escapeAttr(ch.name)}'s Traits`}, a Prevalent Trait counts twice.` : group ? 'No Traits to roll on yet.' : ch ? `${escapeAttr(ch.name)} has no Traits yet.` : 'Pick a character to roll on their Traits.'}</span>
+    </div>
+    <div id="toTraitResult">${tripleOTraitRollHtml()}</div>`;
   const entry = band => `<div class="field to-entry ${band}">
       <label for="toEntry_${band}">${TRIPLE_O_BAND_LABEL[band]} <span class="to-odds">${band === 'obvious' ? '4–6' : band === 'option' ? '2–3' : '1'}</span></label>
       <input type="text" id="toEntry_${band}" class="field-input" data-to-entry="${band}" maxlength="200" value="${escapeAttr(d[band])}" placeholder="${escapeAttr(info.prompts[band])}">
@@ -420,9 +486,36 @@ function wireTripleO(){
     persist();
     renderActive();
   }));
-  qa('[data-to-who]').forEach(b => b.addEventListener('click', () => {
-    const id = Number(b.dataset.toWho);
+  const pickWho = id => {
     d().who = d().who === id ? null : id;
+    persist();
+    renderActive();
+  };
+  qa('[data-to-who-row]').forEach(row => row.addEventListener('click', e => {
+    if(e.target.closest('[data-to-tstat]')) return;   // a Trait chip changes the status only
+    pickWho(Number(row.dataset.toWhoRow));
+  }));
+  // Trait chip: Default → Prevalent → Temporary → Default.
+  qa('[data-to-tstat]').forEach(b => b.addEventListener('click', () => {
+    const [owner, idx] = b.dataset.toTstat.split(':');
+    const list = owner === 'party' ? s().party : (tripleOChar(owner) || {}).traits;
+    const t = list && list[Number(idx)];
+    if(!t) return;
+    t.status = TRIPLE_O_STATUS_NEXT[t.status] || 'default';
+    persist();
+    renderActive();
+  }));
+  q('#btnToTraitRoll').addEventListener('click', () => {
+    const r = tripleORollTrait(tripleOTraitPool());
+    if(!r) return;
+    toTraitRoll = { owner: r.owner, text: r.trait.text, status: r.trait.status, roll: r.roll, total: r.total };
+    addLog(LOG, `**Trait roll** (${escapeMd(r.owner)}): 1d${r.total} ${r.roll} → **${escapeMd(r.trait.text)}** (${TRIPLE_O_STATUS_LABEL[r.trait.status]}${r.trait.status === 'prevalent' ? ', weighted ×2' : ''})`);
+    renderActive();
+  });
+  qa('[data-to-trait-use]').forEach(b => b.addEventListener('click', () => {
+    if(!toTraitRoll) return;
+    d()[b.dataset.toTraitUse] = toTraitRoll.text.slice(0, 200);
+    toTraitRoll.used = b.dataset.toTraitUse;
     persist();
     renderActive();
   }));
@@ -480,6 +573,7 @@ function wireTripleO(){
     toResult = null;
     toPending = null;
     toRankHtml = '';
+    toTraitRoll = null;
     persist();
     renderActive();
   });

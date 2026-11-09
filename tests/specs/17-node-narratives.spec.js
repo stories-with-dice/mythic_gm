@@ -214,6 +214,7 @@ describe('Node Narratives tab', () => {
       expect(sheet().nodes).toHaveLength(1);
       expect($('#panelHost')).toContain('Scene 1 already has a Node');
       click('#btnSceneEnd');
+      setValue('#sceneControl', 'out');
       expect(campaign().gme.sceneNumber).toBe(2);
       const two = addNode('scene', 'Two');
       expect(two.scene).toBe(2);
@@ -340,6 +341,7 @@ describe('Node Narratives tab', () => {
     it('shares the Chaos Factor and Scene with the Mythic GME tab', () => {
       click('#btnSceneCfPlus');
       click('#btnSceneEnd');
+      setValue('#sceneControl', 'in');
       expect(campaign().gme.chaosFactor).toBe(5);
       expect(campaign().gme.sceneNumber).toBe(2);
       showTab('gme');

@@ -87,9 +87,42 @@ describe('UI scaffolding', () => {
       gmeSceneTestHtml = pubSceneTestHtml = nodeSceneTestHtml = '<div>x</div>';
       showTab('pub');
       click('#btnSceneEnd');
+      setValue('#sceneControl', 'out');
       expect([gmeSceneTestHtml, pubSceneTestHtml, nodeSceneTestHtml]).toEqual(['', '', '']);
       expect(lastLog().section).toBe('Published Adventures');
       expect($('#sceneNum').textContent).toBe('2');
+    });
+  });
+
+  describe('End Scene asks first', () => {
+    it('shows only the End Scene button until it is clicked', () => {
+      showTab('gme');
+      expect($('#btnSceneEnd')).toBeTruthy();
+      expect($('#sceneControl')).toBeFalsy();
+    });
+    it('a click shows the PC in control? select; nothing changes until an answer', () => {
+      campaign().gme.chaosFactor = 5; persist(); showTab('gme');
+      const logs = campaign().log.length;
+      click('#btnSceneEnd');
+      expect($('#btnSceneEnd')).toBeFalsy();
+      expect($('#sceneControl').value).toBe('');
+      expect(campaign().gme.sceneNumber).toBe(1);
+      expect(campaign().log.length).toBe(logs);
+      setValue('#sceneControl', 'in');
+      expect(campaign().gme.sceneNumber).toBe(2);
+      expect(campaign().gme.chaosFactor).toBe(4);
+      expect($('#sceneControl')).toBeFalsy();
+      expect($('#btnSceneEnd').textContent).toContain('End Scene 2');
+    });
+    it('Cancel and Escape close the select without ending the Scene', () => {
+      showTab('gme');
+      click('#btnSceneEnd');
+      click('#btnSceneEndCancel');
+      expect($('#sceneControl')).toBeFalsy();
+      click('#btnSceneEnd');
+      $('#sceneControl').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect($('#sceneControl')).toBeFalsy();
+      expect(campaign().gme.sceneNumber).toBe(1);
     });
   });
 

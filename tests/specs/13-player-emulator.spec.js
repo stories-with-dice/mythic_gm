@@ -241,6 +241,67 @@ describe('Player Emulator — tab UI', () => {
     expect($$('.pe-ref-table')[0].querySelectorAll('tbody tr')).toHaveLength(50);
   });
 
+  it('Hide shows only the labeled chart and Roll response; Show brings the card back', async () => {
+    addPc('Stan');
+    await withRolls([50, 6, 60, 6], () => click('[data-pc-build="1"]'));
+    click('[data-pc-collapse="1"]');
+    expect($('.pe-pc.collapsed')).toBeTruthy();
+    expect($('.pe-outlook-txt')).toBeFalsy();            // no Outlook rolled yet
+    await withRolls([2], () => { campaign().playerEmu.pcs[0].outlook = 2; persist(); renderActive(); });
+    expect($('.pe-pc.collapsed .pe-name-txt .pe-outlook-txt')).toContain('Pessimist');
+    expect($('[data-pc-name="1"]')).toBeFalsy();
+    expect($('[data-pc-build="1"]')).toBeFalsy();
+    expect($('.pe-pc .pe-chart.labeled .seg-name')).toBeTruthy();
+    expect($('.pe-pc .pe-chart.labeled')).toContain(campaign().playerEmu.pcs[0].chart[0].name);
+    await withRolls([3], () => click('[data-pc-roll="1"]'));
+    expect($('#peResponseResult_1 .result-box')).toBeTruthy();
+    renderActive();
+    expect($('#peResponseResult_1 .result-box')).toBeTruthy();   // survives a re-render
+    click('[data-pc-collapse="1"]');
+    expect($('[data-pc-name="1"]')).toBeTruthy();
+  });
+
+  it('Edit chart opens a modal; Save needs 10 segments and writes the chart', () => {
+    addPc('Stan');
+    click('[data-pc-edit-chart="1"]');
+    expect($('#peChartModal').classList.contains('open')).toBe(true);
+    expect($$('[data-pce-name]')).toHaveLength(1);
+    expect($('#btnPceSave').disabled).toBe(true);       // no name yet
+    setValue('[data-pce-name="0"]', 'charming');         // a Response Type fills its rating
+    expect($('[data-pce-name="0"]').value).toBe('Charming');
+    expect($('[data-pce-rating="0"]').value).toBe('-3');
+    setValue('[data-pce-seg="0"]', '6');
+    expect($('#btnPceSave').disabled).toBe(true);
+    expect($('#peChartErrors')).toContain('sum to 6');
+    click('#btnPceAdd');
+    expect($('[data-pce-seg="1"]').value).toBe('4');
+    setValue('[data-pce-name="1"]', 'Furious');
+    setValue('[data-pce-rating="1"]', '3');
+    click('[data-pce-down="0"]');
+    expect($('[data-pce-name="0"]').value).toBe('Furious');
+    expect($('#btnPceSave').disabled).toBe(false);
+    click('#btnPceSave');
+    expect($('#peChartModal').classList.contains('open')).toBe(false);
+    expect(campaign().playerEmu.pcs[0].chart).toEqual([
+      { name: 'Furious', rating: 3, segments: 4 },
+      { name: 'Charming', rating: -3, segments: 6 }
+    ]);
+    expect(lastLog().md).toContain('Response Chart edited');
+  });
+
+  it('Cancel, the close button, the backdrop and Escape leave the chart as it was', async () => {
+    addPc('Stan');
+    await withRolls([50, 6, 60, 6], () => click('[data-pc-build="1"]'));
+    const before = JSON.stringify(campaign().playerEmu.pcs[0].chart);
+    const open = () => { click('[data-pc-edit-chart="1"]'); setValue('[data-pce-name="0"]', 'Changed'); };
+    open(); click('#btnPceCancel');
+    open(); click('#peChartClose');
+    open(); click('#peChartModal');
+    open(); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect($('#peChartModal').classList.contains('open')).toBe(false);
+    expect(JSON.stringify(campaign().playerEmu.pcs[0].chart)).toBe(before);
+  });
+
   it('Remove PC clears it from the roster', async () => {
     addPc('Doomed');
     await withDialogs({ confirm: true }, () => click('[data-pc-rm="1"]'));

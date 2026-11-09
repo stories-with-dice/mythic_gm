@@ -162,6 +162,69 @@ describe('Triple-O — tab UI', () => {
     expect($$('.to-who-list .to-who')).toHaveLength(3);
   });
 
+  it('a click on a Trait chip under Who acts? cycles Default → Prevalent → Temporary → Default', () => {
+    showTab('tripleO');
+    const ch = addChar('Bran');
+    ch.traits.push({ text: 'Brave', status: 'default', category: '' });
+    tripleO().party.push({ text: 'Rest when hurt', status: 'default', category: '' });
+    persist(); renderActive();
+    click(`[data-to-tstat="${ch.id}:0"]`);
+    expect(ch.traits[0].status).toBe('prevalent');
+    expect(tripleO().draft.who).toBe(ch.id);            // a chip click does not change who acts
+    click(`[data-to-tstat="${ch.id}:0"]`);
+    expect(ch.traits[0].status).toBe('temporary');
+    click(`[data-to-tstat="${ch.id}:0"]`);
+    expect(ch.traits[0].status).toBe('default');
+    click('[data-to-mode="group"]');
+    click('[data-to-tstat="party:0"]');
+    expect(tripleO().party[0].status).toBe('prevalent');
+  });
+
+  it('tripleORollTrait weighs a Prevalent Trait twice', async () => {
+    const items = [
+      { owner: 'A', trait: { text: 'One', status: 'default' } },
+      { owner: 'A', trait: { text: 'Two', status: 'prevalent' } },
+      { owner: 'A', trait: { text: 'Three', status: 'temporary' } }
+    ];
+    const pick = n => withRolls([n], () => tripleORollTrait(items));
+    expect((await pick(1)).trait.text).toBe('One');
+    expect((await pick(2)).trait.text).toBe('Two');
+    expect((await pick(3)).trait.text).toBe('Two');
+    expect((await pick(4)).trait.text).toBe('Three');
+    expect((await pick(4)).total).toBe(4);
+    expect(tripleORollTrait([])).toBeNull();
+  });
+
+  it('Roll a Trait rolls on the picked character, logs it, and can fill an entry', async () => {
+    showTab('tripleO');
+    const ch = addChar('Bran');
+    expect($('#btnToTraitRoll').disabled).toBe(true);   // no Traits yet
+    ch.traits.push({ text: 'Brave', status: 'default', category: '' }, { text: 'Greedy', status: 'prevalent', category: '' });
+    persist(); renderActive();
+    await withRolls([3], () => click('#btnToTraitRoll'));
+    expect($('#toTraitResult')).toContain('Greedy');
+    expect($('#toTraitResult')).toContain('1d3');
+    expect(lastLog().md).toContain('Trait roll');
+    expect(lastLog().md).toContain('weighted ×2');
+    click('[data-to-trait-use="option"]');
+    expect(tripleO().draft.option).toBe('Greedy');
+    expect($('#toTraitResult')).toContain('Copied to The Option');
+    click(`[data-to-who="${ch.id}"]`);                  // no character picked → disabled
+    expect($('#btnToTraitRoll').disabled).toBe(true);
+  });
+
+  it('in group mode Roll a Trait uses the party and every character', async () => {
+    showTab('tripleO');
+    const ch = addChar('Bran');
+    ch.traits.push({ text: 'Brave', status: 'default', category: '' });
+    tripleO().party.push({ text: 'Rest when hurt', status: 'default', category: '' });
+    persist();
+    click('[data-to-mode="group"]');
+    await withRolls([2], () => click('#btnToTraitRoll'));
+    expect($('#toTraitResult')).toContain('Bran');
+    expect($('#toTraitResult')).toContain('Brave');
+  });
+
   it('puts the Random tables card below the Trait Sheets', () => {
     const titles = $$('h3.block-title', showTab('tripleO')).map(h => h.textContent);
     expect(titles.indexOf('Random tables')).toBeGreaterThan(titles.indexOf('Trait Sheets'));

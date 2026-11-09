@@ -905,6 +905,24 @@ table.matrix-table{
 .pe-chart .seg.neg{background:var(--moss);}
 .pe-chart .seg.pos{background:var(--rust);}
 .pe-chart .seg.zero{background:var(--text-dim);}
+/* collapsed card / editor preview: the response names over the colored segments */
+.pe-chart.labeled{height:42px;}
+.pe-chart.labeled .seg{flex-direction:column; gap:1px; padding:0 3px; line-height:1.1;}
+.pe-chart.labeled .seg-name{font-family:var(--font-display); font-weight:600; font-size:12px; max-width:100%; overflow:hidden; text-overflow:ellipsis;}
+.pe-chart.labeled .seg-rating{font-size:10px;}
+.pe-pc.collapsed{padding:10px 14px;}
+.pe-pc.collapsed .pe-name-txt{flex:1; min-width:120px; font-family:var(--font-display); font-size:15px; color:var(--text);}
+.pe-pc.collapsed .pe-outlook-txt{font-family:var(--font-body, inherit); font-size:12px; color:var(--text-dim); margin-left:8px;}
+.pe-collapsed-roll{margin-top:4px;}
+.pe-chart-edit{max-width:640px;}
+.pe-chart-edit-table{width:100%; border-collapse:collapse; margin-top:10px; font-size:13px;}
+.pe-chart-edit-table th{text-align:left; font-size:11px; font-weight:400; color:var(--text-dim); padding:2px 4px;}
+.pe-chart-edit-table td{padding:3px 4px; vertical-align:middle;}
+.pe-chart-edit-table .field-input{min-width:0; width:100%;}
+.pe-chart-edit-table td:nth-child(2){width:110px;}
+.pe-chart-edit-table td:nth-child(3){width:80px;}
+.pe-chart-edit-btns{white-space:nowrap; width:1%;}
+#peChartErrors{color:var(--rust-bright);}
 .pe-legend{display:flex; flex-wrap:wrap; gap:4px 14px; font-size:12px; color:var(--text-dim); margin-bottom:4px;}
 .pe-legend .rt{color:var(--text);}
 .pe-rating{font-family:var(--font-mono);}
@@ -1205,9 +1223,14 @@ h4.node-sub{font-family:var(--font-display); font-size:14px; margin:16px 0 6px; 
   padding:6px 10px;
 }
 div.to-who{grid-template-columns:minmax(110px, 180px) 1fr;}
-button.to-who{cursor:pointer;}
-button.to-who:hover{border-color:var(--line);}
-button.to-who:focus-visible{outline:2px solid var(--gold); outline-offset:1px;}
+div.to-who.pick{cursor:pointer;}
+div.to-who.pick:hover{border-color:var(--line);}
+.to-who-pick{display:flex; align-items:center; gap:10px; min-width:0; padding:2px 0; background:none; border:0; font:inherit; color:inherit; text-align:left; cursor:pointer;}
+.to-who-pick:focus-visible{outline:2px solid var(--gold); outline-offset:2px; border-radius:2px;}
+.to-who-pick .to-who-mark{flex:none;}
+button.to-trait-btn{font-family:var(--font-display); line-height:inherit; color:var(--text); cursor:pointer; background:var(--panel);}
+button.to-trait-btn:hover{border-color:var(--gold);}
+button.to-trait-btn:focus-visible{outline:2px solid var(--gold); outline-offset:1px;}
 .to-who.on{border-color:var(--gold); box-shadow:inset 3px 0 0 var(--gold); background:color-mix(in srgb, var(--gold) 10%, var(--panel-2));}
 .to-who-mark{width:14px; height:14px; border-radius:50%; border:1.5px solid var(--text-dim);}
 .to-who.on .to-who-mark{border-color:var(--gold); background:radial-gradient(circle, var(--gold) 0 45%, transparent 50%);}

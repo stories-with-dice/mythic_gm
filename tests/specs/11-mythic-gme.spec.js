@@ -275,8 +275,8 @@ describe('Mythic GME tab', () => {
     it('PC in control lowers CF, advances the Scene, clears the Expected Scene', () => {
       const g = campaign().gme;
       g.chaosFactor = 5; g.sceneNumber = 3; g.expectedScene = 'something'; persist(); showTab('gme');
-      setValue('#sceneControl', 'in');
       click('#btnSceneEnd');
+      setValue('#sceneControl', 'in');
       expect(campaign().gme.chaosFactor).toBe(4);
       expect(campaign().gme.sceneNumber).toBe(4);
       expect(campaign().gme.expectedScene).toBe('');
@@ -284,8 +284,8 @@ describe('Mythic GME tab', () => {
     });
     it('PC not in control raises CF, clamped at 9', () => {
       campaign().gme.chaosFactor = 9; persist(); showTab('gme');
-      setValue('#sceneControl', 'out');
       click('#btnSceneEnd');
+      setValue('#sceneControl', 'out');
       expect(campaign().gme.chaosFactor).toBe(9);
       expect(campaign().gme.sceneNumber).toBe(2);
     });

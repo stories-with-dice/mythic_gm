@@ -253,6 +253,9 @@ function updateNavFade(){
 function sceneStripTab(){
   return SCENE_TABS.includes(currentTab) ? currentTab : SCENE_TABS.includes(rightTab) ? rightTab : null;
 }
+// End Scene is one button. A click shows the "PC in control?" select (and a
+// Cancel); picking an answer ends the Scene at once. Not saved.
+let sceneEndOpen = false;
 function renderSceneStrip(){
   const host = document.getElementById('sceneStrip');
   if(!host) return;
@@ -273,12 +276,15 @@ function renderSceneStrip(){
     </div>
     <span class="scene-strip-divider" aria-hidden="true"></span>
     <div class="scene-strip-group scene-strip-end">
-      <label class="scene-strip-lbl" for="sceneControl">PC in control?</label>
+      ${sceneEndOpen ? `
+      <label class="scene-strip-lbl" for="sceneControl">Scene ${g.sceneNumber}: PC in control?</label>
       <select id="sceneControl" class="field-input">
+        <option value="" selected disabled>Choose…</option>
         <option value="in">Yes (CF &minus;1)</option>
         <option value="out">No (CF +1)</option>
       </select>
-      <button class="btn small" id="btnSceneEnd" title="Ends Scene ${g.sceneNumber}, adjusts the Chaos Factor, and starts Scene ${g.sceneNumber + 1}">End Scene ${g.sceneNumber}</button>
+      <button class="btn small" id="btnSceneEndCancel" aria-label="Cancel End Scene" title="Cancel">&times;</button>` : `
+      <button class="btn small" id="btnSceneEnd" title="Ends Scene ${g.sceneNumber}: you say if the PCs were in control, then the Chaos Factor changes and Scene ${g.sceneNumber + 1} starts">End Scene ${g.sceneNumber}</button>`}
     </div>`;
   const label = TABS.find(t => t.id === tab).label;
   const gme = () => campaign().gme;
@@ -290,8 +296,27 @@ function renderSceneStrip(){
     gme().chaosFactor = Math.min(9, gme().chaosFactor + 1);
     persist(); addLog(label, `**Chaos Factor** raised to ${gme().chaosFactor}.`); renderActive();
   });
-  document.getElementById('btnSceneEnd').addEventListener('click', ()=>{
-    const inControl = document.getElementById('sceneControl').value === 'in';
+  const endBtn = document.getElementById('btnSceneEnd');
+  if(endBtn) endBtn.addEventListener('click', ()=>{
+    sceneEndOpen = true;
+    renderSceneStrip();
+    const sel = document.getElementById('sceneControl');
+    if(sel) sel.focus();
+  });
+  const cancel = () => {
+    sceneEndOpen = false;
+    renderSceneStrip();
+    const b = document.getElementById('btnSceneEnd');
+    if(b) b.focus();
+  };
+  const cancelBtn = document.getElementById('btnSceneEndCancel');
+  if(cancelBtn) cancelBtn.addEventListener('click', cancel);
+  const control = document.getElementById('sceneControl');
+  if(control) control.addEventListener('keydown', e => { if(e.key === 'Escape'){ e.stopPropagation(); cancel(); } });
+  if(control) control.addEventListener('change', ()=>{
+    if(control.value !== 'in' && control.value !== 'out') return;
+    const inControl = control.value === 'in';
+    sceneEndOpen = false;
     const g2 = gme();
     const ended = g2.sceneNumber;
     g2.chaosFactor = inControl ? Math.max(1, g2.chaosFactor - 1) : Math.min(9, g2.chaosFactor + 1);

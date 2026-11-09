@@ -186,7 +186,7 @@ function renderHelpContent(){
           <div class="flow-arrow">&#9660;</div>
           <div class="flow-step"><b>C.</b> Play it out. Ask <b>Fate Questions</b> on this tab, with the Fate Chart (Odds against the Chaos Factor) or the Fate Check (2d10 + modifiers). Doubles at or under the Chaos Factor start a Random Event: Event Focus, a List roll for an NPC or Thread Focus, and two Meaning words. Use Discover Meaning on the Game Master tab as needed.</div>
           <div class="flow-arrow">&#9660;</div>
-          <div class="flow-step"><b>D.</b> <b>End the Scene</b> in the Scene strip: PC in control &rarr; Chaos Factor &minus;1; not in control &rarr; +1. Advance to the next Scene.</div>
+          <div class="flow-step"><b>D.</b> <b>End the Scene</b> in the Scene strip: click End Scene, then answer <i>PC in control?</i> Yes &rarr; Chaos Factor &minus;1; No &rarr; +1. The next Scene starts.</div>
           <div class="flow-loop">&#8635; back to A for the next Scene.</div>
         </div>
         <div class="flow-group">
@@ -222,7 +222,7 @@ function renderHelpContent(){
           <h4>Setup &mdash; once per PC</h4>
           <div class="flow-step">Add a PC and roll their <b>Outlook</b> (1d10). A <b>Wild card</b> Outlook means they always respond on the full 1d100 table instead of a personal chart.</div>
           <div class="flow-arrow">&#9660;</div>
-          <div class="flow-step"><b>Build their Response Chart</b> &mdash; a weighted 10-segment chart drawn from the 50-row Character Response Types table (Advantage/Disadvantage bias the roll).</div>
+          <div class="flow-step"><b>Build their Response Chart</b> &mdash; a weighted 10-segment chart drawn from the 50-row Character Response Types table (Advantage/Disadvantage bias the roll). <b>Edit chart</b> changes it by hand; <b>Hide</b> shows only the chart and Roll response.</div>
         </div>
         <div class="flow-group">
           <h4>Running an encounter</h4>
@@ -238,7 +238,7 @@ function renderHelpContent(){
 
     <div class="help-section" id="help-tripleo">
       <h3 class="block-title">Triple-O &mdash; The Player Character Emulator</h3>
-      <p>Play solo from the GM's seat: you run the adventure, and the dice decide what the player characters do (<i>Triple-O</i> by Cezar Capacle). Keep each character's Traits on a <b>Trait Sheet</b> (Default, Prevalent or Temporary, with a short category tag), then use the <b>Triple-O Check</b> for an Action, a Question, a Group Action or a Check. The d66 spark and specific tables help you define the Option and the Odd, make Traits, or improvise an NPC. The tab does not use the Mythic Chaos Factor or Lists.</p>
+      <p>Play solo from the GM's seat: you run the adventure, and the dice decide what the player characters do (<i>Triple-O</i> by Cezar Capacle). Keep each character's Traits on a <b>Trait Sheet</b> (Default, Prevalent or Temporary, with a short category tag), then use the <b>Triple-O Check</b> (click a Trait under <i>Who acts?</i> to change its status; <b>Roll a Trait</b> picks one at random, a Prevalent Trait counts twice) for an Action, a Question, a Group Action or a Check. The d66 spark and specific tables help you define the Option and the Odd, make Traits, or improvise an NPC. The tab does not use the Mythic Chaos Factor or Lists.</p>
       ${TRIPLE_O_FLOW_HTML}
     </div>
 
