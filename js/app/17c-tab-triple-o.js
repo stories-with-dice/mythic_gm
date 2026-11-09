@@ -77,6 +77,9 @@ const TRIPLE_O_TRAIT_SPARKS = [
   { key: 'af', category: '' }
 ];
 
+// "Fill 3 Traits": one Trait from each of these tables, with its category.
+const TRIPLE_O_FILL_KEYS = ['toDisposition', 'toMotivation', 'toMethod'];
+
 // Transient view state (not saved; see "re-rendering wipes transient
 // result displays" in AGENTS.md — every result renders from these).
 let toResult = null;      // last Triple-O Check: {mode, whoId, question, entries, dice, kept, band, doubles}
@@ -85,7 +88,7 @@ let toRankHtml = '';      // last Rank by dice result
 let toSpark = null;       // last spark roll: {label, parts:[{table, code, text, opp}], text}
 let toEditChars = new Set();   // Trait Sheets open for editing (character ids)
 let toRefOpen = false;    // Reference tables card
-let toTraitRoll = null;   // last Trait roll: {owner, text, status, roll, total, used}
+let toTraitRoll = null;   // last Trait roll: {owner, text, status, roll, total}
 
 function tripleO(){
   const c = campaign();
@@ -136,14 +139,11 @@ function tripleORollTrait(items){
   return null;
 }
 // The Traits a Trait roll uses: the picked character's, or in group mode
-// the party Traits plus every character's.
+// every character's Traits together (not the party Traits).
 function tripleOTraitPool(){
   const s = tripleO();
   if(s.draft.mode === 'group'){
-    return [
-      ...s.party.map(trait => ({ owner: 'The party', trait })),
-      ...s.chars.flatMap(c => c.traits.map(trait => ({ owner: c.name, trait })))
-    ];
+    return s.chars.flatMap(c => c.traits.map(trait => ({ owner: c.name, trait })));
   }
   const ch = tripleOChar(s.draft.who);
   return ch ? ch.traits.map(trait => ({ owner: ch.name, trait })) : [];
@@ -214,17 +214,13 @@ function tripleOTraitChips(traits, empty, owner){
   return traits.length ? traits.map((t, i) => tripleOTraitChip(t, owner == null ? null : `${owner}:${i}`)).join('') : `<span class="small-note">${empty}</span>`;
 }
 
-// The last Trait roll, with buttons that copy the Trait into an entry.
+// The last Trait roll.
 function tripleOTraitRollHtml(){
   const r = toTraitRoll;
   if(!r) return '';
   return `<div class="result-box event to-trait-roll">
     Trait roll: 1d${r.total} <span class="roll-num">${r.roll}</span> &rarr; ${escapeAttr(r.owner)}: <b>${r.status === 'prevalent' ? '&#9733; ' : ''}${escapeAttr(r.text)}</b>
     <span class="small-note">(${TRIPLE_O_STATUS_LABEL[r.status]}${r.status === 'prevalent' ? ', weighted &times;2' : ''})</span>
-    ${r.used ? `<div class="small-note">&#10003; Copied to ${TRIPLE_O_BAND_LABEL[r.used]} in the Triple-O Check.</div>` : ''}
-    <div class="row" style="margin-top:8px;">
-      ${TRIPLE_O_BANDS.map(b => `<button class="btn small" data-to-trait-use="${b}">Use as ${TRIPLE_O_BAND_LABEL[b].replace('The ', '')}</button>`).join('')}
-    </div>
   </div>`;
 }
 
@@ -321,6 +317,7 @@ function tripleOSheetHtml(ch){
       </select>
       <button class="btn small" data-to-trait-spark="${ch.id}" ${full ? 'disabled' : ''}>Spark a Trait</button>
       <span class="small-note">${ch.traits.length} / ${TRIPLE_O_MAX_TRAITS} Traits</span>
+      <button class="btn small to-fill" data-to-trait-fill="${ch.id}" ${ch.traits.length + TRIPLE_O_FILL_KEYS.length > TRIPLE_O_MAX_TRAITS ? 'disabled' : ''} title="Adds three Traits: one Disposition (PR), one Motivation (MT), one Method (SK)">Fill 3 Traits</button>
     </div>
   </div>`;
 }
@@ -361,8 +358,7 @@ function renderTripleO(){
       ${partyRow}${whoRows || '<div class="small-note">No characters yet. Add a Trait Sheet below.</div>'}
     </div>
     <div class="row" style="margin-top:8px;">
-      <button class="btn small" id="btnToTraitRoll" ${pool.length ? '' : 'disabled'} title="A Prevalent Trait counts twice">Roll a Trait</button>
-      <span class="small-note">${pool.length ? `${group ? 'Party and character Traits' : `${escapeAttr(ch.name)}'s Traits`}, a Prevalent Trait counts twice.` : group ? 'No Traits to roll on yet.' : ch ? `${escapeAttr(ch.name)} has no Traits yet.` : 'Pick a character to roll on their Traits.'}</span>
+      <button class="btn small" id="btnToTraitRoll" ${pool.length ? '' : 'disabled'} title="${group ? 'One Trait across every character' : 'One Trait of the picked character'}; a Prevalent Trait counts twice">Roll a Trait</button>
     </div>
     <div id="toTraitResult">${tripleOTraitRollHtml()}</div>`;
   const entry = band => `<div class="field to-entry ${band}">
@@ -512,13 +508,6 @@ function wireTripleO(){
     addLog(LOG, `**Trait roll** (${escapeMd(r.owner)}): 1d${r.total} ${r.roll} → **${escapeMd(r.trait.text)}** (${TRIPLE_O_STATUS_LABEL[r.trait.status]}${r.trait.status === 'prevalent' ? ', weighted ×2' : ''})`);
     renderActive();
   });
-  qa('[data-to-trait-use]').forEach(b => b.addEventListener('click', () => {
-    if(!toTraitRoll) return;
-    d()[b.dataset.toTraitUse] = toTraitRoll.text.slice(0, 200);
-    toTraitRoll.used = b.dataset.toTraitUse;
-    persist();
-    renderActive();
-  }));
   const question = q('#toQuestion');
   if(question) question.addEventListener('input', () => { d().question = question.value.slice(0, 200); persist(); });
   qa('[data-to-entry]').forEach(inp => inp.addEventListener('input', () => {
@@ -752,6 +741,20 @@ function wireTripleO(){
     if(!def) return;
     const sp = tripleOSpark(key);
     if(addTrait(tripleOChar(id), sp.text, 'default', def.category, `${sp.label} ${sp.parts.map(p => p.code).join('+')}`)) renderActive();
+  }));
+
+  qa('[data-to-trait-fill]').forEach(b => b.addEventListener('click', () => {
+    const ch = tripleOChar(b.dataset.toTraitFill);
+    if(!ch || ch.traits.length + TRIPLE_O_FILL_KEYS.length > TRIPLE_O_MAX_TRAITS) return;
+    const added = TRIPLE_O_FILL_KEYS.map(key => {
+      const r = tripleORoll(key);
+      const cat = (TRIPLE_O_TRAIT_SPARKS.find(x => x.key === key) || {}).category || '';
+      ch.traits.push({ text: r.text.slice(0, 80), status: 'default', category: cat });
+      return `${r.table} ${r.code} → **${escapeMd(r.text)}**`;
+    });
+    persist();
+    addLog(LOG, `**${escapeMd(ch.name)} — 3 Traits added** (d66): ${added.join(' · ')}`);
+    renderActive();
   }));
 
   /* ----- Party Traits ----- */

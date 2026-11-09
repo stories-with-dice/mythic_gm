@@ -68,7 +68,7 @@ const HELP_OVERVIEW_SVG = `
   <text x="719" y="226" text-anchor="middle" class="hd-sub">Cloud Empress: Solo Protocol</text>
   <text x="604" y="248" class="hd-bullet">&bull; PC Outlooks + Response Charts</text>
   <text x="604" y="268" class="hd-bullet">&bull; NPC moods (1d10)</text>
-  <text x="604" y="288" class="hd-bullet">&bull; Generate Encounter Mood sums ratings</text>
+  <text x="604" y="288" class="hd-bullet">&bull; Encounter Mood sums ratings live</text>
   <text x="604" y="308" class="hd-bullet">&bull; total &ge; +4 &rArr; violent encounter</text>
   <text x="604" y="332" class="hd-note-inline">Independent &mdash; pairs with any tool above.</text>
 
@@ -228,10 +228,10 @@ function renderHelpContent(){
           <h4>Running an encounter</h4>
           <div class="flow-step">Add the NPCs present; each gets one rolled <b>Mood</b> (1d10, Advantage/Disadvantage available).</div>
           <div class="flow-arrow">&#9660;</div>
-          <div class="flow-step">Set any manual <b>conflict adjustment</b>, then <b>Generate Encounter Mood</b>: every PC responds on their chart (or a fresh 1d100 if Wild card), every NPC mood counts, and it all sums (a + and a &minus; cancel).</div>
+          <div class="flow-step">Click <b>Roll response</b> on each PC card (1d10 on their chart, or a fresh 1d100 if Wild card) and set any <b>Extra conflict</b>. The <b>Encounter Mood</b> sums every rolled response, every NPC mood and the Extra conflict by itself (a + and a &minus; cancel).</div>
           <div class="flow-arrow">&#9660;</div>
           <div class="flow-step">Total tension <b>&ge; +4</b> &rarr; a violent encounter begins.</div>
-          <div class="flow-loop">"Reuse held responses" (on by default) keeps each PC's last roll instead of re-rolling on the next Generate.</div>
+          <div class="flow-loop"><b>Clear encounter</b> removes the NPCs and the PC responses for the next encounter.</div>
         </div>
       </div>
     </div>
@@ -246,7 +246,7 @@ function renderHelpContent(){
       <h3 class="block-title">Quick Note, Campaign Log &amp; Campaigns</h3>
       <p><b>Quick Note</b> and the <b>Campaign Log</b> are always on screen: in a column on the right of a wide window, below the tab on a narrow one. Quick Note is a Markdown scratchpad &mdash; press Enter (or the toolbar) to commit it to the Log. The Log is the running record of everything you roll across every tab, newest entry at the top; it stores raw Markdown as the source of truth, and only renders it to sanitized HTML for on-screen display. Copy or Download export that Markdown verbatim, oldest first. <b>Clear log</b> runs at once; the toast at the bottom offers <b>Undo</b> for 10 seconds. The open tabs, the split view and the open <b>?</b> intros are saved with each campaign, so a reload, an export or Dropbox sync brings them back. Hint text in the fields shows only during the first day of a campaign.</p>
       <p>The <b>Campaign</b> dropdown at the top of the page switches between separate save slots, each with its own state for every tab. <b>New</b> is next to it; Rename, Export, Import and Delete are in the <b>Campaign &#8943;</b> menu. Delete runs at once, with <b>Undo</b> in the toast. Export/Import round-trip a campaign through a JSON file. Campaigns live in <code>sessionStorage</code>: closing the browser tab deletes them. While Dropbox sync is off, a <b>&#9888; Not saved</b> badge shows in the campaign bar, and the browser asks before it closes a tab that has log entries.</p>
-      <p>The tabs are in three groups: <b>Mythic 2e</b>, <b>One-Page</b> and <b>Players</b>. Use the arrow keys to move between tabs. To see two tabs side by side, pick one in <b>Open beside&hellip;</b> next to the tab title, or right-click a tab. On the four Mythic 2e tabs, the <b>Scene strip</b> under the tab bar holds the shared Chaos Factor, the Scene number and End Scene.</p>
+      <p>The tabs are in three groups: <b>Mythic 2e</b>, <b>One-Page</b> and <b>Players</b>. Use the arrow keys to move between tabs. To see two tabs side by side, right-click a tab. On the four Mythic 2e tabs, the <b>Scene strip</b> under the tab bar holds the shared Chaos Factor, the Scene number and End Scene.</p>
       <p><b>3D dice.</b> Every button that rolls dice throws them as 3D dice first, with sound. The dice land on the rolled numbers, and the result shows a moment later. A d100 is two d10s (tens and units); a size with no die shape is a coin. Click the dice or press Escape to skip to the result. In <b>&#9881; Settings &rarr; Dice</b> you can turn the 3D dice and the sound off, and pick one of 12 dice skins, the theme's skin, or Random (a skin for every die).</p>
       <p><b>Dropbox sync</b> (in <b>&#9881; Settings</b> in the campaign bar) is optional and off by default. When you connect it, every campaign is saved as one file in your Dropbox app folder a few seconds after each change. A new tab, or another browser where you connect, then loads the same campaigns. If the Dropbox copy and this tab both changed, the app merges them campaign by campaign. It asks only about a campaign that changed on both sides: keep this tab's copy, the Dropbox copy, or both. Setup needs a free Dropbox app key once; the panel lists the steps.</p>
     </div>

@@ -59,13 +59,9 @@ describe('UI scaffolding', () => {
       key('Home');       expect(currentTab).toBe('gme');
       key('End');        expect(currentTab).toBe('tripleO');
     });
-    it('"Open beside…" in the main tab header opens the split view', () => {
+    it('the tab header has no "Open beside…" select', () => {
       showTab('gm');
-      setValue('[data-split-pick]', 'mystery');
-      expect(rightTab).toBe('mystery');
-      expect($('#panelSplit').classList.contains('split')).toBe(true);
-      setValue('#panelHost [data-split-pick]', '');
-      expect(rightTab).toBeNull();
+      expect($('[data-split-pick]')).toBeFalsy();
     });
   });
 

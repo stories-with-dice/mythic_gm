@@ -189,11 +189,13 @@ function peChartResponseAt(entries, d10){
 // ---------------------------------------------------------------------------
 
 // transient view state, cached so an unrelated renderActive() doesn't wipe it
-let peEncounterHtml = '';
 let peResponseHtml = {};      // pc id -> last "Roll response" result HTML (shown on the PC card)
 let peLastResponse = {};      // pc id -> last response { name, rating, wild, ... } for reuse in an encounter
 let peRefOpen = false;        // reference tables collapsed by default
-let pePcCollapsed = new Set(); // pc ids whose card shows only the chart and Roll response (not saved)
+// PC cards are collapsed by default (only the chart and Roll response). This
+// Set holds the ids of the cards opened with Show, plus each PC added in
+// this tab, so its chart can be built. Not saved: a reload collapses all.
+let pePcExpanded = new Set();
 let peChartEdit = null;       // the Response Chart editor modal: { pcId, rows:[{name, rating, segments}] } or null
 
 // The chart bar. `labeled` writes each response's name over its colored segment.
@@ -204,6 +206,58 @@ function peChartBarHtml(chart, labeled){
       : peRatingLabel(e.rating)}</span>`).join('')}</div>`;
 }
 
+// The Encounter Mood, always up to date: every PC's last rolled response
+// (peLastResponse, from Roll response), every NPC's mood, and the Extra
+// conflict, summed. Nothing is rolled here. A PC with no response yet is
+// listed but adds nothing. Total >= +4 = a violent encounter begins.
+function peEncounterMood(){
+  const data = campaign().playerEmu;
+  const lines = [];      // {label, name, rating, detail}
+  const waiting = [];    // PCs that can respond but have not rolled yet
+  data.pcs.forEach(pc => {
+    const res = peLastResponse[pc.id];
+    if(res) lines.push({ label: pc.name, name: res.name, rating: res.rating, detail: res.rollText + (res.wild ? ' · Wild card' : '') });
+    else if(pc.chart.length || pc.outlook === PE_WILDCARD_OUTLOOK) waiting.push(pc);
+  });
+  data.npcs.forEach(n => {
+    const m = peNpcMood(n.mood);
+    lines.push({ label: n.name, name: m.name, rating: m.rating, detail: '1d10 ' + n.mood });
+  });
+  const total = lines.reduce((sum, l) => sum + l.rating, 0) + data.adjust;
+  return { lines, waiting, total, violent: total >= 4, adjust: data.adjust };
+}
+function peEncounterMoodHtml(){
+  const m = peEncounterMood();
+  if(!m.lines.length && !m.waiting.length && !m.adjust) return '<div class="small-note">Roll a PC response or add an NPC: the Encounter Mood shows here.</div>';
+  const rows = m.lines.map(l => `<tr>
+      <td>${escapeAttr(l.label)}</td>
+      <td><b>${escapeAttr(l.name)}</b></td>
+      <td class="pe-rating ${peRatingClass(l.rating)}">${peRatingLabel(l.rating)}</td>
+      <td class="small-note">${escapeAttr(l.detail)}</td>
+    </tr>`).join('') + m.waiting.map(pc => `<tr class="pe-waiting">
+      <td>${escapeAttr(pc.name)}</td>
+      <td colspan="3" class="small-note">No response yet: Roll response on the PC card.</td>
+    </tr>`).join('');
+  const adjRow = m.adjust
+    ? `<tr><td>Extra conflict</td><td>&mdash;</td><td class="pe-rating ${peRatingClass(m.adjust)}">${peRatingLabel(m.adjust)}</td><td class="small-note">manual</td></tr>`
+    : '';
+  return `<div class="result-box ${m.violent ? 'no' : ''}">
+      <div style="overflow-x:auto;"><table class="pe-ref-table">
+        <thead><tr><th>Participant</th><th>Response / Mood</th><th>Rating</th><th>Roll</th></tr></thead>
+        <tbody>${rows}${adjRow}</tbody>
+      </table></div>
+      <div style="margin-top:10px;">Total conflict rating:
+        <span class="roll-num">${m.total}</span>
+        <span class="pe-rating ${peRatingClass(m.total)}" style="margin-left:6px;">${peRatingLabel(m.total)}</span>
+      </div>
+      <div class="${m.violent ? 'banner-solved' : 'small-note'}" style="margin-top:8px;">
+        ${m.violent
+          ? '&#9876;&#65039; Violent encounter begins — the tension reached + + + + or more.'
+          : 'No violence — the tension stays below + + + +. Play out the interaction.'}
+      </div>
+    </div>`;
+}
+
 function renderPlayerEmu(){
   const pe = campaign().playerEmu || (campaign().playerEmu = freshPlayerEmu());
 
@@ -212,7 +266,7 @@ function renderPlayerEmu(){
     const wild = pc.outlook === PE_WILDCARD_OUTLOOK;
     const total = pc.chart.reduce((s, e) => s + e.rating, 0);
 
-    const collapsed = pePcCollapsed.has(pc.id);
+    const collapsed = !pePcExpanded.has(pc.id);
     const rollBtn = `<button class="btn primary" data-pc-roll="${pc.id}" ${pc.chart.length || wild ? '' : 'disabled'}>Roll response</button>`;
     const toggleBtn = `<button class="btn small" data-pc-collapse="${pc.id}" aria-expanded="${!collapsed}" title="${collapsed ? 'Show the whole card' : 'Show only the chart and Roll response'}">${collapsed ? 'Show' : 'Hide'}</button>`;
     if(collapsed){
@@ -280,8 +334,6 @@ function renderPlayerEmu(){
     </li>`;
   }).join('');
 
-  const canGenerate = pe.pcs.some(p => p.chart.length || p.outlook === PE_WILDCARD_OUTLOOK) || pe.npcs.length;
-
   const refRows = PE_RESPONSE_TYPES.map((t, i) => {
     const lo = 2 * i + 1, hi = 2 * i + 2;
     return `<tr><td class="band">${lo}–${hi}</td><td>${t.name}</td><td class="pe-rating ${peRatingClass(t.rating)}">${peRatingLabel(t.rating)}</td></tr>`;
@@ -303,7 +355,7 @@ function renderPlayerEmu(){
 
   <div class="card">
     <h3 class="block-title">Encounter</h3>
-    <p class="small-note" style="margin-top:-4px;">Add the NPCs, animals, friends and foes present, then generate the party's mood. Each NPC gets one mood.</p>
+    <p class="small-note" style="margin-top:-4px;">Add the NPCs present. Each NPC gets one mood. The Encounter Mood below sums the PCs' rolled responses, the NPC moods and the Extra conflict, and updates by itself.</p>
     <div class="row" style="align-items:flex-end;">
       <input type="text" id="peNewNpcName" class="field-input" style="flex:1; min-width:160px;" placeholder="NPC name (optional)…">
       <div class="field">
@@ -315,19 +367,14 @@ function renderPlayerEmu(){
       <button class="btn" id="btnPeAddNpc">Add NPC &amp; roll mood</button>
     </div>
     ${pe.npcs.length ? `<ul class="gme-list">${npcRows}</ul><div class="small-note">${pe.npcs.length} NPC${pe.npcs.length === 1 ? '' : 's'} in the encounter</div>` : '<div class="small-note" style="margin-top:8px;">No NPCs added.</div>'}
-    <div class="row" style="margin-top:12px; align-items:flex-end;">
-      <div class="field">
-        <label for="peAdjust">Extra conflict (animals, friends, foes not listed)</label>
-        <input type="number" id="peAdjust" class="field-input" style="min-width:90px;" value="${pe.adjust}" min="-20" max="20" step="1">
-      </div>
-      <button class="btn primary" id="btnPeGenerateMood" ${canGenerate ? '' : 'disabled'}>Generate Encounter Mood</button>
-      <button class="btn" id="btnPeClearEncounter" ${pe.npcs.length || peEncounterHtml ? '' : 'disabled'}>Clear encounter</button>
+    <div class="row pe-encounter-bar">
+      <button class="btn" id="btnPeClearEncounter" ${pe.npcs.length || Object.keys(peLastResponse).length ? '' : 'disabled'} title="Removes the NPCs and every PC's last response">Clear encounter</button>
+      <label class="pe-adjust" for="peAdjust" title="Animals, friends and foes not listed: + escalates, − calms">Extra conflict
+        <input type="number" id="peAdjust" class="field-input" value="${pe.adjust}" min="-20" max="20" step="1">
+      </label>
     </div>
-    <label class="small-note" style="display:flex; align-items:center; gap:6px; margin-top:8px;">
-      <input type="checkbox" id="peUseHeldResponses" ${pe.useHeldResponses !== false ? 'checked' : ''}>
-      Reuse each PC's last rolled response where one exists (uncheck to roll every PC fresh)
-    </label>
-    <div id="peEncounterResult" style="margin-top:12px;">${peEncounterHtml}</div>
+    <h4 class="pe-mood-title">Encounter Mood</h4>
+    <div id="peEncounterResult">${peEncounterMoodHtml()}</div>
   </div>
 
   <div class="card">
@@ -374,7 +421,9 @@ function wirePlayerEmu(){
   function addPc(){
     const el = document.getElementById('peNewPcName');
     const name = el.value.trim() || `PC ${pe().pcs.length + 1}`;
-    pe().pcs.push({ id: pe().nextPcId++, name, outlook: null, chartMode: 'normal', chart: [] });
+    const id = pe().nextPcId++;
+    pe().pcs.push({ id, name, outlook: null, chartMode: 'normal', chart: [] });
+    pePcExpanded.add(id);   // a new PC opens expanded, to roll its Outlook and build its chart
     persist();
     addLog('Player Emulator', `**PC added** — "${escapeMd(name)}".`);
     renderActive();
@@ -396,7 +445,7 @@ function wirePlayerEmu(){
     pe().pcs = pe().pcs.filter(p => p.id !== pc.id);
     delete peResponseHtml[pc.id];
     delete peLastResponse[pc.id];
-    pePcCollapsed.delete(pc.id);
+    pePcExpanded.delete(pc.id);
     persist();
     addLog('Player Emulator', `**PC removed** — "${escapeMd(pc.name)}".`);
     renderActive();
@@ -412,7 +461,7 @@ function wirePlayerEmu(){
   /* ----- collapse a card / edit the chart ----- */
   document.querySelectorAll('[data-pc-collapse]').forEach(b => b.addEventListener('click', () => {
     const id = Number(b.dataset.pcCollapse);
-    if(pePcCollapsed.has(id)) pePcCollapsed.delete(id); else pePcCollapsed.add(id);
+    if(pePcExpanded.has(id)) pePcExpanded.delete(id); else pePcExpanded.add(id);
     renderActive();
   }));
   document.querySelectorAll('[data-pc-edit-chart]').forEach(b => b.addEventListener('click', () => openPeChartEditor(Number(b.dataset.pcEditChart))));
@@ -455,8 +504,8 @@ function wirePlayerEmu(){
     if(!res) return;
     peLastResponse[pc.id] = res;
     peResponseHtml[pc.id] = `<div class="result-box ${res.rating >= 4 ? 'no' : ''}">${res.rollText} &nbsp;→&nbsp; ${ratingChip(res.name, res.rating)}${res.wild ? ' <span class="small-note">(Wild card — full table)</span>' : ''}</div>`;
-    document.getElementById('peResponseResult_' + pc.id).innerHTML = peResponseHtml[pc.id];
     addLog('Player Emulator', `**${escapeMd(pc.name)} — response** ${res.logText} → **${res.name}** (${peRatingLabel(res.rating)}).`);
+    renderActive();   // the Encounter Mood follows the new response
   }));
 
   /* ----- encounter NPCs ----- */
@@ -482,9 +531,6 @@ function wirePlayerEmu(){
     pe().npcMoodMode = PE_CHART_MODES.includes(moodMode.value) ? moodMode.value : 'normal';
     persist();
   });
-
-  const useHeldCb = document.getElementById('peUseHeldResponses');
-  useHeldCb.addEventListener('change', () => { pe().useHeldResponses = useHeldCb.checked; persist(); });
 
   document.querySelectorAll('[data-npc-reroll]').forEach(b => b.addEventListener('click', () => {
     const n = npcById(b.dataset.npcReroll);
@@ -519,84 +565,12 @@ function wirePlayerEmu(){
     renderActive();
   });
 
-  /* ----- generate the whole encounter's mood ----- */
-  document.getElementById('btnPeGenerateMood').addEventListener('click', () => {
-    const data = pe();
-    const active = data.pcs.filter(p => p.chart.length || p.outlook === PE_WILDCARD_OUTLOOK);
-    const skipped = data.pcs.filter(p => !p.chart.length && p.outlook !== PE_WILDCARD_OUTLOOK);
-
-    if(!active.length && !data.npcs.length){
-      peEncounterHtml = '<div class="result-box">Nothing to roll — add a PC with a Response Chart, or an NPC.</div>';
-      document.getElementById('peEncounterResult').innerHTML = peEncounterHtml;
-      return;
-    }
-
-    const useHeld = data.useHeldResponses !== false;   // default on, incl. pre-existing session campaigns
-    let heldCount = 0;
-    const lines = [];   // {label, name, rating, detail}
-    active.forEach(pc => {
-      let res, held = false;
-      if(useHeld && peLastResponse[pc.id]){
-        res = peLastResponse[pc.id];
-        held = true;
-        heldCount++;
-      } else {
-        res = pePcResponse(pc);
-        peLastResponse[pc.id] = res;
-        peResponseHtml[pc.id] = `<div class="result-box ${res.rating >= 4 ? 'no' : ''}">${res.rollText} &nbsp;→&nbsp; ${ratingChip(res.name, res.rating)}${res.wild ? ' <span class="small-note">(Wild card — full table)</span>' : ''}</div>`;
-      }
-      lines.push({ label: pc.name, name: res.name, rating: res.rating, detail: held ? 'held from earlier roll' : res.rollText + (res.wild ? ' · Wild card' : '') });
-    });
-    data.npcs.forEach(n => {
-      const m = peNpcMood(n.mood);
-      lines.push({ label: n.name, name: m.name, rating: m.rating, detail: '1d10 ' + n.mood });
-    });
-
-    const partySum = lines.reduce((s, l) => s + l.rating, 0);
-    const total = partySum + data.adjust;
-    const violent = total >= 4;
-
-    const rows = lines.map(l => `<tr>
-      <td>${escapeAttr(l.label)}</td>
-      <td><b>${escapeAttr(l.name)}</b></td>
-      <td class="pe-rating ${peRatingClass(l.rating)}">${peRatingLabel(l.rating)}</td>
-      <td class="small-note">${escapeAttr(l.detail)}</td>
-    </tr>`).join('');
-    const adjRow = data.adjust
-      ? `<tr><td>Extra conflict</td><td>&mdash;</td><td class="pe-rating ${peRatingClass(data.adjust)}">${peRatingLabel(data.adjust)}</td><td class="small-note">manual</td></tr>`
-      : '';
-
-    peEncounterHtml = `<div class="result-box ${violent ? 'no' : ''}">
-      <div style="overflow-x:auto;"><table class="pe-ref-table">
-        <thead><tr><th>Participant</th><th>Response / Mood</th><th>Rating</th><th>Roll</th></tr></thead>
-        <tbody>${rows}${adjRow}</tbody>
-      </table></div>
-      <div style="margin-top:10px;">Total conflict rating:
-        <span class="roll-num">${total}</span>
-        <span class="pe-rating ${peRatingClass(total)}" style="margin-left:6px;">${peRatingLabel(total)}</span>
-      </div>
-      <div class="${violent ? 'banner-solved' : 'small-note'}" style="margin-top:8px;">
-        ${violent
-          ? '&#9876;&#65039; Violent encounter begins — the tension reached + + + + or more.'
-          : 'No violence — the tension stays below + + + +. Play out the interaction.'}
-      </div>
-      ${heldCount ? `<div class="small-note">Reused ${heldCount} held PC response${heldCount === 1 ? '' : 's'} (checkbox on).</div>` : ''}
-      ${skipped.length ? `<div class="small-note">${skipped.length} PC${skipped.length === 1 ? '' : 's'} skipped (no Response Chart): ${skipped.map(p => escapeAttr(p.name)).join(', ')}.</div>` : ''}
-    </div>`;
-
-    const logRows = lines.map(l => `${escapeMd(l.label)}: ${l.name} (${peRatingLabel(l.rating)}) [${l.detail}]`).join('\n  - ');
-    addLog('Player Emulator',
-      `**Encounter Mood** — total ${total} (${peRatingLabel(total)}) → **${violent ? 'Violent encounter begins' : 'no violence'}**\n  - ${logRows}` +
-      (data.adjust ? `\n  - Extra conflict: ${peRatingLabel(data.adjust)}` : '') +
-      (heldCount ? `\n  - Reused ${heldCount} held PC response${heldCount === 1 ? '' : 's'}` : '') +
-      (skipped.length ? `\n  - Skipped (no chart): ${skipped.map(p => escapeMd(p.name)).join(', ')}` : ''));
-    renderActive();
-  });
-
   document.getElementById('btnPeClearEncounter').addEventListener('click', () => {
     pe().npcs = [];
-    peEncounterHtml = '';
+    peLastResponse = {};
+    peResponseHtml = {};
     persist();
+    addLog('Player Emulator', '**Encounter cleared** — NPCs and PC responses removed.');
     renderActive();
   });
 

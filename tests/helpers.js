@@ -44,7 +44,6 @@ window.resetApp = function resetApp() {
   pubDimOpen = false;
   locSetupOpen = false;
   threeActThreadOpen = null;
-  peEncounterHtml = '';
   peResponseHtml = {};
   peLastResponse = {};
   peRefOpen = false;
@@ -64,7 +63,7 @@ window.resetApp = function resetApp() {
   toEditChars = new Set();
   toRefOpen = false;
   toTraitRoll = null;
-  pePcCollapsed = new Set();
+  pePcExpanded = new Set();
   if(typeof closePeChartEditor === 'function') closePeChartEditor();
   sceneEndOpen = false;
   helpOpen = false;

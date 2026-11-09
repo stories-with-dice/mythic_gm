@@ -186,59 +186,78 @@ describe('Player Emulator — tab UI', () => {
     expect($('#peNpcMoodMode').value).toBe('dis');          // selection persists across the re-render
   });
 
-  it('Generate Encounter Mood tips to violence when the tension reaches + + + +', async () => {
+  it('the Encounter Mood follows the NPC moods by itself: violent at + + + +', async () => {
+    expect($('#btnPeGenerateMood')).toBeFalsy();
     await withRolls([10], () => click('#btnPeAddNpc'));       // Cruel (+4) — enough on its own
-    await withRolls([1], () => click('#btnPeGenerateMood'));
     const box = $('#peEncounterResult .result-box');
-    expect(box).toBeTruthy();
     expect(box.className).toContain('no');                    // violent -> danger styling
     expect($('#peEncounterResult')).toContain('Violent encounter begins');
-    expect(lastLog().md).toContain('Encounter Mood');
   });
 
-  it('Generate Encounter Mood stays calm when the ratings cancel out', async () => {
+  it('the Encounter Mood stays calm when the ratings stay below + + + +', async () => {
     await withRolls([2], () => click('#btnPeAddNpc'));        // Friendly (−2)
-    await withRolls([1], () => click('#btnPeGenerateMood'));
     expect($('#peEncounterResult .result-box').className).not.toContain('no');
     expect($('#peEncounterResult')).toContain('No violence');
+    setValue('#peAdjust', '6');                               // −2 + 6 = +4
+    expect($('#peEncounterResult')).toContain('Violent encounter begins');
   });
 
-  it('Wild card Outlook lets a chartless PC still respond in an encounter', async () => {
+  it('a rolled PC response joins the Encounter Mood; a PC without one is listed as waiting', async () => {
+    addPc('Stan');
+    await withRolls([50, 6, 60, 6], () => click('[data-pc-build="1"]'));
+    expect($('#peEncounterResult')).toContain('No response yet');
+    await withRolls([3], () => click('[data-pc-roll="1"]'));
+    const held = $('#peResponseResult_1 .word-chip b').textContent;
+    expect($('#peEncounterResult')).not.toContain('No response yet');
+    expect($('#peEncounterResult')).toContain(held);
+    expect($('#peEncounterResult')).toContain('1d10 3 on chart');
+  });
+
+  it('a Wild card PC with no chart can respond and joins the mood', async () => {
     addPc('Goldfish');
     await withRolls([PE_WILDCARD_OUTLOOK], () => click('[data-pc-outlook="1"]'));
     expect($('[data-pc-roll="1"]').disabled).toBe(false);
-    await withRolls([1], () => click('#btnPeGenerateMood'));
+    await withRolls([1], () => click('[data-pc-roll="1"]'));
     expect($('#peEncounterResult')).toContain('Goldfish');
+    expect($('#peEncounterResult')).toContain('Wild card');
   });
 
-  it('checkbox (default on) reuses a PC\'s last rolled response instead of re-rolling', async () => {
-    addPc('Stan');
-    await withRolls([50, 6, 60, 6], () => click('[data-pc-build="1"]'));  // chart: slice 1–6 / slice 7–10
-    await withRolls([3], () => click('[data-pc-roll="1"]'));              // solo roll -> first slice
-    const held = $('#peResponseResult_1 .word-chip b').textContent;
-    expect($('#peUseHeldResponses').checked).toBe(true);
-    await withRolls([9], () => click('#btnPeGenerateMood'));              // 9 would hit the 2nd slice if it re-rolled
-    expect($('#peEncounterResult')).toContain('held from earlier roll');
-    expect($('#peEncounterResult')).toContain(held);
-    expect($('#peEncounterResult')).toContain('Reused 1 held PC response');
-  });
-
-  it('unchecking the checkbox rolls every PC fresh', async () => {
+  it('Clear encounter removes the NPCs and the PC responses', async () => {
     addPc('Stan');
     await withRolls([50, 6, 60, 6], () => click('[data-pc-build="1"]'));
-    await withRolls([3], () => click('[data-pc-roll="1"]'));             // held = first slice
-    const cb = $('#peUseHeldResponses');
-    cb.checked = false;
-    cb.dispatchEvent(new Event('change', { bubbles: true }));
-    await withRolls([9], () => click('#btnPeGenerateMood'));             // fresh roll -> second slice
-    expect($('#peEncounterResult')).not.toContain('held from earlier roll');
-    expect($('#peEncounterResult')).toContain('1d10 9 on chart');
+    await withRolls([3], () => click('[data-pc-roll="1"]'));
+    await withRolls([5], () => click('#btnPeAddNpc'));
+    click('#btnPeClearEncounter');
+    expect(campaign().playerEmu.npcs).toHaveLength(0);
+    expect($('#peResponseResult_1 .result-box')).toBeFalsy();
+    expect($('#peEncounterResult')).toContain('No response yet');
+    expect($('#btnPeClearEncounter').disabled).toBe(true);
+  });
+
+  it('Extra conflict sits right of Clear encounter in one row', () => {
+    const bar = $('.pe-encounter-bar');
+    expect(bar.querySelector('#btnPeClearEncounter')).toBeTruthy();
+    expect(bar.querySelector('#peAdjust')).toBeTruthy();
+    expect(bar.lastElementChild.contains($('#peAdjust'))).toBe(true);
   });
 
   it('Reference tables toggle shows all 50 re-sorted response rows', () => {
     click('#btnPeRefToggle');
     // the first ref table lists the 50 Character Response Types
     expect($$('.pe-ref-table')[0].querySelectorAll('tbody tr')).toHaveLength(50);
+  });
+
+  it('existing PCs open collapsed; a PC added here opens expanded', () => {
+    const pe = campaign().playerEmu;
+    pe.pcs.push({ id: pe.nextPcId++, name: 'Saved', outlook: null, chartMode: 'normal',
+      chart: [{ name: 'Charming', rating: -3, segments: 10 }] });
+    persist(); showTab('playerEmu');
+    expect($('.pe-pc.collapsed')).toBeTruthy();
+    expect($('[data-pc-name="1"]')).toBeFalsy();
+    expect($('[data-pc-collapse="1"]').textContent).toBe('Show');
+    addPc('New');
+    expect($('[data-pc-name="2"]')).toBeTruthy();          // the new card is expanded
+    expect($('.pe-pc[data-pc="1"]').classList.contains('collapsed')).toBe(true);
   });
 
   it('Hide shows only the labeled chart and Roll response; Show brings the card back', async () => {

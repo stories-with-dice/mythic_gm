@@ -206,23 +206,43 @@ describe('Triple-O — tab UI', () => {
     expect($('#toTraitResult')).toContain('1d3');
     expect(lastLog().md).toContain('Trait roll');
     expect(lastLog().md).toContain('weighted ×2');
-    click('[data-to-trait-use="option"]');
-    expect(tripleO().draft.option).toBe('Greedy');
-    expect($('#toTraitResult')).toContain('Copied to The Option');
+    expect($('[data-to-trait-use]')).toBeFalsy();       // no Use as buttons
+    expect($('#panelHost')).not.toContain('a Prevalent Trait counts twice.');
     click(`[data-to-who="${ch.id}"]`);                  // no character picked → disabled
     expect($('#btnToTraitRoll').disabled).toBe(true);
   });
 
-  it('in group mode Roll a Trait uses the party and every character', async () => {
+  it('in group mode Roll a Trait rolls across every character, Prevalent counted twice', async () => {
     showTab('tripleO');
-    const ch = addChar('Bran');
-    ch.traits.push({ text: 'Brave', status: 'default', category: '' });
+    const a = addChar('Bran');
+    const b = addChar('Mira');
+    a.traits.push({ text: 'Brave', status: 'default', category: '' });
+    b.traits.push({ text: 'Sly', status: 'prevalent', category: '' }, { text: 'Tired', status: 'temporary', category: '' });
     tripleO().party.push({ text: 'Rest when hurt', status: 'default', category: '' });
     persist();
     click('[data-to-mode="group"]');
-    await withRolls([2], () => click('#btnToTraitRoll'));
-    expect($('#toTraitResult')).toContain('Bran');
-    expect($('#toTraitResult')).toContain('Brave');
+    const pool = tripleOTraitPool();
+    expect(pool.map(p => p.trait.text)).toEqual(['Brave', 'Sly', 'Tired']);   // no party Traits
+    await withRolls([3], () => click('#btnToTraitRoll'));                    // 1 Brave, 2-3 Sly, 4 Tired
+    expect($('#toTraitResult')).toContain('Mira');
+    expect($('#toTraitResult')).toContain('Sly');
+    expect($('#toTraitResult')).toContain('1d4');
+  });
+
+  it('Fill 3 Traits adds a Disposition, a Motivation and a Method Trait', async () => {
+    showTab('tripleO');
+    const ch = addChar('Bran');
+    const at = (key, code) => tableEntry(key, tripleOIndex(Number(code[0]), Number(code[1])));
+    await withRolls([1, 1, 2, 2, 3, 3], () => click(`[data-to-trait-fill="${ch.id}"]`));
+    expect(ch.traits).toEqual([
+      { text: at('toDisposition', '11'), status: 'default', category: 'PR' },
+      { text: at('toMotivation', '22'), status: 'default', category: 'MT' },
+      { text: at('toMethod', '33'), status: 'default', category: 'SK' }
+    ]);
+    expect(lastLog().md).toContain('3 Traits added');
+    for(let i = 0; i < 7; i++) ch.traits.push({ text: 'T' + i, status: 'default', category: '' });
+    persist(); renderActive();
+    expect($(`[data-to-trait-fill="${ch.id}"]`).disabled).toBe(true);        // 10 + 3 > 12
   });
 
   it('puts the Random tables card below the Trait Sheets', () => {

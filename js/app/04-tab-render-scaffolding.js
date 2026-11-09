@@ -142,18 +142,8 @@ function tabHeader(title, descHtml, moreHtml){
   return `<div class="tool-head">
     <h2 class="tool-title">${title}</h2>
     <button type="button" class="btn small intro-toggle${open ? ' open' : ''}" data-intro-toggle="${tab}" aria-expanded="${open}" title="${open ? 'Hide' : 'Show'} what this tab does" aria-label="${open ? 'Hide' : 'Show'} the tab intro">?</button>
-    ${tab === currentTab ? splitPicker() : ''}
   </div>
   ${open ? `<p class="tool-desc">${descHtml}</p>${moreHtml ? `<div class="tool-intro-more">${moreHtml}</div>` : ''}` : ''}`;
-}
-// "Open beside…": a visible way to open the split view (a right-click on a
-// tab does the same, but touch screens have no right-click). Only in the
-// main pane's header. The chosen tab opens in the right pane.
-function splitPicker(){
-  const opts = TABS.filter(t => t.id !== currentTab)
-    .map(t => `<option value="${t.id}"${t.id === rightTab ? ' selected' : ''}>${t.label}</option>`).join('');
-  return `<select class="split-pick" data-split-pick aria-label="Open another tab beside this one" title="Open another tab beside this one (or right-click a tab)">
-    <option value="">${rightTab ? 'Beside: none' : 'Open beside&hellip;'}</option>${opts}</select>`;
 }
 function renderTab(id){
   introTab = id;
@@ -423,7 +413,6 @@ function wireActive(){
     setIntroOpen(tab, !isIntroOpen(tab));
     renderActive();
   }));
-  document.querySelectorAll('[data-split-pick]').forEach(s => s.addEventListener('change', ()=> setSplit(s.value || null)));
   tabWirers()[currentTab]();
   if(rightTab){
     tabWirers()[rightTab]();
