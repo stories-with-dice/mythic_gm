@@ -31,7 +31,7 @@ window.resetApp = function resetApp() {
   // test the dice turn them on.
   diceConfig = { enabled: false, sound: false, skin: 'theme' };
   diceCapture = null;
-  if (window.Dice3D) Dice3D.uncover();
+  if (window.RpgDice3D) { RpgDice3D.stop(); RpgDice3D.uncover(); }
   gmeListRollHtml = { threads: '', characters: '' };
   gmeTrackResultHtml = {};
   lastInspirationHtml = '';

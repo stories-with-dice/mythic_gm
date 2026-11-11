@@ -1464,19 +1464,9 @@ nav.tabs.more-left.more-right{-webkit-mask-image:linear-gradient(to right, trans
   .editor-toolbar button{height:40px; min-width:36px;}
 }
 
-/* ---- 3D dice stage (21c-dice-3d.js / 21d-dice-roll.js) ---- */
-.dice-stage{position:fixed; inset:0; z-index:140; cursor:pointer;}
-.dice-stage[hidden]{display:none;}
-.dice-stage canvas{position:absolute; inset:0; display:block; transition:opacity .45s ease;}
-.dice-backdrop{
-  position:absolute; inset:0;
-  background:color-mix(in srgb, var(--ink) 45%, transparent);
-  -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
-  transition:opacity .25s ease;
-}
-/* after the landing: the result shows, the dice stay a moment, clicks pass through */
-.dice-stage.revealed{pointer-events:none; cursor:default;}
-.dice-stage.revealed .dice-backdrop{opacity:0;}
-.dice-stage.out canvas{opacity:0;}
+/* ---- 3D dice stage (the rpg-dice-3d library, js/vendor/rpg-dice-3d/; 21d-dice-roll.js) ----
+   The library adds its own stage styles; these fit them to the app: under the
+   toasts and dialogs (z-index 140), the backdrop tinted with the theme ink. */
+.rpg-dice3d{--rpg-dice3d-z:140; --rpg-dice3d-backdrop:color-mix(in srgb, var(--ink) 45%, transparent);}
 .settings-check{gap:8px; cursor:pointer;}
 .settings-check + .settings-check{margin-top:6px;}

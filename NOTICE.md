@@ -68,9 +68,10 @@ has no Triple-O art, logos, or trade dress.
 | [marked](https://github.com/markedjs/marked) | MIT |
 | [DOMPurify](https://github.com/cure53/DOMPurify) | Apache-2.0 / MPL-2.0 |
 | [EasyMDE](https://github.com/Ionaru/easy-markdown-editor) (bundles CodeMirror 5) | MIT |
-| [three.js](https://github.com/mrdoob/three.js) r159 (`js/vendor/three.min.js`, license in `js/vendor/three.LICENSE`) | MIT |
+| [rpg-dice-3d](https://github.com/stories-with-dice/rpg-dice-3d) (`js/vendor/rpg-dice-3d/`, license in `js/vendor/rpg-dice-3d/LICENSE`) | MIT |
+| [three.js](https://github.com/mrdoob/three.js) r159 (`js/vendor/rpg-dice-3d/three/three.min.js`, license in `js/vendor/rpg-dice-3d/three/LICENSE`) | MIT |
 
 Each vendor file keeps its original license header.
 
-The 3D dice (`js/app/21b-dice-sound.js`, `js/app/21c-dice-3d.js`) are ported
-from the author's own Wox 3D Dice Roller plugin.
+The 3D dice and their sound (`js/vendor/rpg-dice-3d/`) are the author's own
+rpg-dice-3d library, which the author's Wox 3D Dice Roller plugin also uses.

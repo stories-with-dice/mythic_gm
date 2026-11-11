@@ -1,18 +1,18 @@
-/* 3D dice (21b-dice-sound.js, 21c-dice-3d.js, 21d-dice-roll.js).
+/* 3D dice (the rpg-dice-3d library in js/vendor/rpg-dice-3d/, 21d-dice-roll.js).
    The WebGL throw itself is checked by hand in a browser; these specs cover
    the roll capture, the dice mapping and the Settings section, with
-   Dice3D.throwDice stubbed. */
+   RpgDice3D.throwDice stubbed. The library has its own tests. */
 describe('3D dice', () => {
   beforeEach(() => { resetApp(); });
 
-  // Runs cb with Dice3D.throwDice replaced by a recorder; returns the calls.
+  // Runs cb with RpgDice3D.throwDice replaced by a recorder; returns the calls.
   async function withThrowStub(cb, result) {
-    const real = Dice3D.throwDice, realCover = Dice3D.cover;
+    const real = RpgDice3D.throwDice, realCover = RpgDice3D.cover;
     const calls = [];
-    Dice3D.throwDice = (list, opts) => { calls.push({ list, opts }); return result === undefined ? { settleTime: 1 } : result; };
-    Dice3D.cover = () => { calls.covered = (calls.covered || 0) + 1; };
+    RpgDice3D.throwDice = (list, opts) => { calls.push({ list, opts }); return result === undefined ? { settleTime: 1 } : result; };
+    RpgDice3D.cover = () => { calls.covered = (calls.covered || 0) + 1; };
     try { await cb(); await new Promise(r => setTimeout(r, 10)); }
-    finally { Dice3D.throwDice = real; Dice3D.cover = realCover; }
+    finally { RpgDice3D.throwDice = real; RpgDice3D.cover = realCover; }
     return calls;
   }
 
@@ -50,7 +50,8 @@ describe('3D dice', () => {
       expect(calls.covered).toBe(1);
       expect(calls[0].list.map(d => d.top)).toEqual(['50', '7']);
       expect(lastLog().md).toContain('1d100: 57');
-      expect(calls[0].opts.palette).toBe('indigo');   // the Mythic GME theme
+      expect(calls[0].opts.skin).toBe('indigo');   // the Mythic GME theme
+      expect(calls[0].opts.backdrop).toBe(true);
     });
     it('does nothing with 3D dice off', async () => {
       const calls = await withThrowStub(() => click('#btnGmeFate'));
@@ -70,7 +71,7 @@ describe('3D dice', () => {
     it('shows the result at once when WebGL is missing (throwDice returns null)', async () => {
       diceConfig.enabled = true;
       await withThrowStub(() => click('#btnGmeFate'), null);
-      const stage = document.getElementById('diceStage');
+      const stage = document.querySelector('.rpg-dice3d');
       expect(!stage || stage.hidden).toBe(true);
     });
   });
@@ -120,39 +121,41 @@ describe('3D dice', () => {
   });
 
   describe('skins', () => {
-    it('has 12 skins, and the dropdown lists them plus Match the theme and Random', () => {
-      expect(Dice3D.SKIN_IDS).toHaveLength(12);
+    it('has the library\'s 14 skins, and the dropdown lists them plus Match the theme and Random', () => {
+      expect(RpgDice3D.SKIN_IDS).toHaveLength(14);
       renderDiceSettings();
       const vals = Array.from($('#diceSkin').options).map(o => o.value);
-      expect(vals).toHaveLength(14);
+      expect(vals).toHaveLength(16);
       expect(vals[0]).toBe('theme');
-      expect(vals[13]).toBe('random');
+      expect(vals[15]).toBe('random');
     });
     it('a chosen skin goes to every die; Random gives each die its own', async () => {
       diceConfig.enabled = true; diceConfig.skin = 'marble';
       let calls = await withThrowStub(() => click('#btnGmeFate'));
-      expect(calls[0].opts.palette).toBe('marble');
+      expect(calls[0].opts.skin).toBe('marble');
       diceConfig.skin = 'random';
       calls = await withThrowStub(() => click('#btnGmeFate'));
-      calls[0].list.forEach(d => expect(Dice3D.SKIN_IDS.includes(d.skin)).toBe(true));
+      calls[0].list.forEach(d => expect(RpgDice3D.SKIN_IDS.includes(d.skin)).toBe(true));
     });
     it('saves the skin, and an unknown saved skin falls back to the theme', () => {
       renderDiceSettings();
-      setValue('#diceSkin', 'wood');
-      expect(loadDiceConfig().skin).toBe('wood');
+      setValue('#diceSkin', 'oak');
+      expect(loadDiceConfig().skin).toBe('oak');
       localStorage.setItem(DICE_KEY, JSON.stringify({ enabled: true, sound: true, skin: 'plaid' }));
       expect(loadDiceConfig().skin).toBe('theme');
+      localStorage.setItem(DICE_KEY, JSON.stringify({ enabled: true, sound: true, skin: 'nebula' }));
+      expect(loadDiceConfig().skin).toBe('galaxy');   // an id from before the library
       try { localStorage.removeItem(DICE_KEY); } catch (_) {}
     });
   });
 
   describe('the engine (no WebGL needed)', () => {
     it('builds every shape with the right number of faces', () => {
-      const faces = k => Dice3D.buildShape(k, 0).faces.length;
+      const faces = k => RpgDice3D.buildShape(THREE, k, 0).faces.length;
       expect([faces('d4'), faces('d6'), faces('d8'), faces('d10'), faces('d12'), faces('d20')]).toEqual([4, 6, 8, 10, 12, 20]);
     });
     it('labels opposite faces of a d6 to sum to 7', () => {
-      const s = Dice3D.buildShape('d6', 6);
+      const s = RpgDice3D.buildShape(THREE, 'd6', 6);
       s.faces.forEach(f => {
         const opp = s.faces.find(o => o.normal.dot(f.normal) < -0.999);
         expect(Number(f.label) + Number(opp.label)).toBe(7);
