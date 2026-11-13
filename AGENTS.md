@@ -903,6 +903,24 @@ click/focus/paint behaviour (the kind that broke contenteditable and the
 EasyMDE toolbar) is only partially exercised — when in doubt about paint or
 native focus, say so rather than asserting from code inspection.
 
+## Web platform guidance
+
+Before you change HTML, CSS, or browser JS, follow the `modern-web-guidance` skill
+([.claude/skills/modern-web-guidance/SKILL.md](.claude/skills/modern-web-guidance/SKILL.md), a copy of
+[GoogleChrome/modern-web-guidance](https://github.com/GoogleChrome/modern-web-guidance) at commit
+`4dd9683`, Apache-2.0). It is a dev tool: `npx -y modern-web-guidance@latest search "<query>"`, then
+`retrieve "<id>"`. It does not add a network dependency to the app. Run
+`npx -y modern-web-guidance@latest legacy-scan js/app --json` to find old patterns; ignore `js/vendor/`.
+
+- **Enter in a text field**: a custom `keydown` handler that acts on Enter skips the action when
+  `isComposing(e)` (02) is true (IME text, for example Japanese, is still in composition).
+- **Auto-growing textareas**: `textarea[data-autogrow]` grows with `field-sizing: content` in
+  `app.css`; `wireAutogrow()` (04) sets the height in JS only where that is not supported.
+- **Symbol-only buttons** (`&#10005;`, `−1`): give an `aria-label`, not only a `title`.
+- **Overlays**: the dialog box gets `role="dialog" aria-modal="true"` and `aria-labelledby`.
+- **Motion**: an animation that reduced motion turns off goes inside
+  `@media (prefers-reduced-motion: no-preference)`, nested in its rule.
+
 ## Design system quick reference
 
 The default theme is **Mythic GME** (`:root[data-theme="mythic"]`, also set

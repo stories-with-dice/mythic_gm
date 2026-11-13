@@ -3,7 +3,7 @@
    ========================================================================= */
 function renderCampaignBar(){
   const sel = document.getElementById('campaignSelect');
-  sel.innerHTML = Object.keys(STORE.campaigns).map(name=>`<option value="${name}" ${name===STORE.current?'selected':''}>${name}</option>`).join('');
+  sel.innerHTML = Object.keys(STORE.campaigns).map(name=>`<option value="${escapeAttr(name)}" ${name===STORE.current?'selected':''}>${escapeAttr(name)}</option>`).join('');
 }
 // Hint text (placeholders) shows only while the current campaign is new:
 // a campaign made more than HINT_MAX_AGE ago, or one with no `createdAt`

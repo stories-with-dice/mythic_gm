@@ -32,6 +32,14 @@ describe('utils', () => {
     });
   });
 
+  describe('isComposing()', () => {
+    it('is true while an IME composes (isComposing, or keyCode 229 in Safari), false for a plain Enter', () => {
+      expect(isComposing(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true }))).toBe(true);
+      expect(isComposing(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 229 }))).toBe(true);
+      expect(isComposing(new KeyboardEvent('keydown', { key: 'Enter' }))).toBe(false);
+    });
+  });
+
   describe('escapeAttr()', () => {
     it('escapes & " < > for HTML attribute values', () => {
       expect(escapeAttr('Tom & "Jerry" <x>')).toBe('Tom &amp; &quot;Jerry&quot; &lt;x&gt;');

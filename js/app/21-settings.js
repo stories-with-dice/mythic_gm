@@ -55,7 +55,7 @@ function renderEventFocusEditorHtml(){
     return `<tr>
       <td class="range"><span class="small-note">${lo <= r.max ? lo : r.max}&ndash;</span><input type="number" min="1" max="100" data-focus-max="${i}" class="field-input" value="${r.max}"></td>
       <td><input type="text" data-focus-result="${i}" class="field-input" value="${escapeAttr(r.result)}"></td>
-      <td><button class="btn small danger" data-focus-rm="${i}" ${table.length <= 1 ? 'disabled' : ''}>&#10005;</button></td>
+      <td><button class="btn small danger" data-focus-rm="${i}" aria-label="Remove row" ${table.length <= 1 ? 'disabled' : ''}>&#10005;</button></td>
     </tr>`;
   }).join('');
   return `
@@ -79,7 +79,7 @@ function renderInspirationEditorHtml(){
     <tr>
       <td><input type="text" data-insp-label="${i}" class="field-input" value="${escapeAttr(e.label)}"></td>
       <td class="weight"><input type="number" min="1" max="100" data-insp-weight="${i}" class="field-input" value="${e.weight}"></td>
-      <td><button class="btn small danger" data-insp-rm="${i}" ${entries.length <= 1 ? 'disabled' : ''}>&#10005;</button></td>
+      <td><button class="btn small danger" data-insp-rm="${i}" aria-label="Remove row" ${entries.length <= 1 ? 'disabled' : ''}>&#10005;</button></td>
     </tr>`).join('');
   return `
     <div class="small-note">Rolled on the Game Master tab, under Discover Meaning. Weight an entry higher to make it more likely.</div>

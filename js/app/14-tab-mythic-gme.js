@@ -176,7 +176,7 @@ function renderMythicGME(){
         <span class="txt">${escapeAttr(s)}</span>
         <button type="button" data-edit="${key}" data-i="${i}" title="Edit">Edit</button>
         <button type="button" data-dupe="${key}" data-i="${i}" ${listCount(items, s) >= LIST_MAX_REPEAT ? 'disabled title="Already 3 times in the List (the maximum)"' : 'title="Add a copy (weighting, up to 3 times)"'}>&#10697;</button>
-        <button type="button" data-rm="${key}" data-i="${i}" title="Remove">&#10005;</button>
+        <button type="button" data-rm="${key}" data-i="${i}" title="Remove" aria-label="Remove">&#10005;</button>
       </li>`).join('');
     return `
     <div class="card">
@@ -346,7 +346,7 @@ function wireMythicGME(){
     document.getElementById('gmeFateResult').innerHTML = html;
     addLog('Mythic GME', md);
   });
-  document.getElementById('gmeFateQ').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('btnGmeFate').click(); } });
+  document.getElementById('gmeFateQ').addEventListener('keydown', e => { if(e.key === 'Enter' && !isComposing(e)){ e.preventDefault(); document.getElementById('btnGmeFate').click(); } });
 
   /* ----- Expected Scene text (save without re-rendering, to keep focus) ----- */
   const exp = document.getElementById('gmeExpectedScene');
@@ -417,8 +417,8 @@ function wireMythicGME(){
   }
   document.getElementById('btnGmeAddThread').addEventListener('click', ()=>addTo('threads', 'gmeThreadInput', 'Threads List'));
   document.getElementById('btnGmeAddChar').addEventListener('click', ()=>addTo('characters', 'gmeCharInput', 'Characters List'));
-  document.getElementById('gmeThreadInput').addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); addTo('threads', 'gmeThreadInput', 'Threads List'); } });
-  document.getElementById('gmeCharInput').addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); addTo('characters', 'gmeCharInput', 'Characters List'); } });
+  document.getElementById('gmeThreadInput').addEventListener('keydown', e=>{ if(e.key === 'Enter' && !isComposing(e)){ e.preventDefault(); addTo('threads', 'gmeThreadInput', 'Threads List'); } });
+  document.getElementById('gmeCharInput').addEventListener('keydown', e=>{ if(e.key === 'Enter' && !isComposing(e)){ e.preventDefault(); addTo('characters', 'gmeCharInput', 'Characters List'); } });
 
   document.querySelectorAll('[data-rm]').forEach(b=> b.addEventListener('click', ()=>{
     const key = b.dataset.rm, i = Number(b.dataset.i);

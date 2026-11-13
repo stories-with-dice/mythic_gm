@@ -387,7 +387,7 @@ function renderTripleO(){
   const full = s.chars.length >= TRIPLE_O_MAX_CHARS;
   const partyRows = s.party.map((t, i) => `<li>
       <span class="txt">${tripleOTraitChip(t)}</span>
-      <button type="button" data-to-party-rm="${i}" title="Remove">&#10005;</button>
+      <button type="button" data-to-party-rm="${i}" title="Remove" aria-label="Remove">&#10005;</button>
     </li>`).join('');
 
   const refTables = TRIPLE_O_TABLES.map(t => {
@@ -660,7 +660,7 @@ function wireTripleO(){
     renderActive();
   }
   q('#btnToAddChar').addEventListener('click', addChar);
-  q('#toNewChar').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addChar(); } });
+  q('#toNewChar').addEventListener('keydown', e => { if(e.key === 'Enter' && !isComposing(e)){ e.preventDefault(); addChar(); } });
 
   qa('[data-to-edit]').forEach(b => b.addEventListener('click', () => {
     const id = Number(b.dataset.toEdit);
@@ -732,7 +732,7 @@ function wireTripleO(){
       if(next) next.focus();
     };
     b.addEventListener('click', add);
-    inp.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); add(); } });
+    inp.addEventListener('keydown', e => { if(e.key === 'Enter' && !isComposing(e)){ e.preventDefault(); add(); } });
   });
   qa('[data-to-trait-spark]').forEach(b => b.addEventListener('click', () => {
     const id = Number(b.dataset.toTraitSpark);
@@ -767,7 +767,7 @@ function wireTripleO(){
     renderActive();
   }
   q('#btnToAddParty').addEventListener('click', addParty);
-  q('#toNewParty').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addParty(); } });
+  q('#toNewParty').addEventListener('keydown', e => { if(e.key === 'Enter' && !isComposing(e)){ e.preventDefault(); addParty(); } });
   qa('[data-to-party-rm]').forEach(b => b.addEventListener('click', () => {
     s().party.splice(Number(b.dataset.toPartyRm), 1);
     persist();

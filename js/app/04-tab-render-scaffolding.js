@@ -130,7 +130,7 @@ function editListEntry(btn, value, save){
     renderActive();
   };
   input.addEventListener('keydown', e => {
-    if(e.key === 'Enter'){ e.preventDefault(); finish(true); }
+    if(e.key === 'Enter' && !isComposing(e)){ e.preventDefault(); finish(true); }
     else if(e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); finish(false); }
   });
   input.addEventListener('blur', () => finish(true));
@@ -374,9 +374,11 @@ function liveResultRegions(){
 }
 
 /* ----- Auto-growing text areas ----- */
-// A textarea with data-autogrow starts at its `rows` and grows with its text.
+// A textarea with data-autogrow starts at its `rows` and grows with its text. CSS does it
+// (`field-sizing: content` in app.css); this JS fallback runs only where that is not supported.
 function autogrow(el){ el.style.height = 'auto'; el.style.height = (el.scrollHeight + 2) + 'px'; }
 function wireAutogrow(){
+  if(window.CSS && CSS.supports('field-sizing', 'content')) return;
   document.querySelectorAll('textarea[data-autogrow]').forEach(el => {
     if(el.value) autogrow(el);
     el.addEventListener('input', () => autogrow(el));

@@ -361,7 +361,7 @@ function renderNodeSelected(s){
   if(!n) return '<div class="small-note">Click a Node to edit it, Connect it, or move it. Click a numbered point, then a point on another Node, to draw a Connection between those two points.</div>';
   const conns = nodeLinksOf(s, n.id);
   const targets = s.nodes.filter(o => !nodeConnectError(s, n, o));
-  const rows = conns.map((x, i) => `<li><span class="mnum">${x.slot}</span><span class="txt">&rarr; ${escapeAttr(nodeName(nodeById(s, x.other)))} <span class="small-note">(point ${x.otherSlot})</span></span><button type="button" data-node-unlink="${i}" title="Remove this Connection">&#10005;</button></li>`).join('');
+  const rows = conns.map((x, i) => `<li><span class="mnum">${x.slot}</span><span class="txt">&rarr; ${escapeAttr(nodeName(nodeById(s, x.other)))} <span class="small-note">(point ${x.otherSlot})</span></span><button type="button" data-node-unlink="${i}" title="Remove this Connection" aria-label="Remove this Connection">&#10005;</button></li>`).join('');
   const canEliminate = (n.type === 'thread' || n.type === 'character') && !n.eliminated;
   return `
     <div class="row" style="align-items:flex-end;">
@@ -599,7 +599,7 @@ function wireNodeNarratives(){
     renderActive();
   }
   document.getElementById('btnNodeAdd').addEventListener('click', addNode);
-  document.getElementById('nodeNewText').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addNode(); } });
+  document.getElementById('nodeNewText').addEventListener('keydown', e => { if(e.key === 'Enter' && !isComposing(e)){ e.preventDefault(); addNode(); } });
 
   document.getElementById('btnNodeInfluence').addEventListener('click', () => {
     const lines = influenceLines();

@@ -435,6 +435,10 @@ h3.block-title{
 .field label{font-size:11px; color:var(--text-dim);}
 .field-input, select.field-input{min-width:160px;}
 textarea.field-input{min-width:260px; resize:vertical;}
+/* A textarea with data-autogrow grows with its text. With field-sizing, `rows` no longer sets
+   the height, so the minimum is 3 lines plus the padding (7px x 2) and the border (1px x 2).
+   wireAutogrow() in 04 sets the height in JS only where field-sizing is not supported. */
+textarea[data-autogrow]{field-sizing:content; min-block-size:calc(3lh + 16px);}
 
 .result-box{
   margin-top:14px;
@@ -1411,8 +1415,10 @@ nav.tabs.more-left.more-right{-webkit-mask-image:linear-gradient(to right, trans
   from{background:color-mix(in srgb, var(--gold-bright) 20%, var(--panel-2));}
   to{background:var(--panel-2);}
 }
-.result-box.result-new{animation:resultFlash 1.4s ease-out;}
-@media (prefers-reduced-motion:reduce){ .result-box.result-new{animation:none;} }
+.result-box.result-new{
+  /* Reduced motion: no flash (the default is the static box). */
+  @media (prefers-reduced-motion:no-preference){ animation:resultFlash 1.4s ease-out; }
+}
 
 /* ---- Campaign Log rows (renderLogHtml(), 13) ---- */
 .log-day{

@@ -19,4 +19,8 @@ function timestamp(){
   return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
 }
 function escapeMd(s){ return (s||"").replace(/\|/g,"\\|"); }
+// True while an IME (Japanese, Chinese, Korean input) composes text: the
+// Enter that confirms a candidate must not submit. Safari sends that keydown
+// after compositionend (isComposing false), so keyCode 229 catches it.
+function isComposing(e){ return e.isComposing || e.keyCode === 229; }
 function escapeAttr(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }

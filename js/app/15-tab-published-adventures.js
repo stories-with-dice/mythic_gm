@@ -170,7 +170,7 @@ function renderPublished(){
       <span class="mnum">${i + 1}</span>
       <span class="txt">${escapeAttr(w)}</span>
       <button type="button" data-mn-edit="${i}" title="Edit">Edit</button>
-      <button type="button" data-mn-rm="${i}" title="Remove">&#10005;</button>
+      <button type="button" data-mn-rm="${i}" title="Remove" aria-label="Remove">&#10005;</button>
     </li>`).join('');
 
   const dim = DIMINISHER_VALUES.map(v => `<option value="${v}" ${v === d.diminisher ? 'selected' : ''}>${v}</option>`).join('');
@@ -244,8 +244,8 @@ function renderPublished(){
     <div class="row" style="gap:26px; align-items:center;">
       <div class="pp-readout"><span class="num">${d.crisisPP}</span><span class="lbl">Crisis Progress Points</span></div>
       <div class="row">
-        <button class="btn small" id="btnPubCppMinus">−1</button>
-        <button class="btn small" id="btnPubCppPlus">+1</button>
+        <button class="btn small" id="btnPubCppMinus" aria-label="Crisis Progress Points −1">−1</button>
+        <button class="btn small" id="btnPubCppPlus" aria-label="Crisis Progress Points +1">+1</button>
       </div>
       <button class="btn primary" id="btnPubCrisis">Generate Crisis Scene</button>
     </div>
@@ -489,7 +489,7 @@ function wirePublished(){
   }
   [['pubMeaningInput', 'btnPubAddMeaning'], ['pubElementWord', 'btnPubElementWord']].forEach(([inputId, btnId]) => {
     document.getElementById(btnId).addEventListener('click', () => addMeaning(inputId));
-    document.getElementById(inputId).addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addMeaning(inputId); } });
+    document.getElementById(inputId).addEventListener('keydown', e => { if(e.key === 'Enter' && !isComposing(e)){ e.preventDefault(); addMeaning(inputId); } });
   });
   document.querySelectorAll('[data-mn-edit]').forEach(b => b.addEventListener('click', () => {
     const i = Number(b.dataset.mnEdit);

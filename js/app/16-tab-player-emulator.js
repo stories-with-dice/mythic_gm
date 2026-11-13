@@ -329,8 +329,8 @@ function renderPlayerEmu(){
     return `<li>
       <span class="txt">${escapeAttr(n.name)} — <b>${escapeAttr(m.name)}</b> <span class="pe-rating ${peRatingClass(m.rating)}">${peRatingLabel(m.rating)}</span></span>
       <button type="button" data-npc-edit="${n.id}" title="Edit name">Edit</button>
-      <button type="button" data-npc-reroll="${n.id}" title="Reroll mood">&#8635;</button>
-      <button type="button" data-npc-rm="${n.id}" title="Remove">&#10005;</button>
+      <button type="button" data-npc-reroll="${n.id}" title="Reroll mood" aria-label="Reroll mood">&#8635;</button>
+      <button type="button" data-npc-rm="${n.id}" title="Remove" aria-label="Remove">&#10005;</button>
     </li>`;
   }).join('');
 
@@ -429,7 +429,7 @@ function wirePlayerEmu(){
     renderActive();
   }
   document.getElementById('btnPeAddPc').addEventListener('click', addPc);
-  document.getElementById('peNewPcName').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addPc(); } });
+  document.getElementById('peNewPcName').addEventListener('keydown', e => { if(e.key === 'Enter' && !isComposing(e)){ e.preventDefault(); addPc(); } });
 
   document.querySelectorAll('[data-pc-name]').forEach(inp => inp.addEventListener('change', () => {
     const pc = pcById(inp.dataset.pcName);
@@ -524,7 +524,7 @@ function wirePlayerEmu(){
     renderActive();
   }
   document.getElementById('btnPeAddNpc').addEventListener('click', addNpc);
-  document.getElementById('peNewNpcName').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addNpc(); } });
+  document.getElementById('peNewNpcName').addEventListener('keydown', e => { if(e.key === 'Enter' && !isComposing(e)){ e.preventDefault(); addNpc(); } });
 
   const moodMode = document.getElementById('peNpcMoodMode');
   moodMode.addEventListener('change', () => {

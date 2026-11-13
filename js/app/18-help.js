@@ -83,9 +83,9 @@ const HELP_OVERVIEW_SVG = `
 
 function renderHelpContent(){
   return `
-  <div class="help-inner">
+  <div class="help-inner" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
     <button type="button" class="btn help-close" id="btnHelpClose" aria-label="Close help">&times;</button>
-    <h2 class="tool-title">Help &amp; Overview</h2>
+    <h2 class="tool-title" id="helpTitle">Help &amp; Overview</h2>
     <p class="tool-desc">A map of every tool in this toolkit, from the minimal Mythic GM loop to the full Mythic GME 2e extensions. Each tab also has its own inline notes and (where useful) a "How it works" panel &mdash; this page is the bird's-eye view.</p>
 
     <ul class="help-toc">

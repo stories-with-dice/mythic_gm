@@ -14,7 +14,7 @@ function renderMatrixTable(m){
   }
   const suspectHeaders = suspects.map(s=>`
     <th class="suspect-col ${s.uid===m.solvedBoxUid?'solved':''}" data-uid="${s.uid}">
-      <button class="rm" data-rm="${s.uid}" title="Remove">&#10005;</button>
+      <button class="rm" data-rm="${s.uid}" title="Remove" aria-label="Remove">&#10005;</button>
       <input type="text" class="col-lbl" data-edit="${s.uid}" value="${escapeAttr(s.label)}">
       <div class="col-count">${s.connections.length} conn.</div>
     </th>`).join('');
@@ -25,7 +25,7 @@ function renderMatrixTable(m){
     }).join('');
     return `<tr>
       <th class="clue-row" data-uid="${c.uid}">
-        <button class="rm" data-rm="${c.uid}" title="Remove">&#10005;</button>
+        <button class="rm" data-rm="${c.uid}" title="Remove" aria-label="Remove">&#10005;</button>
         <input type="text" class="row-lbl" data-edit="${c.uid}" value="${escapeAttr(c.label)}">
         <div class="row-count">${c.connections.length} conn.</div>
       </th>
@@ -195,7 +195,7 @@ function wireMystery(){
       }
     });
     el.addEventListener('keydown', (e)=>{
-      if(e.key === 'Enter'){ e.preventDefault(); el.blur(); }
+      if(e.key === 'Enter' && !isComposing(e)){ e.preventDefault(); el.blur(); }
     });
   });
   document.querySelectorAll('input[type="checkbox"][data-clue]').forEach(cb=>{

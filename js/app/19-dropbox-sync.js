@@ -770,7 +770,7 @@ function renderDropboxPanelHtml(){
 
 function renderDropboxModalHtml(){
   return `
-  <div class="dbx-inner" role="dialog" aria-labelledby="dbxModalTitle">
+  <div class="dbx-inner" role="dialog" aria-modal="true" aria-labelledby="dbxModalTitle">
     <h3 class="block-title" id="dbxModalTitle">Dropbox</h3>
     <p id="dbxModalText"></p>
     <ul class="dbx-compare" id="dbxModalCompare"></ul>
@@ -802,7 +802,7 @@ function wireDropbox(){
   const on = (id, type, fn) => document.getElementById(id).addEventListener(type, fn);
   on('dbxConnect', 'click', () => dropboxConnect());
   on('dbxFinish', 'click', () => dropboxFinishConnect(document.getElementById('dbxCode').value));
-  on('dbxCode', 'keydown', e => { if(e.key === 'Enter') dropboxFinishConnect(e.target.value); });
+  on('dbxCode', 'keydown', e => { if(e.key === 'Enter' && !isComposing(e)) dropboxFinishConnect(e.target.value); });
   on('dbxCancel', 'click', dropboxCancelConnect);
   on('dbxSyncNow', 'click', () => dropboxSyncNow());
   on('dbxResolve', 'click', openDropboxModal);

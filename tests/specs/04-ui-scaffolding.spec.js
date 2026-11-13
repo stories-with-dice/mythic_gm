@@ -410,6 +410,27 @@ describe('UI scaffolding', () => {
       expect(sel.value).toBe(STORE.current);
     });
 
+    it('the Enter that confirms IME text does not add a Thread; a plain Enter does', () => {
+      showTab('gme');
+      const input = $('#gmeThreadInput');
+      const before = campaign().gme.threads.length;
+      input.value = '城の謎';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true, cancelable: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 229, bubbles: true, cancelable: true }));
+      expect(campaign().gme.threads.length).toBe(before);
+      $('#gmeThreadInput').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      expect(campaign().gme.threads.length).toBe(before + 1);
+    });
+
+    it('shows a campaign name with HTML as text, not markup', async () => {
+      const name = 'Bad <img src=x onerror="window.__xss=1"> "Name"';
+      await withDialogs({ prompt: name }, () => click('#btnNewCampaign'));
+      const sel = $('#campaignSelect');
+      expect(sel.querySelector('img')).toBeNull();
+      expect(sel.value).toBe(name);
+      expect(sel.options[sel.selectedIndex].textContent).toBe(name);
+    });
+
     it('New adds a campaign and switches to it', async () => {
       await withDialogs({ prompt: 'Second Campaign' }, () => click('#btnNewCampaign'));
       expect(STORE.campaigns['Second Campaign']).toBeDefined();
