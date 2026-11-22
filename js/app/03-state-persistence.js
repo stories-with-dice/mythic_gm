@@ -172,6 +172,53 @@ function sanitizeTripleO(raw){
   return { chars, nextCharId, party: sanitizeTripleOTraits(raw.party), draft };
 }
 
+// Character Arc tab (17d-tab-character-arc.js), after the "Arc Engine" by
+// Samuel Taylor (3x5 Arcana). `chars` are the characters; each has up to
+// ARC_MAX_AXES axes. An axis is two opposed traits, `should` (left) and
+// `could` (right), and its Axis Number `value` (1-12, starts at 6 or 7).
+// A d12 under the number is the should trait (the number goes up), over it
+// the could trait (it goes down). At 1 or 12 the arc is over (Act 5).
+// `tests` counts the d12 tests made on the axis.
+const ARC_SIDES = 12;
+const ARC_MAX_CHARS = 20;
+const ARC_MAX_AXES = 6;
+const ARC_TRAIT_MAX = 40;
+function freshArc(){ return { chars: [], nextCharId: 1, nextAxisId: 1 }; }
+function sanitizeArcAxis(a){
+  if(!a || typeof a !== "object") return null;
+  const trait = v => typeof v === "string" ? v.replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, ARC_TRAIT_MAX) : "";
+  const should = trait(a.should), could = trait(a.could);
+  if(!should || !could) return null;
+  const id = Number(a.id), v = Number(a.value), t = Number(a.tests);
+  return {
+    id: Number.isFinite(id) ? Math.round(id) : null,
+    should, could,
+    value: Number.isFinite(v) ? Math.max(1, Math.min(ARC_SIDES, Math.round(v))) : 6,
+    tests: Number.isFinite(t) && t > 0 ? Math.round(t) : 0
+  };
+}
+function sanitizeArc(raw){
+  const base = freshArc();
+  if(!raw || typeof raw !== "object") return base;
+  const chars = (Array.isArray(raw.chars) ? raw.chars : [])
+    .filter(c => c && typeof c === "object")
+    .slice(0, ARC_MAX_CHARS)
+    .map(c => {
+      const id = Number(c.id);
+      return {
+        id: Number.isFinite(id) ? Math.round(id) : null,
+        name: (typeof c.name === "string" && c.name.trim()) ? c.name.trim().slice(0, 60) : "Unnamed character",
+        axes: (Array.isArray(c.axes) ? c.axes.map(sanitizeArcAxis).filter(Boolean) : []).slice(0, ARC_MAX_AXES)
+      };
+    });
+  const maxCharId = reindexById(chars);
+  // axis ids are unique across every character (the tab keys its results by axis id)
+  const axes = chars.flatMap(c => c.axes);
+  const maxAxisId = reindexById(axes);
+  const next = (v, min) => (Number.isFinite(v) && v >= min) ? Math.round(v) : min;
+  return { chars, nextCharId: next(raw.nextCharId, maxCharId), nextAxisId: next(raw.nextAxisId, maxAxisId) };
+}
+
 // Random Inspiration Source list (Game Master tab, Discover Meaning). A
 // user-editable weighted list — "Roll" picks one entry weighted by `weight`.
 function freshInspirationEntries(){
@@ -331,8 +378,9 @@ function sanitizeNodeSheet(raw){
 // tab pinned to the split-right pane, and the tabs whose "?" intro is open.
 // `at` is when it last changed (ms), so Dropbox sync keeps the newer copy
 // without asking (19-dropbox-sync.js ignores `ui` when it compares campaigns).
+// `hidden` holds the tabs the user turned off in Settings (they leave the tab bar).
 // Tab ids are checked against TABS in 04 (applyCampaignView()), not here.
-function freshUi(){ return { currentTab: 'gme', rightTab: null, intros: [], at: 0 }; }
+function freshUi(){ return { currentTab: 'gme', rightTab: null, intros: [], hidden: [], at: 0 }; }
 function sanitizeUi(raw){
   const base = freshUi();
   if(!raw || typeof raw !== "object") return base;
@@ -340,9 +388,11 @@ function sanitizeUi(raw){
   const currentTab = id(raw.currentTab) || base.currentTab;
   const right = id(raw.rightTab);
   const rightTab = right && right !== currentTab ? right : null;
-  const intros = Array.isArray(raw.intros) ? [...new Set(raw.intros.map(id).filter(Boolean))].slice(0, 50) : [];
+  const idList = v => Array.isArray(v) ? [...new Set(v.map(id).filter(Boolean))].slice(0, 50) : [];
+  const intros = idList(raw.intros);
+  const hidden = idList(raw.hidden);
   const at = Number.isFinite(raw.at) && raw.at > 0 ? Math.round(raw.at) : 0;
-  return { currentTab, rightTab, intros, at };
+  return { currentTab, rightTab, intros, hidden, at };
 }
 
 // `createdAt` (ms) is null in freshCampaign() and for a campaign from before
@@ -356,6 +406,7 @@ function freshCampaign(){
     mystery: { boxes:[], nextUid:1, solvedBoxUid:null },
     playerEmu: freshPlayerEmu(),
     tripleO: freshTripleO(),   // Triple-O tab: Trait Sheets, party Traits, the Check being set up
+    arc: freshArc(),           // Character Arc tab: characters and their trait axes
     gm: freshGm(),
     gme: {
       chaosFactor: 5,          // Mythic GME 2e default; range 1-9
@@ -488,6 +539,7 @@ function sanitizeCampaign(raw){
 
   const playerEmu = sanitizePlayerEmu(raw.playerEmu);
   const tripleO = sanitizeTripleO(raw.tripleO);
+  const arc = sanitizeArc(raw.arc);
 
   const gm = sanitizeGm(raw.gm);
 
@@ -542,7 +594,7 @@ function sanitizeCampaign(raw){
   const createdAt = Number.isFinite(raw.createdAt) && raw.createdAt > 0 ? Math.round(raw.createdAt) : null;
   const ui = sanitizeUi(raw.ui);
 
-  return { location, adventure, mystery, playerEmu, tripleO, gm, gme, tables, log, createdAt, ui };
+  return { location, adventure, mystery, playerEmu, tripleO, arc, gm, gme, tables, log, createdAt, ui };
 }
 
 function loadStore(){

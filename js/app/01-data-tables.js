@@ -186,6 +186,18 @@ const SCENE_ADJUSTMENTS = [
 const RANDOM_TABLE_MAX_ROWS = 300;
 const RANDOM_TABLE_MAX_LEN = 200;
 const tableTenFaces = obj => Array.from({ length: 10 }, (_, i) => obj[i + 1]);
+// Character Arc tab (17d): suggestions for a new axis, "Should / Could".
+// The Arc Engine post has no such table: this list is the app's own. It is
+// rolled as a d66 (36 rows) and is editable in Settings.
+const ARC_TRAIT_PAIRS = [
+  'Generous / Selfish', 'Honest / Deceitful', 'Forgiving / Vengeful', 'Loyal / Ambitious', 'Duty / Pride', 'Faith / Fear',
+  'Merciful / Cruel', 'Humble / Proud', 'Patient / Reckless', 'Lawful / Chaotic', 'Trusting / Suspicious', 'Kind / Ruthless',
+  'Temperate / Indulgent', 'Obedient / Rebellious', 'Selfless / Greedy', 'Calm / Wrathful', 'Hopeful / Bitter', 'Diligent / Idle',
+  'Restrained / Passionate', 'Just / Arbitrary', 'Open / Secretive', 'Devoted / Restless', 'Responsible / Carefree', 'Modest / Vain',
+  'Civilized / Savage', 'Reason / Emotion', 'Tradition / Change', 'Family / Freedom', 'Community / Independence', 'Peaceful / Violent',
+  'Content / Envious', 'Prudent / Daring', 'Grateful / Resentful', 'Honor / Survival', 'Compassionate / Cold', 'Sacrifice / Self-preservation'
+];
+
 const RANDOM_TABLES = [
   { key:'meaningAction',       group:'Meaning Tables', label:'Actions',                     sides:100, rows:DISCOVER_ACTION,       usedBy:'Game Master (Discover Meaning, Random Event), Mythic GME, Published Adventures, 3-Act Story, Node Narratives' },
   { key:'meaningDesc',         group:'Meaning Tables', label:'Descriptions',                sides:100, rows:DISCOVER_DESC,         usedBy:'Game Master (Discover Meaning, Random Event), Mythic GME, Published Adventures, 3-Act Story, Node Narratives' },
@@ -199,7 +211,8 @@ const RANDOM_TABLES = [
   { key:'characterDescriptors',group:'Character Crafter', label:'Descriptors',              sides:100, rows:CHARACTER_DESCRIPTORS, usedBy:'Character Crafter, Identity / Mind / Body / Talent' },
   { key:'npcStatMod',          group:'Character Crafter', label:'NPC Statistics',           sides:10,  rows:tableTenFaces(NPC_STAT_MOD), usedBy:'Character Crafter, NPC Statistic' },
   { key:'npcBehavior',         group:'Character Crafter', label:'NPC Behavior Context',     sides:100, rows:BEHAVIOR_CONTEXT,      usedBy:'Character Crafter, Behavior Context' },
-  { key:'mysteryDescriptors',  group:'Mystery Matrix',   label:'Descriptors',               sides:100, rows:MYSTERY_DESCRIPTORS,   usedBy:'Mystery Matrix, new Clues and Suspects' }
+  { key:'mysteryDescriptors',  group:'Mystery Matrix',   label:'Descriptors',               sides:100, rows:MYSTERY_DESCRIPTORS,   usedBy:'Mystery Matrix, new Clues and Suspects' },
+  { key:'arcTraitPairs',       group:'Character Arc',    label:'Trait pairs (d66, Should / Could)', sides:36, rows:ARC_TRAIT_PAIRS, usedBy:'Character Arc, Roll pair / Roll Should / Roll Could. Write each row as Should / Could' }
 ];
 const RANDOM_TABLE_BY_KEY = Object.fromEntries(RANDOM_TABLES.map(t => [t.key, t]));
 

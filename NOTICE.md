@@ -61,6 +61,20 @@ material (the tables, and the rule summaries and flowchart text) is shared
 under CC BY-SA 4.0, not under this project's CC BY-NC 4.0 license. The app
 has no Triple-O art, logos, or trade dress.
 
+## Character Arc Engine (Samuel Taylor, 3x5 Arcana)
+
+The Character Arc tab (`js/app/17d-tab-character-arc.js`) is based on the
+"Arc Engine" in "Character Arc Engine" by Samuel Taylor, 3x5 Arcana
+(November 18, 2026), <https://blog.3x5arcana.com/p/character-arc-engine>.
+The post is © 2026 3x5Arcana and has no open license. So the app copies no
+text from it: it describes the mechanic (a d12 against an Axis Number from
+1 to 12) in its own words and automates it as dice rolls. The trait-pair
+table (`ARC_TRAIT_PAIRS` in `js/app/01-data-tables.js`) is the app's own.
+
+The post does not say in words that a roll over the number moves it down;
+the app reads "the opposite" that way. After a tie, the app moves the number
+in the direction of the last roll, one point for each roll made.
+
 ## Vendor libraries
 
 | Library | License |

@@ -63,6 +63,10 @@ window.resetApp = function resetApp() {
   toEditChars = new Set();
   toRefOpen = false;
   toTraitRoll = null;
+  arcResultHtml = {};
+  arcLastRoll = {};
+  arcDraft = {};
+  hiddenTabs = new Set();              // 04: every tab shown (the fresh campaign's `ui`)
   pePcExpanded = new Set();
   if(typeof closePeChartEditor === 'function') closePeChartEditor();
   sceneEndOpen = false;

@@ -27,7 +27,8 @@ const TABS = [
   {id:'character', label:'Character Crafter', group:'onePage'},
   {id:'mystery', label:'Mystery Matrix', group:'onePage'},
   {id:'playerEmu', label:'Player Emulator', group:'players'},
-  {id:'tripleO', label:'Triple-O', group:'players'}
+  {id:'tripleO', label:'Triple-O', group:'players'},
+  {id:'arc', label:'Character Arc', group:'players'}
 ];
 const TAB_GROUPS = [
   {id:'mythic', label:'Mythic 2e'},
@@ -54,6 +55,35 @@ let introTab = null;         // the tab renderActive() is rendering, for tabHead
 
 function knownTab(id){ return TABS.some(t => t.id === id); }
 
+// Tabs the user turned off in Settings (campaign().ui.hidden). They leave
+// the tab bar and cannot be in either pane. At least one tab stays shown.
+let hiddenTabs = new Set();
+function isTabShown(id){ return knownTab(id) && !hiddenTabs.has(id); }
+function shownTabs(){ return TABS.filter(t => !hiddenTabs.has(t.id)); }
+// Shows or hides one tab. A hidden tab leaves the pane it was in: the main
+// pane moves to the first shown tab, the split pane closes. Returns false
+// when the change is refused (hiding the last shown tab).
+function setTabShown(id, shown){
+  if(!knownTab(id)) return false;
+  if(shown) hiddenTabs.delete(id);
+  else {
+    if(shownTabs().length <= 1 && !hiddenTabs.has(id)) return false;
+    hiddenTabs.add(id);
+  }
+  fixHiddenPanes();
+  renderTabNav();
+  renderActive();
+  saveView();
+  return true;
+}
+function fixHiddenPanes(){
+  if(!isTabShown(currentTab)){
+    currentTab = (shownTabs().find(t => t.id !== rightTab) || shownTabs()[0]).id;
+    if(currentTab === rightTab) rightTab = null;
+  }
+  if(rightTab && !isTabShown(rightTab)) rightTab = null;
+}
+
 // Puts the current campaign's saved UI state in the live view. Unknown tab
 // ids are dropped, and the currentTab/rightTab invariant is enforced again.
 // A campaign from before `ui` existed gets a fresh one.
@@ -63,9 +93,15 @@ function applyCampaignView(){
   currentTab = knownTab(ui.currentTab) ? ui.currentTab : 'gme';
   rightTab = knownTab(ui.rightTab) && ui.rightTab !== currentTab ? ui.rightTab : null;
   introOpen = new Set(ui.intros.filter(knownTab));
+  hiddenTabs = new Set(ui.hidden.filter(knownTab));
+  if(!shownTabs().length) hiddenTabs = new Set();   // never hide every tab
+  fixHiddenPanes();
 }
 // The live view as a `ui` object (without `at`).
-function liveView(){ return { currentTab, rightTab, intros: TABS.map(t => t.id).filter(id => introOpen.has(id)) }; }
+function liveView(){
+  const ids = TABS.map(t => t.id);
+  return { currentTab, rightTab, intros: ids.filter(id => introOpen.has(id)), hidden: ids.filter(id => hiddenTabs.has(id)) };
+}
 // Called after every tab or intro change, and on pagehide (which also fires
 // on reload) for the scroll position. Writes the campaign (and so queues a
 // Dropbox upload) only when the UI state really changed.
@@ -73,7 +109,8 @@ function saveView(){
   const c = campaign();
   const live = liveView();
   const old = c.ui || {};
-  if(old.currentTab !== live.currentTab || old.rightTab !== live.rightTab || JSON.stringify(old.intros) !== JSON.stringify(live.intros)){
+  if(old.currentTab !== live.currentTab || old.rightTab !== live.rightTab || JSON.stringify(old.intros) !== JSON.stringify(live.intros)
+    || JSON.stringify(old.hidden || []) !== JSON.stringify(live.hidden)){
     c.ui = Object.assign(live, { at: Date.now() });
     persist();
   }
@@ -154,10 +191,10 @@ function renderTab(id){
 // defined in files that load *after* this one; only safe to call once
 // everything has loaded, i.e. from inside renderActive()/wireActive().
 function tabRenderers(){
-  return { gm:renderGM, adventure:renderAdventure, location:renderLocation, creature:renderCreature, character:renderCharacter, mystery:renderMystery, gme:renderMythicGME, pub:renderPublished, playerEmu:renderPlayerEmu, threeAct:renderThreeAct, nodes:renderNodeNarratives, tripleO:renderTripleO };
+  return { gm:renderGM, adventure:renderAdventure, location:renderLocation, creature:renderCreature, character:renderCharacter, mystery:renderMystery, gme:renderMythicGME, pub:renderPublished, playerEmu:renderPlayerEmu, threeAct:renderThreeAct, nodes:renderNodeNarratives, tripleO:renderTripleO, arc:renderCharacterArc };
 }
 function tabWirers(){
-  return { gm:wireGM, adventure:wireAdventure, location:wireLocation, creature:wireCreature, character:wireCharacter, mystery:wireMystery, gme:wireMythicGME, pub:wirePublished, playerEmu:wirePlayerEmu, threeAct:wireThreeAct, nodes:wireNodeNarratives, tripleO:wireTripleO };
+  return { gm:wireGM, adventure:wireAdventure, location:wireLocation, creature:wireCreature, character:wireCharacter, mystery:wireMystery, gme:wireMythicGME, pub:wirePublished, playerEmu:wirePlayerEmu, threeAct:wireThreeAct, nodes:wireNodeNarratives, tripleO:wireTripleO, arc:wireCharacterArc };
 }
 
 function setSplit(id){
@@ -175,9 +212,12 @@ function renderTabNav(){
     const sel = t.id === currentTab;
     return `<button data-tab="${t.id}" class="${cls}" role="tab" id="tab-${t.id}" aria-selected="${sel}" aria-controls="panelHost" tabindex="${sel ? 0 : -1}" title="Right-click to open beside the current tab">${t.label.split(' ').join('<br>')}</button>`;
   };
-  nav.innerHTML = TAB_GROUPS.map(g => `<div class="tab-group" role="presentation">
+  // A hidden tab (Settings) is left out, and so is a group with no shown tab.
+  nav.innerHTML = TAB_GROUPS.map(g => ({ g, tabs: shownTabs().filter(t => t.group === g.id) }))
+    .filter(x => x.tabs.length)
+    .map(({ g, tabs }) => `<div class="tab-group" role="presentation">
       <span class="tab-group-label" aria-hidden="true">${g.label}</span>
-      <div class="tab-group-tabs" role="presentation">${TABS.filter(t => t.group === g.id).map(btn).join('')}</div>
+      <div class="tab-group-tabs" role="presentation">${tabs.map(btn).join('')}</div>
     </div>`).join('');
   const buttons = Array.from(nav.querySelectorAll('button[data-tab]'));
   buttons.forEach((b, i)=>{
@@ -195,7 +235,11 @@ function renderTabNav(){
       e.preventDefault();
       const id = b.dataset.tab;
       if(id === rightTab){ rightTab = null; renderTabNav(); renderActive(); saveView(); return; }   // right-click again = close split
-      if(id === currentTab) currentTab = (TABS.find(t=>t.id!==id) || {id:currentTab}).id;  // don't collide with the new rightTab
+      if(id === currentTab){
+        const other = shownTabs().find(t => t.id !== id);
+        if(!other) return;   // only one tab is shown: no split
+        currentTab = other.id;   // don't collide with the new rightTab
+      }
       rightTab = id;
       renderTabNav();
       renderActive();

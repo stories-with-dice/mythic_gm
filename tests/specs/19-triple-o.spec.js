@@ -117,8 +117,8 @@ describe('Triple-O — tab UI', () => {
     return tripleO().chars[tripleO().chars.length - 1];
   };
 
-  it('is the last tab and renders the check, the tables and the Trait Sheets', () => {
-    expect(TABS[TABS.length - 1].id).toBe('tripleO');
+  it('is just before Character Arc and renders the check, the tables and the Trait Sheets', () => {
+    expect(TABS[TABS.length - 2].id).toBe('tripleO');
     const host = showTab('tripleO');
     expect(host).toContain('Triple-O Check');
     expect(host).toContain('Random tables');

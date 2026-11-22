@@ -26,6 +26,10 @@ function renderSettingsShellHtml(){
     <button class="btn small settings-close" id="settingsClose" title="Close" aria-label="Close">&times;</button>
     <h2 class="tool-title" id="settingsTitle">Settings</h2>
     <section class="settings-section">
+      <h3 class="block-title">Tabs</h3>
+      <div id="settingsTabs"></div>
+    </section>
+    <section class="settings-section">
       <h3 class="block-title">Theme</h3>
       <div class="field">
         <label for="themeSelect">Color and font theme</label>
@@ -95,7 +99,34 @@ function renderInspirationEditorHtml(){
     </div>`;
 }
 
+// The Tabs section: one checkbox per tab, by tab group. A cleared box hides
+// the tab (campaign().ui.hidden, via setTabShown() in 04). The last shown
+// tab cannot be cleared. Rebuilt with the table editors, so it follows a
+// campaign switch.
+function renderSettingsTabs(){
+  const host = document.getElementById('settingsTabs');
+  if(!host) return;
+  const last = shownTabs().length <= 1;
+  host.innerHTML = `
+    <div class="small-note">Clear a box to hide that tab. Its data stays in the campaign &ldquo;${escapeAttr(STORE.current)}&rdquo;; each campaign has its own list.</div>
+    ${TAB_GROUPS.map(g => `<fieldset class="settings-tabs-group">
+      <legend>${g.label}</legend>
+      ${TABS.filter(t => t.group === g.id).map(t => {
+        const on = !hiddenTabs.has(t.id);
+        return `<label class="settings-tab-check"><input type="checkbox" id="settingsTab_${t.id}" data-settings-tab="${t.id}" ${on ? 'checked' : ''} ${on && last ? 'disabled title="At least one tab stays shown"' : ''}> ${escapeAttr(t.label)}</label>`;
+      }).join('')}
+    </fieldset>`).join('')}`;
+  host.querySelectorAll('[data-settings-tab]').forEach(box => box.addEventListener('change', () => {
+    const id = box.dataset.settingsTab;
+    if(!setTabShown(id, box.checked)){ box.checked = true; return; }
+    // setTabShown() re-rendered this section: put the focus back on the same box.
+    const again = document.getElementById('settingsTab_' + id);
+    if(again) again.focus();
+  }));
+}
+
 function renderSettingsTables(){
+  renderSettingsTabs();
   const host = document.getElementById('settingsTables');
   if(!host) return;
   const c = campaign();

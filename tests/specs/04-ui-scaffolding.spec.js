@@ -55,9 +55,9 @@ describe('UI scaffolding', () => {
       const key = k => $('#tabNav button[data-tab="' + currentTab + '"]').dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
       key('ArrowRight'); expect(currentTab).toBe('pub');
       key('ArrowLeft');  expect(currentTab).toBe('gme');
-      key('ArrowLeft');  expect(currentTab).toBe('tripleO');
+      key('ArrowLeft');  expect(currentTab).toBe('arc');
       key('Home');       expect(currentTab).toBe('gme');
-      key('End');        expect(currentTab).toBe('tripleO');
+      key('End');        expect(currentTab).toBe('arc');
     });
     it('the tab header has no "Open beside…" select', () => {
       showTab('gm');
@@ -288,7 +288,7 @@ describe('UI scaffolding', () => {
     it('sanitizeUi() keeps only strings, dedupes the intros, and clamps `at`', () => {
       expect(sanitizeUi(null)).toEqual(freshUi());
       expect(sanitizeUi({ currentTab: 'gm', rightTab: 'gm', intros: ['a', 'a', 3, ''], at: 12.4 }))
-        .toEqual({ currentTab: 'gm', rightTab: null, intros: ['a'], at: 12 });
+        .toEqual({ currentTab: 'gm', rightTab: null, intros: ['a'], hidden: [], at: 12 });
       expect(sanitizeCampaign({ ui: { currentTab: 'pub' } }).ui.currentTab).toBe('pub');
     });
 
